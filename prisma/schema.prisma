@@ -1,0 +1,584 @@
+// Rihana Nursery — data model
+//
+// Design rules enforced here:
+//  - All primary keys are cuid2: non-sequential, non-guessable public IDs (no IDOR by counting).
+//  - `Guardianship` is the single source of truth for what a parent may see. Every scoped
+//    query in lib/data/ resolves through it.
+//  - Photo visibility is derived from PhotoTag + Photo.visibility. Album membership is
+//    presentation only and never grants access.
+//  - Indexes marked HOT PATH back a specific paginated screen; do not drop them.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7: connection URLs live in prisma.config.ts, and the runtime client is
+// constructed with a driver adapter (see src/lib/db.ts).
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+enum Role {
+  OWNER
+  TEACHER
+  PARENT
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id           String     @id @default(cuid(2))
+  email        String     @unique // always stored lowercased
+  passwordHash String? // null while status = INVITED
+  name         String
+  phone        String?
+  role         Role
+  status       UserStatus @default(INVITED)
+
+  // Notification preferences (§24). Denormalised: they are three booleans, not an entity.
+  emailNewPhotos     Boolean @default(true)
+  emailAnnouncements Boolean @default(true)
+  emailPickupUpdates Boolean @default(true)
+
+  // Invite / reset tokens are stored hashed; the raw token only ever exists in the email.
+  inviteTokenHash String?   @unique
+  inviteExpiresAt DateTime?
+  resetTokenHash  String?   @unique
+  resetExpiresAt  DateTime?
+
+  // Login throttling (§55). Complements the IP-based RateLimit table.
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  sessions           Session[]
+  guardianships      Guardianship[]
+  teacherAssignments TeacherAssignment[]
+  notifications      Notification[]
+  outboundEmails     OutboundEmail[]
+  auditLogs          AuditLog[]          @relation("AuditActor")
+
+  uploadSessions      UploadSession[]
+  uploadedPhotos      Photo[]             @relation("PhotoUploader")
+  photoTagsCreated    PhotoTag[]          @relation("PhotoTagger")
+  albumsCreated       Album[]             @relation("AlbumCreator")
+  announcements       Announcement[]
+  pickupPersonsAdded  PickupPerson[]      @relation("PickupAddedBy")
+  pickupPersonsReview PickupPerson[]      @relation("PickupReviewedBy")
+  inquiriesHandled    Inquiry[]
+
+  @@index([role, status])
+  @@index([status])
+  @@map("users")
+}
+
+/// Server-side sessions (§39: no JWTs). `id` is the SHA-256 of the session token,
+/// so a database leak does not yield usable session tokens.
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  ipHash    String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// Postgres-backed fixed-window rate limiting (§55) so we need no Redis.
+/// `key` is e.g. "login:ip:<sha256>" or "login:email:<sha256>" — never a raw identifier.
+model RateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+  @@map("rate_limits")
+}
+
+// ---------------------------------------------------------------------------
+// Nursery structure
+// ---------------------------------------------------------------------------
+
+model Class {
+  id           String    @id @default(cuid(2))
+  name         String
+  slug         String    @unique
+  ageGroupKey  String // toddlers | preschool | prek — joins to the marketing Programs copy
+  academicYear String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  archivedAt   DateTime?
+
+  children      Child[]
+  teachers      TeacherAssignment[]
+  photos        Photo[]
+  albums        Album[]
+  announcements Announcement[]
+  uploadSession UploadSession[]
+
+  @@index([archivedAt])
+  @@map("classes")
+}
+
+/// Teacher -> class. This table alone decides what a teacher may manage (§52).
+model TeacherAssignment {
+  id        String   @id @default(cuid(2))
+  userId    String
+  classId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classId])
+  @@index([classId])
+  @@map("teacher_assignments")
+}
+
+enum ChildStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Child {
+  id          String      @id @default(cuid(2))
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime    @db.Date
+  classId     String?
+  status      ChildStatus @default(ACTIVE)
+
+  /// When false, the child may not be tagged in new photos and is excluded from
+  /// class-album distribution. Existing photos stay visible to their own guardians.
+  photoConsent Boolean @default(true)
+
+  allergiesNote String?
+  enrolledAt    DateTime  @default(now())
+  leftAt        DateTime?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+  deletedAt  DateTime?
+
+  class         Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+  guardianships Guardianship[]
+  photoTags     PhotoTag[]
+  pickupPersons PickupPerson[]
+  auditLogs     AuditLog[]
+
+  @@index([classId, status])
+  @@index([status])
+  @@map("children")
+}
+
+enum GuardianRelationship {
+  MOTHER
+  FATHER
+  GUARDIAN
+  OTHER
+}
+
+/// Parent <-> child, many-to-many. THE authorization edge for the whole parent zone.
+/// If a row is not here, the parent sees nothing about that child. Ever.
+model Guardianship {
+  id           String               @id @default(cuid(2))
+  parentUserId String
+  childId      String
+  relationship GuardianRelationship @default(GUARDIAN)
+  isPrimary    Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+
+  parent User  @relation(fields: [parentUserId], references: [id], onDelete: Cascade)
+  child  Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([parentUserId, childId])
+  @@index([parentUserId])
+  @@index([childId])
+  @@map("guardianships")
+}
+
+// ---------------------------------------------------------------------------
+// Photos
+// ---------------------------------------------------------------------------
+
+enum UploadSessionStatus {
+  DRAFT
+  PROCESSING
+  PUBLISHED
+  FAILED
+}
+
+/// One admin/teacher upload batch. This is the boundary that makes "one email per
+/// publish event, never one per photo" (§23) expressible.
+model UploadSession {
+  id             String              @id @default(cuid(2))
+  uploaderUserId String
+  classId        String?
+  status         UploadSessionStatus @default(DRAFT)
+  photoCount     Int                 @default(0)
+  publishedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  uploader User   @relation(fields: [uploaderUserId], references: [id], onDelete: Cascade)
+  class    Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
+  photos   Photo[]
+
+  @@index([uploaderUserId, status])
+  @@index([status, createdAt])
+  @@map("upload_sessions")
+}
+
+enum PhotoVisibility {
+  /// Visible only to guardians of children tagged in it.
+  TAGGED_ONLY
+  /// Additionally visible to every guardian of the photo's class.
+  CLASS_ALBUM
+}
+
+enum PhotoStatus {
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+  /// Failed magic-byte / re-encode validation. Never served.
+  QUARANTINED
+}
+
+model Photo {
+  id              String  @id @default(cuid(2))
+  uploadSessionId String
+  uploadedByUserId String
+  classId         String?
+
+  // Object-storage keys. Binaries never touch this database (§38).
+  storageKeyOriginal String
+  storageKeyWeb      String?
+  storageKeyThumb    String?
+
+  mimeType       String
+  byteSize       Int
+  width          Int?
+  height         Int?
+  /// Of the re-encoded original. Also the dedupe key within a batch.
+  checksumSha256 String
+
+  visibility PhotoVisibility @default(TAGGED_ONLY)
+  status     PhotoStatus     @default(UPLOADED)
+
+  caption     String?
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+  deletedAt   DateTime?
+
+  uploadSession UploadSession @relation(fields: [uploadSessionId], references: [id], onDelete: Cascade)
+  uploadedBy    User          @relation("PhotoUploader", fields: [uploadedByUserId], references: [id])
+  class         Class?        @relation(fields: [classId], references: [id], onDelete: SetNull)
+  tags          PhotoTag[]
+  albumPhotos   AlbumPhoto[]
+
+  // HOT PATH: class-album feed, keyset paginated.
+  @@index([classId, createdAt(sort: Desc)])
+  @@index([uploadSessionId])
+  @@index([status])
+  @@unique([uploadSessionId, checksumSha256])
+  @@map("photos")
+}
+
+/// Photo <-> child. Drives routing rule (a): a guardian sees every photo tagged
+/// with their own child.
+model PhotoTag {
+  id            String   @id @default(cuid(2))
+  photoId       String
+  childId       String
+  taggedByUserId String
+  /// Denormalised copy of Photo.createdAt. Deliberate: it turns the spec-mandated
+  /// (child_id, created_at) index into a covering index, so a parent's album is
+  /// keyset-paginated straight off this table with no join and no OFFSET.
+  photoCreatedAt DateTime
+  createdAt      DateTime @default(now())
+
+  photo    Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  child    Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  taggedBy User  @relation("PhotoTagger", fields: [taggedByUserId], references: [id])
+
+  @@unique([photoId, childId])
+  // HOT PATH (§73): a single child's album, newest first.
+  @@index([childId, photoCreatedAt(sort: Desc)])
+  @@index([photoId])
+  @@map("photo_tags")
+}
+
+enum AlbumStatus {
+  DRAFT
+  PUBLISHED
+}
+
+/// A named presentation grouping ("Graduation Day 2026"). Membership NEVER grants
+/// access — a parent sees only the subset of an album's photos they are entitled to.
+model Album {
+  id              String      @id @default(cuid(2))
+  title           String
+  description     String?
+  classId         String? // null = whole nursery
+  coverPhotoId    String?
+  eventDate       DateTime?   @db.Date
+  status          AlbumStatus @default(DRAFT)
+  createdByUserId String
+  publishedAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  class     Class?       @relation(fields: [classId], references: [id], onDelete: SetNull)
+  createdBy User         @relation("AlbumCreator", fields: [createdByUserId], references: [id])
+  photos    AlbumPhoto[]
+
+  @@index([classId, eventDate(sort: Desc)])
+  @@index([status, publishedAt(sort: Desc)])
+  @@map("albums")
+}
+
+model AlbumPhoto {
+  albumId   String
+  photoId   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  album Album @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@id([albumId, photoId])
+  @@index([photoId])
+  @@index([albumId, sortOrder])
+  @@map("album_photos")
+}
+
+// ---------------------------------------------------------------------------
+// Communication
+// ---------------------------------------------------------------------------
+
+enum AnnouncementAudience {
+  ALL_NURSERY
+  CLASS
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Announcement {
+  id            String               @id @default(cuid(2))
+  title         String
+  /// Markdown. Rendered through a sanitiser — never dangerouslySetInnerHTML raw (§54).
+  body          String
+  authorUserId  String
+  audience      AnnouncementAudience @default(ALL_NURSERY)
+  classId       String? // required when audience = CLASS; enforced in the Zod schema
+  status        AnnouncementStatus   @default(DRAFT)
+  publishedAt   DateTime?
+  pinnedUntil   DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  deletedAt     DateTime?
+
+  author User   @relation(fields: [authorUserId], references: [id])
+  class  Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@index([classId, publishedAt(sort: Desc)])
+  @@index([status, publishedAt(sort: Desc)])
+  @@map("announcements")
+}
+
+enum NotificationType {
+  NEW_PHOTOS
+  NEW_ANNOUNCEMENT
+  PICKUP_APPROVED
+  PICKUP_REJECTED
+  PICKUP_PENDING_REVIEW
+}
+
+model Notification {
+  id       String           @id @default(cuid(2))
+  userId   String
+  type     NotificationType
+  title    String
+  body     String
+  /// e.g. { childId, childName, photoCount, uploadSessionId }
+  payload  Json?
+  linkPath String
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  /// Idempotency key for queue retries (§74), e.g. "photos:<uploadSessionId>:<childId>".
+  /// The unique constraint below is what makes double-notification impossible.
+  dedupeKey String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  // HOT PATH (§73): unread badge + notification list.
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  /// Recipient has the relevant preference switched off.
+  SUPPRESSED
+}
+
+model OutboundEmail {
+  id                String      @id @default(cuid(2))
+  userId            String?
+  toEmail           String
+  template          String
+  subject           String
+  providerMessageId String?
+  status            EmailStatus @default(QUEUED)
+  error             String?
+  attempts          Int         @default(0)
+  /// Email-level idempotency, independent of Notification.
+  dedupeKey         String      @unique
+  createdAt         DateTime    @default(now())
+  sentAt            DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("outbound_emails")
+}
+
+// ---------------------------------------------------------------------------
+// Pickup authorization
+// ---------------------------------------------------------------------------
+
+enum PickupStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+/// Scoped per child, which is what the door-side "who may pick up whom" board needs.
+/// Created by a parent (with password re-entry, §29) and inert until an owner approves.
+model PickupPerson {
+  id           String       @id @default(cuid(2))
+  childId      String
+  fullName     String
+  relationship String
+  phone        String
+  photoStorageKey String?
+  photoThumbKey   String?
+  status       PickupStatus @default(PENDING)
+
+  addedByUserId    String
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  rejectionReason  String?
+  /// Optional time-boxed authorization (e.g. "grandmother, this week only").
+  expiresAt        DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  child      Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  addedBy    User  @relation("PickupAddedBy", fields: [addedByUserId], references: [id])
+  reviewedBy User? @relation("PickupReviewedBy", fields: [reviewedByUserId], references: [id])
+
+  @@index([childId, status])
+  // HOT PATH: the owner's pending-approval queue.
+  @@index([status, createdAt])
+  @@map("pickup_persons")
+}
+
+// ---------------------------------------------------------------------------
+// Cross-cutting
+// ---------------------------------------------------------------------------
+
+/// Append-only. Covers admin actions (§59) and every pickup-authorization change (§30).
+/// Nothing in the application layer updates or deletes rows here.
+model AuditLog {
+  id          String  @id @default(cuid(2))
+  actorUserId String? // null = system/queue actor
+  actorRole   Role?
+  /// Dotted verb, e.g. "pickup_person.approved", "child.archived", "photo.published".
+  action      String
+  targetType  String
+  targetId    String
+  /// Denormalised for fast per-child history without a polymorphic join.
+  childId     String?
+  summary     String
+  /// Before/after diff. Scrubbed of password hashes, tokens and storage secrets.
+  metadata    Json?
+  ipHash      String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  actor User?  @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  child Child? @relation(fields: [childId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([targetType, targetId, createdAt(sort: Desc)])
+  @@index([childId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  TOURED
+  ENROLLED
+  CLOSED
+}
+
+/// Public admissions form. Rate-limited and honeypot-protected at the route.
+model Inquiry {
+  id                 String        @id @default(cuid(2))
+  parentName         String
+  email              String
+  phone              String?
+  childFirstName     String?
+  childDateOfBirth   DateTime?     @db.Date
+  preferredStartDate DateTime?     @db.Date
+  message            String?
+  status             InquiryStatus @default(NEW)
+  handledByUserId    String?
+  internalNotes      String?
+  /// Hashed, not raw — we need abuse correlation, not visitor IP retention.
+  ipHash             String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  handledBy User? @relation(fields: [handledByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("inquiries")
+}
