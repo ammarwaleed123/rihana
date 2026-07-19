@@ -55,3 +55,6 @@ next-env.d.ts
 /playwright-report
 /blob-report
 /playwright/.cache
+
+# screenshots (regenerate with: npx tsx scripts/screenshot.ts)
+/screenshots

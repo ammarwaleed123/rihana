@@ -21,6 +21,22 @@ async function signIn(page: Page, email: string) {
   await page.waitForURL(/\/(portal|admin)/);
 }
 
+/**
+ * Admin lists render twice: a table above `md` and stacked cards below, with the
+ * inactive variant hidden by CSS rather than removed from the DOM. Both are
+ * therefore matched by text selectors, so these helpers narrow to whichever one
+ * is actually on screen — letting the same assertions run on both viewports.
+ */
+function visibleText(page: Page, text: string) {
+  return page.getByText(text).filter({ visible: true });
+}
+
+function manageLink(page: Page, fullName: string) {
+  return page
+    .getByRole("link", { name: `Manage ${fullName}` })
+    .filter({ visible: true });
+}
+
 test.describe("owner: classes", () => {
   test("sees every class with child and teacher counts", async ({ page }) => {
     await signIn(page, OWNER);
@@ -58,7 +74,7 @@ test.describe("owner: children", () => {
     await page.getByLabel("Date of birth").fill("2023-03-15");
     await page.getByRole("button", { name: "Add child" }).click();
 
-    await expect(page.getByText(`Sara ${last}`)).toBeVisible();
+    await expect(visibleText(page, `Sara ${last}`)).toBeVisible();
   });
 
   test("rejects a future date of birth", async ({ page }) => {
@@ -79,7 +95,7 @@ test.describe("owner: children", () => {
     await page.goto("/admin/children");
 
     // The seed leaves newly created children unlinked, so this warning must show.
-    await expect(page.getByText("None linked").first()).toBeVisible();
+    await expect(visibleText(page, "None linked").first()).toBeVisible();
   });
 });
 
@@ -89,8 +105,8 @@ test.describe("teacher scoping — the core promise", () => {
     await page.goto("/admin/children");
 
     // Sunflowers children.
-    await expect(page.getByText("Laila Saeed")).toBeVisible();
-    await expect(page.getByText("Zayn Rahman")).toBeVisible();
+    await expect(visibleText(page, "Laila Saeed")).toBeVisible();
+    await expect(visibleText(page, "Zayn Rahman")).toBeVisible();
 
     // Olives children must be absent entirely — not merely unlinked.
     await expect(page.getByText("Hana Aziz")).toHaveCount(0);
@@ -114,11 +130,7 @@ test.describe("teacher scoping — the core promise", () => {
     // Find a child the teacher must not see, as the owner.
     await signIn(page, OWNER);
     await page.goto("/admin/children");
-    const hanaLink = page
-      .getByRole("row")
-      .filter({ hasText: "Hana Aziz" })
-      .getByRole("link", { name: "Manage" });
-    const href = await hanaLink.getAttribute("href");
+    const href = await manageLink(page, "Hana Aziz").getAttribute("href");
     expect(href).toBeTruthy();
 
     // Now become the teacher and request that exact URL.
@@ -246,14 +258,10 @@ test.describe("owner: guardian links", () => {
     await signIn(page, OWNER);
     await page.goto("/admin/children");
 
-    const manage = page
-      .getByRole("row")
-      .filter({ hasText: "Laila Saeed" })
-      .getByRole("link", { name: "Manage" });
-    await manage.click();
+    await manageLink(page, "Laila Saeed").click();
 
     await expect(page.getByRole("heading", { name: "Laila Saeed" })).toBeVisible();
-    await expect(page.getByText("Amal Saeed")).toBeVisible();
+    await expect(visibleText(page, "Amal Saeed").first()).toBeVisible();
 
     // The page must state the consequence of linking, not just offer a control.
     await page.getByRole("button", { name: "Link a guardian" }).click();
@@ -271,8 +279,14 @@ test.describe("owner: guardian links", () => {
     await expect(
       page.getByText("This record cannot be edited or deleted"),
     ).toBeVisible();
-    // Sign-ins from earlier tests are audited, so the log is never empty here.
-    await expect(page.getByRole("table")).toBeVisible();
+
+    // Sign-ins are audited, so the log is never empty by the time this runs.
+    // Asserted by content rather than by <table>, which only renders above `md`.
+    await expect(visibleText(page, "Signed in").first()).toBeVisible();
+
+    // Append-only: the UI offers no way to alter history.
+    await expect(page.getByRole("button", { name: /delete/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /edit/i })).toHaveCount(0);
   });
 });
 
@@ -281,11 +295,7 @@ test.describe("destructive actions", () => {
     await signIn(page, OWNER);
     await page.goto("/admin/children");
 
-    const manage = page
-      .getByRole("row")
-      .filter({ hasText: "Laila Saeed" })
-      .getByRole("link", { name: "Manage" });
-    await manage.click();
+    await manageLink(page, "Laila Saeed").click();
 
     await page.getByRole("button", { name: "Delete permanently" }).click();
     await page.getByLabel(/Type "Laila Saeed" to confirm/).fill("wrong name");
@@ -297,6 +307,6 @@ test.describe("destructive actions", () => {
 
     // And the child is still there.
     await page.goto("/admin/children");
-    await expect(page.getByText("Laila Saeed")).toBeVisible();
+    await expect(visibleText(page, "Laila Saeed")).toBeVisible();
   });
 });

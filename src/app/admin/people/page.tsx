@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { AdminNav } from "@/components/admin/admin-nav";
 import {
   Badge,
+  CardList,
+  CardListItem,
   EmptyState,
   PageHeader,
   SectionTitle,
@@ -159,6 +161,48 @@ export default async function PeoplePage({
             </tbody>
           </Table>
         )}
+
+        <CardList>
+          {staff.map((person) => (
+            <CardListItem
+              key={person.id}
+              title={person.name}
+              badges={statusBadge(person.status)}
+              fields={[
+                { label: "Email", value: person.email },
+                {
+                  label: "Role",
+                  value: person.role === "OWNER" ? "Owner" : "Teacher",
+                },
+                {
+                  label: "Classes",
+                  value:
+                    person.classes.length > 0
+                      ? person.classes.map((c) => c.name).join(", ")
+                      : person.role === "OWNER"
+                        ? "All classes"
+                        : "None yet",
+                },
+              ]}
+              action={
+                person.id === session.user.id ? (
+                  <span className="text-sm text-ink-faint">This is you</span>
+                ) : (
+                  <div className="space-y-2">
+                    {person.status === "INVITED" ? (
+                      <ReissueInviteButton userId={person.id} />
+                    ) : null}
+                    <TogglePersonButton
+                      userId={person.id}
+                      name={person.name}
+                      disabled={person.status === "DISABLED"}
+                    />
+                  </div>
+                )
+              }
+            />
+          ))}
+        </CardList>
       </section>
 
       <section>
@@ -222,6 +266,42 @@ export default async function PeoplePage({
             </tbody>
           </Table>
         )}
+
+        <CardList>
+          {parents.map((person) => (
+            <CardListItem
+              key={person.id}
+              title={person.name}
+              badges={statusBadge(person.status)}
+              fields={[
+                { label: "Email", value: person.email },
+                {
+                  label: "Children",
+                  value:
+                    person.children.length > 0 ? (
+                      person.children
+                        .map((c) => `${c.firstName} ${c.lastName}`)
+                        .join(", ")
+                    ) : (
+                      <Badge tone="yellow">No children linked</Badge>
+                    ),
+                },
+              ]}
+              action={
+                <div className="space-y-2">
+                  {person.status === "INVITED" ? (
+                    <ReissueInviteButton userId={person.id} />
+                  ) : null}
+                  <TogglePersonButton
+                    userId={person.id}
+                    name={person.name}
+                    disabled={person.status === "DISABLED"}
+                  />
+                </div>
+              }
+            />
+          ))}
+        </CardList>
       </section>
     </div>
   );

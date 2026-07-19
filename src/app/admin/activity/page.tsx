@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { AdminNav } from "@/components/admin/admin-nav";
 import {
   Badge,
+  CardList,
+  CardListItem,
   EmptyState,
   PageHeader,
   Table,
@@ -98,6 +100,33 @@ export default async function ActivityPage({
               ))}
             </tbody>
           </Table>
+
+          <CardList>
+            {page.items.map((item) => (
+              <CardListItem
+                key={item.id}
+                title={item.summary}
+                badges={
+                  <Badge tone={toneFor(item.action)}>
+                    {item.action.split(".")[0]}
+                  </Badge>
+                }
+                fields={[
+                  {
+                    label: "When",
+                    value: item.createdAt
+                      .toISOString()
+                      .slice(0, 16)
+                      .replace("T", " "),
+                  },
+                  {
+                    label: "Who",
+                    value: item.actorName ?? "System",
+                  },
+                ]}
+              />
+            ))}
+          </CardList>
 
           {page.hasMore && page.nextCursor ? (
             <div className="mt-6 text-center">

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import {
   Badge,
+  CardList,
+  CardListItem,
   EmptyState,
   PageHeader,
   Table,
@@ -206,6 +208,9 @@ export default async function ChildrenPage({
                     <Td>
                       <Link
                         href={`/admin/children/${child.id}`}
+                        // A column of identical "Manage" links is unusable with
+                        // a screen reader, which lists links out of context.
+                        aria-label={`Manage ${child.firstName} ${child.lastName}`}
                         className="font-semibold text-leaf underline underline-offset-4"
                       >
                         Manage
@@ -216,6 +221,57 @@ export default async function ChildrenPage({
               ))}
             </tbody>
           </Table>
+
+          <CardList>
+            {page.items.map((child) => (
+              <CardListItem
+                key={child.id}
+                title={`${child.firstName} ${child.lastName}`}
+                badges={
+                  <div className="flex flex-wrap gap-1.5">
+                    {child.status === "ARCHIVED" ? (
+                      <Badge tone="neutral">Left</Badge>
+                    ) : null}
+                    {child.photoConsent ? (
+                      <Badge tone="green">Consent</Badge>
+                    ) : (
+                      <Badge tone="coral">No consent</Badge>
+                    )}
+                  </div>
+                }
+                fields={[
+                  { label: "Age", value: ageFrom(child.dateOfBirth) },
+                  {
+                    label: "Class",
+                    value: child.class?.name ?? (
+                      <span className="text-ink-faint">Unassigned</span>
+                    ),
+                  },
+                  {
+                    label: "Guardians",
+                    value:
+                      child.guardians.length === 0 ? (
+                        <Badge tone="yellow">None linked</Badge>
+                      ) : (
+                        child.guardians.map((g) => g.name).join(", ")
+                      ),
+                  },
+                ]}
+                action={
+                  isOwner ? (
+                    <Link
+                      href={`/admin/children/${child.id}`}
+                      // Matches the table variant's accessible name.
+                      aria-label={`Manage ${child.firstName} ${child.lastName}`}
+                      className="inline-block rounded-full border-2 border-ink/15 px-5 py-2 font-bold text-leaf transition-colors hover:border-leaf"
+                    >
+                      Manage {child.firstName}
+                    </Link>
+                  ) : undefined
+                }
+              />
+            ))}
+          </CardList>
 
           {page.hasMore && page.nextCursor ? (
             <div className="mt-6 text-center">

@@ -101,15 +101,61 @@ export function Badge({
   );
 }
 
+/**
+ * Table for medium screens and up.
+ *
+ * Hidden below `md` on purpose. A six-column roster inside a horizontally
+ * scrolling container looked fine in tests but is unusable on a phone: the
+ * rightmost column — which is where the action link lives — sits off-screen
+ * with no visible affordance that it is there at all. Narrow screens get
+ * `CardList` instead, which keeps every field and action reachable.
+ */
 export function Table({ children }: { children: ReactNode }) {
   return (
-    // Wide tables scroll inside their own container; the page body never
-    // scrolls horizontally.
-    <div className="overflow-x-auto rounded-2xl border border-ink/10 bg-card shadow-pin">
+    <div className="hidden overflow-x-auto rounded-2xl border border-ink/10 bg-card shadow-pin md:block">
       <table className="w-full min-w-[40rem] border-collapse text-left">
         {children}
       </table>
     </div>
+  );
+}
+
+/** Stacked card equivalent of a table row, shown below `md`. */
+export function CardList({ children }: { children: ReactNode }) {
+  return <ul className="space-y-3 md:hidden">{children}</ul>;
+}
+
+export function CardListItem({
+  title,
+  badges,
+  fields,
+  action,
+}: {
+  title: ReactNode;
+  badges?: ReactNode;
+  fields: Array<{ label: string; value: ReactNode }>;
+  action?: ReactNode;
+}) {
+  return (
+    <li className="rounded-2xl border border-ink/10 bg-card p-4 shadow-pin">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="font-display text-lg font-semibold">{title}</p>
+        {badges}
+      </div>
+
+      <dl className="mt-3 space-y-1.5 text-sm">
+        {fields.map((field) => (
+          <div key={field.label} className="flex gap-2">
+            <dt className="min-w-24 shrink-0 font-bold text-ink-soft">
+              {field.label}
+            </dt>
+            <dd className="min-w-0">{field.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {action ? <div className="mt-4">{action}</div> : null}
+    </li>
   );
 }
 
