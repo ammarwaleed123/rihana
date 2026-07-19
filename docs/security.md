@@ -112,9 +112,18 @@ in the application layer updates or deletes these rows.
 
 ### Privacy
 
-When a child leaves, the admin can archive or fully delete them. Deletion cascades
-through photo tags, pickup persons, and — via a queued job — the underlying objects
-in storage. Photos are excluded from search indexing at the header level.
+Two distinct paths, because they answer different requests:
+
+- **Archive** — the child has left. Reversible, and photos stay available to
+  their guardians, which is what families usually want.
+- **Delete** — the family has asked to be erased. Removes the child record,
+  every guardian link, their pickup list, and any photo showing *only* that
+  child. Photos that also show other children are deliberately kept, since
+  destroying them would erase another family's record too. Requires the child's
+  full name typed exactly, checked server-side. Storage objects are purged by a
+  queued job (wired in Phase 3).
+
+Photos are excluded from search indexing at the header level.
 
 ---
 

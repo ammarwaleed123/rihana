@@ -64,7 +64,14 @@ export type AuditEntry = {
   /** Set whenever the action concerns a child — enables per-child history. */
   childId?: string | null;
   actor?: { id: string; role: Role } | null;
-  metadata?: Prisma.InputJsonValue | null;
+  /**
+   * Arbitrary structured context (before/after diffs, counts).
+   *
+   * Typed loosely on purpose so callers can pass plain objects; it is scrubbed
+   * and cast to Prisma's JSON type at the write below. Never put a token,
+   * password hash or signed URL in here — see REDACTED_KEYS.
+   */
+  metadata?: Record<string, unknown> | null;
   ipHash?: string | null;
   userAgent?: string | null;
 };
@@ -120,9 +127,11 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
         childId: entry.childId ?? null,
         actorUserId: entry.actor?.id ?? null,
         actorRole: entry.actor?.role ?? null,
-        metadata: (scrub(entry.metadata ?? null) ?? undefined) as
-          | Prisma.InputJsonValue
-          | undefined,
+        // Scrubbed above; the cast is the boundary between our loose input type
+        // and Prisma's JSON type.
+        metadata: entry.metadata
+          ? (scrub(entry.metadata) as Prisma.InputJsonValue)
+          : undefined,
         ipHash: entry.ipHash ?? null,
         userAgent: entry.userAgent?.slice(0, 255) ?? null,
       },

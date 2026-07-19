@@ -37,6 +37,28 @@ src/lib/auth/scope.ts
   assertCanManageClass(session, classId)
 ```
 
+### Who may do what
+
+| Action | Owner | Teacher | Parent |
+|---|---|---|---|
+| View children | all | own classes only | own children (portal) |
+| Create / edit / archive children | yes | no | no |
+| Delete a child permanently | yes | no | no |
+| Create / edit / archive classes | yes | no | no |
+| Assign teachers to classes | yes | no | no |
+| Invite or disable accounts | yes | no | no |
+| Link or unlink guardians | yes | no | no |
+| Read the audit log | yes | no | no |
+
+Writes to people, classes and guardianships are owner-only on purpose: each of
+them changes *who can see photographs of a child*, which is the owner's decision
+as the data controller. Teachers get read access to their own classes plus, from
+Phase 3, photo upload and tagging within them.
+
+Navigation hides what a teacher cannot use, but hiding a link is never the
+control — every owner-only page re-checks the role and redirects, and every
+scoped read filters in the query.
+
 ### Photo routing (the flagship rule)
 
 A parent's album is exactly:

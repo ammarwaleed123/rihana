@@ -1,33 +1,126 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
+import { AdminNav } from "@/components/admin/admin-nav";
+import { Card, PageHeader } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getOverviewStats } from "@/lib/data/activity";
+import { countChildren } from "@/lib/data/children";
+import { listClassesForSession } from "@/lib/data/classes";
 
 export const metadata: Metadata = {
   title: "Admin",
   robots: { index: false, follow: false },
 };
 
-/**
- * Admin dashboard placeholder. Children, classes, accounts and photo management
- * are built in Phases 2 and 3.
- */
+function Stat({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: number | string;
+  href?: string;
+}) {
+  const body = (
+    <>
+      <p className="font-display text-4xl font-semibold text-leaf">{value}</p>
+      <p className="mt-1 text-sm font-semibold text-ink-soft">{label}</p>
+    </>
+  );
+
+  return (
+    <Card className="text-center">
+      {href ? (
+        <Link href={href} className="block hover:opacity-80">
+          {body}
+        </Link>
+      ) : (
+        body
+      )}
+    </Card>
+  );
+}
+
 export default async function AdminHome() {
   const session = await requireStaff("/admin");
+  const isOwner = session.user.role === "OWNER";
+
+  const [stats, classes, childCount] = await Promise.all([
+    isOwner ? getOverviewStats(session) : Promise.resolve(null),
+    listClassesForSession(session),
+    countChildren(session),
+  ]);
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold">Hello, {session.user.name}</h1>
-      <p className="mt-2 text-ink-soft">
-        {session.user.role === "OWNER"
-          ? "You have access to the whole nursery."
-          : "You have access to the classes you are assigned to."}
-      </p>
+      <AdminNav current="/admin" role={session.user.role} />
 
-      <div className="mt-8 rounded-2xl border border-ink/10 bg-card p-6 shadow-pin">
-        <p className="text-ink-soft">
-          Children, classes, parent accounts and photo uploads arrive in Phases 2
-          and 3.
-        </p>
+      <PageHeader
+        title={`Hello, ${session.user.name}`}
+        description={
+          isOwner
+            ? "You have access to the whole nursery."
+            : "You have access to the classes you are assigned to."
+        }
+      />
+
+      {isOwner && stats ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat label="Children enrolled" value={stats.children} href="/admin/children" />
+            <Stat label="Classes" value={stats.classes} href="/admin/classes" />
+            <Stat label="Parent accounts" value={stats.parents} href="/admin/people" />
+            <Stat
+              label="Invitations pending"
+              value={stats.pendingInvites}
+              href="/admin/people"
+            />
+          </div>
+
+          {stats.unlinkedChildren > 0 ? (
+            // The most consequential thing to surface: photos of these children
+            // reach nobody, and it fails silently otherwise.
+            <div className="mt-6 rounded-2xl border-2 border-sun/60 bg-sun-soft px-5 py-4">
+              <p className="font-bold">
+                {stats.unlinkedChildren}{" "}
+                {stats.unlinkedChildren === 1 ? "child has" : "children have"} no
+                guardian linked
+              </p>
+              <p className="mt-1 text-sm text-ink-soft">
+                Nobody receives their photos.{" "}
+                <Link
+                  href="/admin/children"
+                  className="font-semibold text-leaf underline underline-offset-4"
+                >
+                  Review children
+                </Link>
+              </p>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Stat label="Your classes" value={classes.length} href="/admin/classes" />
+          <Stat label="Children in your classes" value={childCount} href="/admin/children" />
+        </div>
+      )}
+
+      <div className="mt-8 grid gap-5 md:grid-cols-2">
+        <Card>
+          <h2 className="font-display text-xl font-semibold">Photos</h2>
+          <p className="mt-2 text-ink-soft">
+            Uploading and tagging arrives in Phase 3. Storage is configured and
+            verified.
+          </p>
+        </Card>
+
+        <Card>
+          <h2 className="font-display text-xl font-semibold">Pickup approvals</h2>
+          <p className="mt-2 text-ink-soft">
+            Reviewing who may collect each child arrives in Phase 6.
+          </p>
+        </Card>
       </div>
     </div>
   );

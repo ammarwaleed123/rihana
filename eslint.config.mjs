@@ -37,26 +37,33 @@ const eslintConfig = defineConfig([
     // forgotten `where` clause in one page leaks another family's photos.
     files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": [
+      // The base rule is disabled in favour of the TypeScript-aware one, which
+      // understands `import type`.
+      "no-restricted-imports": "off",
+      "@typescript-eslint/no-restricted-imports": [
         "error",
         {
+          // `allowTypeImports` sits on each entry, not at the top level.
+          //
+          // Type-only imports are erased at compile time — they cannot pull the
+          // Prisma client into a bundle, and components legitimately need the
+          // generated enums (Role, ChildStatus) to type their props. Value
+          // imports stay banned, which is what the boundary is actually about.
           paths: [
             {
               name: "@/lib/db",
+              // No exception here: there is no such thing as a harmless
+              // type-only import of the live client instance.
               message:
                 "Do not query the database from a component. Add a scoped function to src/lib/data/ and call that instead — see docs/architecture.md.",
-            },
-            {
-              name: "@/generated/prisma",
-              message:
-                "Import Prisma types from @/lib/data or @/lib/types, never the client itself, from a component.",
             },
           ],
           patterns: [
             {
               group: ["**/generated/prisma", "@prisma/client"],
+              allowTypeImports: true,
               message:
-                "The Prisma client is confined to src/lib/data/. See docs/architecture.md.",
+                "The Prisma client is confined to src/lib/data/. Import types with `import type`, never the client itself. See docs/architecture.md.",
             },
           ],
         },
@@ -79,6 +86,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/data/**/*.ts", "src/lib/db.ts", "prisma/**/*.ts"],
     rules: {
       "no-restricted-imports": "off",
+      "@typescript-eslint/no-restricted-imports": "off",
     },
   },
 ]);
