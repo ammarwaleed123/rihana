@@ -56,3 +56,51 @@ jobs:
           DIRECT_URL: postgresql://build:build@localhost:5432/build
           SESSION_SECRET: ci-build-placeholder-secret-value-32-chars-min
           EMAIL_FROM: ci@example.com
+
+  # End-to-end tests need a real Postgres and a running server. Kept as a
+  # separate job so a lint failure reports in seconds rather than minutes.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rihana_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_URL: http://localhost:3210
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rihana_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/rihana_test
+      SESSION_SECRET: ci-e2e-placeholder-secret-value-32-chars-minimum
+      EMAIL_FROM: ci@example.com
+      STORAGE_DRIVER: local
+      EMAIL_DRIVER: console
+      SEED_OWNER_PASSWORD: ChangeMe!Local123
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx tsx prisma/seed.ts
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npx playwright test
+

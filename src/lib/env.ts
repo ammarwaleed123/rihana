@@ -64,7 +64,18 @@ const schema = z
     MAX_UPLOAD_BYTES: positiveInt(15 * 1024 * 1024),
     MAX_UPLOAD_FILES_PER_BATCH: positiveInt(200),
 
+    /** Per-account attempts. Tight: this is the anti-credential-stuffing control. */
     RATE_LIMIT_LOGIN_MAX: positiveInt(8),
+    /**
+     * Per-IP attempts. Deliberately much looser than the per-account limit.
+     *
+     * Whole households share one NAT, and every device inside the nursery shares
+     * the office IP. Setting this near the per-account value means one parent
+     * mistyping their password locks out everyone behind the same router. The
+     * per-account bucket is the precise control; this one exists only to stop a
+     * single host spraying many different accounts.
+     */
+    RATE_LIMIT_LOGIN_IP_MAX: positiveInt(50),
     RATE_LIMIT_LOGIN_WINDOW_SECONDS: positiveInt(900),
     RATE_LIMIT_INQUIRY_MAX: positiveInt(5),
     RATE_LIMIT_INQUIRY_WINDOW_SECONDS: positiveInt(3600),

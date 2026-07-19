@@ -1,0 +1,68 @@
+"use client";
+
+import Link from "next/link";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
+
+import { Alert, Button, Field, Input } from "@/components/ui/form";
+import { signInAction, type ActionState } from "@/lib/auth/actions";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending ? "Signing in…" : "Sign in"}
+    </Button>
+  );
+}
+
+export function SignInForm({ next }: { next?: string }) {
+  const [state, formAction] = useActionState<ActionState, FormData>(
+    signInAction,
+    {},
+  );
+
+  return (
+    <form action={formAction} className="space-y-5" noValidate>
+      {next ? <input type="hidden" name="next" value={next} /> : null}
+
+      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
+
+      <Field label="Email" htmlFor="email">
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="username"
+          inputMode="email"
+          required
+          autoFocus
+          aria-invalid={state.error ? true : undefined}
+        />
+      </Field>
+
+      <Field label="Password" htmlFor="password">
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+          aria-invalid={state.error ? true : undefined}
+        />
+      </Field>
+
+      <SubmitButton />
+
+      <p className="text-center text-sm">
+        <Link
+          href="/forgot-password"
+          className="font-semibold text-leaf underline underline-offset-4"
+        >
+          Forgot your password?
+        </Link>
+      </p>
+    </form>
+  );
+}

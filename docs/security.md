@@ -59,14 +59,21 @@ ever served from the application origin.
 
 ### Authentication
 
-- argon2id password hashing.
+- argon2id password hashing, OWASP parameters (m=19456 KiB, t=2, p=1).
 - Sessions are server-side rows in Postgres; the cookie holds a random 32-byte
   token and the database stores only its SHA-256, so a database leak yields no
   usable sessions.
-- Cookies are `httpOnly`, `Secure` (production), `SameSite=Lax`.
+- Cookies are `httpOnly`, `Secure` (production), `SameSite=Lax`, and carry the
+  `__Host-` prefix in production so no subdomain can overwrite the session.
 - Session ID is rotated on login and on any privilege change.
-- Rate limits on login, invite acceptance and password reset, keyed on both IP and
-  account.
+- Rate limits on login, invite acceptance and password reset, keyed on both IP
+  and account — with **deliberately different limits**. The per-account bucket is
+  tight (8 per 15 min) because that is what stops someone guessing one family's
+  password. The per-IP bucket is far looser (50 per 15 min) because a whole
+  household shares one NAT and every device in the nursery shares the office
+  address; sizing them equally turned out to mean one parent mistyping their
+  password locked out everyone behind the same router. Found by the end-to-end
+  test `a different address is unaffected by another's exhausted bucket`.
 - Failed logins return one generic message regardless of cause.
 - **No open registration.** Parent accounts are created by the owner and activated
   through a single-use, expiring invite token stored hashed.

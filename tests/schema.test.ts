@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -19,7 +19,6 @@ const schema = readFileSync(
 );
 
 const migrationSql = (() => {
-  const { readdirSync } = require("node:fs") as typeof import("node:fs");
   const dir = resolve(process.cwd(), "prisma/migrations");
   const migrations = readdirSync(dir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

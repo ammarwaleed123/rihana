@@ -17,6 +17,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // The real package throws outside Next's "react-server" condition. Its
+      // guarantee is enforced at build time, so a no-op is correct here.
+      "server-only": fileURLToPath(
+        new URL("./tests/stubs/server-only.ts", import.meta.url),
+      ),
     },
   },
 });
