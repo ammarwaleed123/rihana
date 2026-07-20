@@ -1,0 +1,18 @@
+{
+  // Config for the background worker, which runs under tsx as a plain Node
+  // process rather than inside Next's bundler.
+  //
+  // The only difference from the main config is the `server-only` alias. That
+  // package throws unless it is resolved through React's "react-server" export
+  // condition, which only Next sets — but its guarantee (this module never
+  // reaches a client bundle) is enforced at build time by Next, and the worker
+  // has no client bundle at all. Aliasing it to a no-op here removes a false
+  // failure without weakening anything that ships.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "server-only": ["./src/lib/jobs/server-only-shim.ts"]
+    }
+  }
+}

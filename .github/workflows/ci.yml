@@ -102,5 +102,9 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
+      # The worker generates thumbnails; without it photos stay in PROCESSING.
+      - name: Start background worker
+        run: npm run worker &
+
       - run: npx playwright test
 

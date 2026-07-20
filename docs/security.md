@@ -54,8 +54,31 @@ ever served from the application origin.
    client-supplied `Content-Type`.
 3. The image is fully re-encoded by sharp. The bytes stored are ours, not the
    uploader's — this is what actually defuses a polyglot or malformed file.
-4. All metadata, including GPS EXIF, is stripped in the same pass.
-5. Anything sharp cannot decode is marked `QUARANTINED` and never served.
+4. All metadata, including GPS EXIF, is stripped in the same pass. `sharp` drops
+   it by default, so the guarantee is the *absence* of a `.withMetadata()` call;
+   adding one anywhere in `src/lib/images/process.ts` would silently reintroduce
+   camera serial numbers and the coordinates a photo was taken at.
+5. EXIF orientation is applied before metadata is discarded, or every portrait
+   phone photo would arrive sideways.
+6. Decompression bombs are capped at 60 megapixels.
+7. Anything sharp cannot decode is marked `QUARANTINED` and never served.
+
+Verified two ways: `tests/image-processing.test.ts` asserts the processing
+function strips metadata, and `scripts/verify-photo-privacy.ts` downloads the
+objects **actually in the bucket** and confirms none of them carries EXIF, XMP,
+IPTC or GPS markers. The second is the one that matters to a family.
+
+### Photo delivery
+
+`/api/img/<photoId>` is the only route that serves image bytes, and it does
+three things in a fixed order: authenticate, ask the data layer whether this
+person may see this photo, and only then mint a signed URL with a 300-second
+TTL. An unauthorized id returns 404 before any storage call is made.
+
+`src/lib/data/photo-filter.ts` holds the routing rule and imports nothing at
+all — not the database client, not the environment. The most consequential rule
+in the application is testable without a connection string, so there is never an
+excuse not to test a change to it.
 
 ### Authentication
 

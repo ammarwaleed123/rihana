@@ -73,6 +73,7 @@ for (const viewport of ["desktop", "mobile"] as const) {
       { path: "/admin/classes", name: "classes" },
       { path: "/admin/people", name: "people" },
       { path: "/admin/activity", name: "activity" },
+      { path: "/admin/photos", name: "photos" },
     ],
     viewport,
   );
@@ -87,7 +88,15 @@ for (const viewport of ["desktop", "mobile"] as const) {
     viewport,
   );
 
-  await capture("parent", "amal@rihana.test", [{ path: "/portal", name: "home" }], viewport);
+  await capture(
+    "parent",
+    "amal@rihana.test",
+    [
+      { path: "/portal", name: "home" },
+      { path: "/portal/albums", name: "albums" },
+    ],
+    viewport,
+  );
 }
 
 await browser.close();

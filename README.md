@@ -18,7 +18,12 @@ cp .env.example .env.local     # then fill in the values
 npm run db:migrate             # apply migrations
 npm run db:seed                # demo classes, children, parents, photos
 npm run dev                    # http://localhost:3000
+npm run worker                 # in a second terminal — processes thumbnails
 ```
+
+The worker is a separate process on purpose: app servers stay stateless, so
+they can be restarted or scaled without losing in-flight work. Without it,
+uploaded photos stay in `PROCESSING` and never get thumbnails.
 
 ## Stack
 
@@ -37,9 +42,9 @@ npm run dev                    # http://localhost:3000
 | Script | Purpose |
 |---|---|
 | `npm run dev` | Development server |
+| `npm run worker` | Background worker — **run this alongside `dev`**, or thumbnails never generate |
 | `npm run build` | Production build |
 | `npm run start` | Serve the production build |
-| `npm run worker` | Background job worker (run as a separate process in production) |
 | `npm run lint` | ESLint, including the data-layer boundary rule |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run test` | Vitest — authorization rules are the critical suite |

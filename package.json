@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "worker": "tsx src/lib/jobs/worker-entry.ts",
+    "worker": "tsx --tsconfig tsconfig.worker.json src/lib/jobs/worker-entry.ts",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

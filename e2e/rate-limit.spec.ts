@@ -12,7 +12,15 @@ import { expect, test } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
 
-const VICTIM = "khalid@rihana.test";
+/*
+ * A dedicated account, used by no other spec.
+ *
+ * These tests deliberately exhaust an account's sign-in allowance, and that
+ * lockout persists for the full fifteen-minute window — which is the product
+ * behaving correctly. Sharing the account with another spec meant that spec
+ * failed much later with an unrelated-looking timeout.
+ */
+const VICTIM = "nour@rihana.test";
 const WRONG = "not-the-right-password";
 
 test("repeated wrong passwords eventually trip the rate limit", async ({

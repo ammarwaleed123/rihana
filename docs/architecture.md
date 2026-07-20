@@ -90,26 +90,34 @@ that resolves to zero photos for them does not appear at all.
 ### Photo upload
 
 ```
-admin browser
-  -> POST /admin/photos/upload      (server action, CSRF + origin checked)
-     - Zod validation, size cap
+staff browser
+  -> POST /admin/photos            (server action, CSRF + origin checked)
+     - size cap checked before the body is read
      - magic-byte sniff (file-type), NOT the extension or client MIME
-     - sharp: re-encode, strip ALL metadata incl. GPS EXIF
-     - PUT original + web variant to private bucket
-     - row: Photo{status: UPLOADED}
+     - sharp: apply EXIF orientation, re-encode, strip ALL metadata
+     - PUT original + web variant to the private bucket
+     - row: Photo{status: PROCESSING}   <- not visible to anyone yet
   -> enqueue photo.process (per photo)
   -> returns immediately; 200 photos never block the request
        |
-worker (pg-boss)
-  photo.process     -> thumbnail, dimensions, Photo{status: READY}
+worker (npm run worker, separate process)
+  photo.process     -> thumbnail, Photo{status: READY}
   notify.photos-published -> fan-out, one Notification per affected parent,
-                             deduped by (userId, dedupeKey)
-  email.send        -> one batched email per parent per publish event
+                             deduped by (userId, dedupeKey)     [Phase 5]
+  storage.purge     -> remove objects after an erasure
+  maintenance       -> sweep expired sessions and rate-limit buckets
 ```
 
-Re-encoding is what actually neutralises a malicious upload: the bytes that land in
-the bucket are produced by sharp, not by the uploader. Anything sharp cannot decode
-is marked `QUARANTINED` and never served.
+Files are handled independently: one unreadable photo among two hundred is
+reported and skipped, not a reason to fail the batch.
+
+Re-encoding is what actually neutralises a malicious upload — the bytes in the
+bucket are sharp's output, not the uploader's. Anything sharp cannot decode is
+marked `QUARANTINED` and never served.
+
+Publishing is a separate, deliberate step. Photos with neither tags nor
+class-album visibility are left unpublished rather than published into the void,
+because silently publishing them would hide a tagging mistake.
 
 ### Image delivery
 
