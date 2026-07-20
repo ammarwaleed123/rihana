@@ -191,12 +191,25 @@ export function NavTabs({
   items: Array<{ href: string; label: string }>;
   current: string;
 }) {
+  /*
+   * The longest matching href wins.
+   *
+   * A plain `startsWith` prefix test lights up the index tab on every page,
+   * because "/admin/classes" starts with "/admin/" too — so both Overview and
+   * Classes appeared selected. Picking the most specific match instead means
+   * exactly one tab is ever current, without special-casing the index route.
+   */
+  const activeHref = items
+    .filter(
+      (item) => current === item.href || current.startsWith(`${item.href}/`),
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   return (
     <nav aria-label="Admin sections" className="mb-8 border-b border-ink/10">
       <ul className="flex flex-wrap gap-1">
         {items.map((item) => {
-          const active =
-            current === item.href || current.startsWith(`${item.href}/`);
+          const active = item.href === activeHref;
 
           return (
             <li key={item.href}>

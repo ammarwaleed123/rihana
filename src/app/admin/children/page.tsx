@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AdminNav } from "@/components/admin/admin-nav";
+import { Alert } from "@/components/ui/form";
+import { LiveFilters } from "@/components/admin/live-filters";
 import {
   Badge,
   CardList,
@@ -39,6 +41,7 @@ export default async function ChildrenPage({
     q?: string;
     cursor?: string;
     archived?: string;
+    deleted?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -75,62 +78,17 @@ export default async function ChildrenPage({
         action={isOwner ? <CreateChildForm classes={classes} /> : undefined}
       />
 
-      <form
-        method="get"
-        className="mb-6 flex flex-wrap items-end gap-3"
-        role="search"
-      >
-        <div className="min-w-48 flex-1">
-          <label htmlFor="q" className="mb-1.5 block text-sm font-bold">
-            Search by name
-          </label>
-          <input
-            id="q"
-            name="q"
-            type="search"
-            defaultValue={params.q ?? ""}
-            placeholder="Laila"
-            className="w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base focus:border-leaf focus:outline-none"
-          />
+      {params.deleted ? (
+        // Confirmation lands here rather than on the child's own page, which
+        // stops existing the moment the deletion succeeds.
+        <div className="mb-6">
+          <Alert tone="success">
+            {params.deleted}&rsquo;s record was permanently deleted.
+          </Alert>
         </div>
+      ) : null}
 
-        <div className="min-w-44">
-          <label htmlFor="classId" className="mb-1.5 block text-sm font-bold">
-            Class
-          </label>
-          <select
-            id="classId"
-            name="classId"
-            defaultValue={params.classId ?? ""}
-            className="w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base focus:border-leaf focus:outline-none"
-          >
-            <option value="">All classes</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <label className="flex items-center gap-2 pb-3 text-sm font-semibold">
-          <input
-            type="checkbox"
-            name="archived"
-            value="1"
-            defaultChecked={params.archived === "1"}
-            className="size-4 accent-[color:var(--color-leaf)]"
-          />
-          Include children who have left
-        </label>
-
-        <button
-          type="submit"
-          className="rounded-full border-2 border-ink/15 bg-card px-5 py-3 font-bold transition-colors hover:border-leaf hover:text-leaf"
-        >
-          Filter
-        </button>
-      </form>
+      <LiveFilters classes={classes} />
 
       {activeFilter ? (
         <p className="mb-4 text-sm text-ink-soft">

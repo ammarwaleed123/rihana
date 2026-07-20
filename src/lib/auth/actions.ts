@@ -58,6 +58,18 @@ function safeRedirectPath(next: string | undefined, fallback: string): string {
   return next;
 }
 
+/**
+ * Sign out whoever currently holds this browser, if anyone.
+ *
+ * Used by the invite and reset flows, where the person completing the form is
+ * not necessarily the person already signed in.
+ */
+async function endCurrentSession(): Promise<void> {
+  const token = await readSessionCookie();
+  if (token) await invalidateSession(token);
+  await clearSessionCookie();
+}
+
 async function requestContext() {
   const headerList = await headers();
   const ip = clientIpFromHeaders(headerList);
@@ -245,8 +257,16 @@ export async function acceptInviteAction(
     userAgent: ctx.userAgent,
   });
 
-  // Deliberately not auto-signed-in: the new password should be exercised once,
-  // and it proves the person knows it rather than merely holding the email link.
+  // End whoever was already signed in on this browser.
+  //
+  // The person accepting an invitation is by definition someone else — commonly
+  // the owner, who created the invitation moments earlier in the same browser.
+  // Leaving that session intact meant the sign-in redirect below saw a valid
+  // owner session and bounced the new parent straight into the admin panel.
+  await endCurrentSession();
+
+  // Deliberately not auto-signed-in: exercising the new password once proves the
+  // person knows it, rather than merely holding the emailed link.
   redirect("/signin?activated=1");
 }
 
@@ -354,6 +374,10 @@ export async function completePasswordResetAction(
     ipHash: ctx.ipHash,
     userAgent: ctx.userAgent,
   });
+
+  // Same reasoning as invite acceptance: a different person may hold this
+  // browser, and their session would otherwise swallow the redirect.
+  await endCurrentSession();
 
   redirect("/signin?reset=1");
 }

@@ -286,15 +286,24 @@ export async function restoreChild(session: Session, childId: string) {
 }
 
 /**
- * Permanently delete a child and everything attached to them.
+ * Erase a child and everything attached to them. Irreversible.
  *
- * This is the privacy requirement: when a family leaves and asks to be erased,
- * the nursery must be able to honour that. Photo tags and pickup persons cascade
- * at the database level. Photo *objects* in storage are removed by a queued job,
- * which Phase 3 wires up — the ids are collected here and returned so the caller
- * can enqueue that work.
+ * This is the privacy requirement: when a family asks to be erased, the nursery
+ * must be able to honour that, and "honour" means the row is gone — not flagged.
+ * An earlier version soft-deleted, which left the child's name and date of birth
+ * sitting in the table after the owner had been told the record was permanently
+ * deleted. That is the wrong answer to an erasure request and the wrong thing to
+ * tell the person making it.
  *
- * The typed-name confirmation is enforced by the caller (see deleteChildInput).
+ * What survives, deliberately:
+ *   - The audit row recording that the erasure happened. Its `childId` becomes
+ *     null via ON DELETE SET NULL, so it is a record of the act rather than a
+ *     back-door copy of the data.
+ *   - Photos that also show other children. Destroying those would erase another
+ *     family's record too, which nobody asked for.
+ *
+ * Storage objects for the orphaned photos are removed by a queued job; their ids
+ * are returned so the caller can enqueue it (wired up in Phase 3).
  */
 export async function deleteChild(session: Session, childId: string) {
   if (session.user.role !== "OWNER") throw new ForbiddenError();
@@ -305,9 +314,9 @@ export async function deleteChild(session: Session, childId: string) {
   });
   if (!child) throw new NotFoundError();
 
-  // Photos tagged with ONLY this child become orphaned and must be destroyed.
-  // Photos also tagged with siblings or classmates must not be, so they are
-  // excluded here rather than deleted and regretted.
+  // Photos showing ONLY this child are orphaned by the deletion and must go.
+  // Photos also tagged with siblings or classmates are excluded here rather
+  // than deleted and regretted.
   const exclusivePhotos = await prisma.$queryRaw<Array<{ id: string }>>`
     SELECT p."id"
     FROM photos p
@@ -320,29 +329,25 @@ export async function deleteChild(session: Session, childId: string) {
       )
   `;
 
+  const orphanedPhotoIds = exclusivePhotos.map((p) => p.id);
+
   await prisma.$transaction([
-    // Soft-delete the photos first so nothing serves them while storage cleanup
-    // is still queued.
-    prisma.photo.updateMany({
-      where: { id: { in: exclusivePhotos.map((p) => p.id) } },
-      data: { deletedAt: new Date() },
-    }),
-    prisma.child.update({
-      where: { id: childId },
-      data: { deletedAt: new Date(), status: "ARCHIVED" },
-    }),
-    // Tags, guardianships and pickup persons cascade via onDelete: Cascade,
-    // but the child row is soft-deleted, so remove the access-granting edges
-    // explicitly. A guardianship that outlives the deletion would be a live
-    // permission pointing at erased data.
+    // Album membership first — AlbumPhoto has no cascade from Photo's side we
+    // want to rely on implicitly.
+    prisma.albumPhoto.deleteMany({ where: { photoId: { in: orphanedPhotoIds } } }),
+    prisma.photoTag.deleteMany({ where: { photoId: { in: orphanedPhotoIds } } }),
+    prisma.photo.deleteMany({ where: { id: { in: orphanedPhotoIds } } }),
+
+    // Explicit rather than leaning on cascades, so the intent is readable and a
+    // future schema change cannot quietly start leaving rows behind.
+    prisma.photoTag.deleteMany({ where: { childId } }),
     prisma.guardianship.deleteMany({ where: { childId } }),
-    prisma.pickupPerson.updateMany({
-      where: { childId },
-      data: { deletedAt: new Date(), status: "REVOKED" },
-    }),
+    prisma.pickupPerson.deleteMany({ where: { childId } }),
+
+    prisma.child.delete({ where: { id: childId } }),
   ]);
 
-  return { child, orphanedPhotoIds: exclusivePhotos.map((p) => p.id) };
+  return { child, orphanedPhotoIds };
 }
 
 // ---------------------------------------------------------------------------

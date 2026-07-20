@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AdminNav } from "@/components/admin/admin-nav";
+import { LiveSearch } from "@/components/admin/live-search";
 import {
   Badge,
   CardList,
@@ -71,27 +72,7 @@ export default async function PeoplePage({
         <InviteTeacherForm classes={classes} />
       </div>
 
-      <form method="get" className="mb-6" role="search">
-        <label htmlFor="q" className="mb-1.5 block text-sm font-bold">
-          Search
-        </label>
-        <div className="flex gap-3">
-          <input
-            id="q"
-            name="q"
-            type="search"
-            defaultValue={params.q ?? ""}
-            placeholder="Name or email"
-            className="max-w-sm flex-1 rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base focus:border-leaf focus:outline-none"
-          />
-          <button
-            type="submit"
-            className="rounded-full border-2 border-ink/15 bg-card px-5 py-3 font-bold transition-colors hover:border-leaf hover:text-leaf"
-          >
-            Search
-          </button>
-        </div>
-      </form>
+      <LiveSearch basePath="/admin/people" placeholder="Name or email" />
 
       <section className="mb-10">
         <SectionTitle>Staff ({staff.length})</SectionTitle>

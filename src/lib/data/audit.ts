@@ -117,31 +117,53 @@ function scrub(value: unknown, depth = 0): unknown {
  * because a silent gap in the trail is worse than a noisy one.
  */
 export async function recordAudit(entry: AuditEntry): Promise<void> {
+  const data = {
+    action: entry.action,
+    targetType: entry.targetType,
+    targetId: entry.targetId,
+    summary: entry.summary,
+    actorUserId: entry.actor?.id ?? null,
+    actorRole: entry.actor?.role ?? null,
+    // Scrubbed above; the cast is the boundary between our loose input type
+    // and Prisma's JSON type.
+    metadata: entry.metadata
+      ? (scrub(entry.metadata) as Prisma.InputJsonValue)
+      : undefined,
+    ipHash: entry.ipHash ?? null,
+    userAgent: entry.userAgent?.slice(0, 255) ?? null,
+  };
+
   try {
     await prisma.auditLog.create({
-      data: {
+      data: { ...data, childId: entry.childId ?? null },
+    });
+    return;
+  } catch (error) {
+    // `childId` is a foreign key, so it fails if the child was deleted in the
+    // same operation being audited. Losing the whole row over that would mean
+    // an erasure completes with no record of it — the single action that most
+    // needs one. Retry without the association; `targetId` and the summary
+    // still identify what happened.
+    const isForeignKeyViolation =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2003";
+
+    if (entry.childId && isForeignKeyViolation) {
+      try {
+        await prisma.auditLog.create({ data: { ...data, childId: null } });
+        return;
+      } catch (retryError) {
+        reportError(retryError, { scope: "audit-retry", action: entry.action });
+      }
+    } else {
+      reportError(error, {
+        scope: "audit",
         action: entry.action,
         targetType: entry.targetType,
         targetId: entry.targetId,
-        summary: entry.summary,
-        childId: entry.childId ?? null,
-        actorUserId: entry.actor?.id ?? null,
-        actorRole: entry.actor?.role ?? null,
-        // Scrubbed above; the cast is the boundary between our loose input type
-        // and Prisma's JSON type.
-        metadata: entry.metadata
-          ? (scrub(entry.metadata) as Prisma.InputJsonValue)
-          : undefined,
-        ipHash: entry.ipHash ?? null,
-        userAgent: entry.userAgent?.slice(0, 255) ?? null,
-      },
-    });
-  } catch (error) {
-    reportError(error, {
-      scope: "audit",
-      action: entry.action,
-      targetType: entry.targetType,
-      targetId: entry.targetId,
-    });
+      });
+    }
   }
 }

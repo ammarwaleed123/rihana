@@ -178,6 +178,11 @@ model Child {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
+  /// Never written: erasing a child hard-deletes the row (see deleteChild),
+  /// because a family asking to be forgotten should not be left flagged in a
+  /// table. Retained only so the `deletedAt: null` filters throughout the data
+  /// layer keep working as a safety net if a row ever were soft-deleted by a
+  /// partial failure. `archivedAt` is what marks a child who has simply left.
   deletedAt  DateTime?
 
   class         Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)

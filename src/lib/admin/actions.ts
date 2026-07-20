@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { clientIpFromHeaders } from "@/lib/auth/cookies";
@@ -404,6 +405,11 @@ export async function deleteChildAction(
 
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 
+  // Set when the deletion succeeds. The redirect has to happen outside the
+  // try/catch below, because Next signals redirects by throwing and the catch
+  // would swallow it into a generic "something went wrong".
+  let deleted: { firstName: string } | null = null;
+
   try {
     // Read the name first so the typed confirmation can be compared server-side.
     const { getChildDetail } = await import("@/lib/data/children");
@@ -423,10 +429,18 @@ export async function deleteChildAction(
     await audit(session, {
       action: "child.deleted",
       targetType: "child",
+      // targetId is a plain string column, so it keeps the id for correlation.
       targetId: result.child.id,
-      childId: result.child.id,
+      // childId is a foreign key and MUST stay null here: the row it would
+      // point at no longer exists. Setting it violated the constraint, and
+      // because recordAudit swallows its own errors the erasure was completing
+      // with no audit record at all — the one action that most needs one.
+      childId: null,
       summary: `Permanently deleted ${result.child.firstName} ${result.child.lastName} and ${result.orphanedPhotoIds.length} photo(s)`,
-      metadata: { orphanedPhotoCount: result.orphanedPhotoIds.length },
+      metadata: {
+        childId: result.child.id,
+        orphanedPhotoCount: result.orphanedPhotoIds.length,
+      },
     });
 
     // Storage objects are purged by a queued job — wired up in Phase 3.
@@ -440,10 +454,17 @@ export async function deleteChildAction(
     );
 
     revalidatePath("/admin/children");
-    return { success: `${result.child.firstName} was permanently deleted.` };
+    deleted = { firstName: result.child.firstName };
   } catch (error) {
     return toFormState(error, "deleteChild");
   }
+
+  // The page this action was submitted from is /admin/children/[childId], whose
+  // subject no longer exists — re-rendering it produces a 404 and the success
+  // message is never seen. Send the owner back to the roster instead.
+  redirect(
+    `/admin/children?deleted=${encodeURIComponent(deleted.firstName)}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
