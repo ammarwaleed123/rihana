@@ -58,3 +58,6 @@ next-env.d.ts
 
 # screenshots (regenerate with: npx tsx scripts/screenshot.ts)
 /screenshots
+
+# generated test fixtures (regenerate: npx tsx scripts/make-test-photos.ts)
+/test-photos
