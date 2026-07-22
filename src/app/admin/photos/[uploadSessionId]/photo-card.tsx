@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/shell";
 import {
   deletePhotoAction,
   publishAction,
+  unpublishAction,
   setCaptionAction,
   setTagsAction,
   setVisibilityAction,
@@ -259,23 +260,31 @@ export function PhotoCard({
           ) : null}
         </form>
 
-        {!published ? (
-          <form action={delAction} className="border-t border-ink/10 pt-3">
-            <input type="hidden" name="photoId" value={photo.id} />
-            <input type="hidden" name="uploadSessionId" value={uploadSessionId} />
-            <button
-              type="submit"
-              className="text-sm font-semibold text-danger underline underline-offset-4"
-            >
-              Remove this photo
-            </button>
-            {delState.error ? (
-              <p className="mt-1 text-sm font-semibold text-danger">
-                {delState.error}
-              </p>
-            ) : null}
-          </form>
-        ) : null}
+        <form action={delAction} className="border-t border-ink/10 pt-3">
+          <input type="hidden" name="photoId" value={photo.id} />
+          <input type="hidden" name="uploadSessionId" value={uploadSessionId} />
+          <button
+            type="submit"
+            className="text-sm font-semibold text-danger underline underline-offset-4"
+          >
+            {/*
+              Available after publishing too. Sharing the wrong photo is exactly
+              when you most need to remove it, and hiding the control then was
+              the wrong instinct.
+            */}
+            {published ? "Delete this photo permanently" : "Remove this photo"}
+          </button>
+          <p className="mt-1 text-xs text-ink-faint">
+            {published
+              ? "Removes it from every family's album and from storage."
+              : "It has not been shared with anyone yet."}
+          </p>
+          {delState.error ? (
+            <p className="mt-1 text-sm font-semibold text-danger">
+              {delState.error}
+            </p>
+          ) : null}
+        </form>
       </div>
     </div>
   );
@@ -286,10 +295,12 @@ export function PublishForm({
   uploadSessionId,
   photoCount,
   untaggedCount,
+  unpublishedCount,
 }: {
   uploadSessionId: string;
   photoCount: number;
   untaggedCount: number;
+  unpublishedCount: number;
 }) {
   const [state, action] = useActionState<PhotoFormState, FormData>(
     publishAction,
@@ -311,7 +322,51 @@ export function PublishForm({
         </Alert>
       ) : null}
 
-      <PublishButton count={photoCount - untaggedCount} />
+      <PublishButton count={unpublishedCount} />
+    </form>
+  );
+}
+
+/**
+ * Withdraw an already-published upload.
+ *
+ * Owner-only, and deliberately understated next to the publish button — this is
+ * the correction path, not a primary action.
+ */
+export function UnpublishForm({
+  uploadSessionId,
+  isOwner,
+}: {
+  uploadSessionId: string;
+  isOwner: boolean;
+}) {
+  const [state, action] = useActionState<PhotoFormState, FormData>(
+    unpublishAction,
+    {},
+  );
+
+  if (!isOwner) {
+    return (
+      <p className="text-sm text-ink-faint">
+        Ask the nursery owner if these need to be withdrawn from families.
+      </p>
+    );
+  }
+
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="uploadSessionId" value={uploadSessionId} />
+
+      {/* Success is shown by the page after the redirect — this form unmounts. */}
+      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
+
+      <Button type="submit" variant="secondary">
+        Withdraw from families
+      </Button>
+      <p className="text-sm text-ink-soft">
+        Hides every photo in this upload from the family portal. The photos and
+        their tags are kept, so you can correct them and publish again.
+      </p>
     </form>
   );
 }

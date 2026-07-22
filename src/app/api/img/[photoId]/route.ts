@@ -7,17 +7,21 @@ import { reportError } from "@/lib/logger";
 import { getStorage } from "@/lib/storage";
 
 /**
- * GET /api/img/<photoId>?v=thumb|web|original
+ * GET /api/img/<photoId>?v=thumb|web|original[&download=1]
  *
  * The single door in front of every image byte in this system.
  *
  * Order matters and is not negotiable:
  *   1. Authenticate.
  *   2. Ask the data layer whether this person may see this photo.
- *   3. Only then mint a short-lived signed URL and redirect to it.
+ *   3. Only then serve it.
  *
  * An unauthorized id gets a 404 before any storage call is made — the same
  * response as a photo that does not exist, because a 403 would confirm it does.
+ *
+ * Viewing redirects to a short-lived signed URL, so the bytes come from storage
+ * or the CDN and never through this server. Downloading is the exception: see
+ * below.
  */
 
 export const dynamic = "force-dynamic";
@@ -35,8 +39,10 @@ export async function GET(
     return new NextResponse(null, { status: 404, headers: noStore() });
   }
 
-  const requested = new URL(request.url).searchParams.get("v") ?? "web";
+  const params = new URL(request.url).searchParams;
+  const requested = params.get("v") ?? "web";
   const variant = VARIANTS.has(requested) ? requested : "web";
+  const isDownload = params.get("download") === "1";
 
   try {
     // THE authorization check. Nothing below runs unless this returns a photo.
@@ -58,6 +64,32 @@ export async function GET(
       return new NextResponse(null, { status: 404, headers: noStore() });
     }
 
+    if (isDownload) {
+      /*
+       * Downloads stream through this route instead of redirecting.
+       *
+       * A browser ignores the `download` attribute when the link resolves to
+       * another origin, which our signed storage URLs do — so "Download photo"
+       * simply opened the image full-screen instead of saving it, and on a
+       * phone it did nothing useful at all. Serving the bytes ourselves lets us
+       * set Content-Disposition, which is what actually makes it a download.
+       *
+       * This is the one place the app is in the byte path, and the spec allows
+       * it: originals only on explicit download.
+       */
+      const body = await getStorage().get(key);
+
+      return new NextResponse(new Uint8Array(body), {
+        headers: {
+          ...noStore(),
+          "Content-Type": "image/jpeg",
+          "Content-Length": String(body.byteLength),
+          "Content-Disposition": `attachment; filename="rihana-${photoId}.jpg"`,
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+
     const url = await getStorage().signedUrl(key, env.SIGNED_URL_TTL_SECONDS);
 
     return NextResponse.redirect(
@@ -75,10 +107,10 @@ export async function GET(
 /**
  * Private and never indexed.
  *
- * The redirect itself must not be cached by a shared cache: it is specific to
- * one signed-in person, and the signed URL inside it expires.
+ * The response must not be cached by a shared cache: it is specific to one
+ * signed-in person, and any signed URL inside it expires.
  */
-function noStore(): HeadersInit {
+function noStore(): Record<string, string> {
   return {
     "Cache-Control": "private, no-store, max-age=0",
     "X-Robots-Tag": "noindex, nofollow, noimageindex",

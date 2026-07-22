@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Disclosure } from "@/components/ui/disclosure";
@@ -53,6 +53,19 @@ function ChildFields({
   idPrefix: string;
 }) {
   const id = (field: string) => `${idPrefix}-${field}`;
+
+  /*
+   * Photo consent is a controlled input.
+   *
+   * As an uncontrolled `defaultChecked` box, a click landing before React
+   * finished hydrating was accepted visually and then reverted by the hydration
+   * pass — so the save wrote the old value while appearing to succeed. Silently
+   * undoing someone's decision is bad for any control and unacceptable for one
+   * that records a legal permission about a child's image.
+   */
+  const [photoConsent, setPhotoConsent] = useState(
+    defaults?.photoConsent ?? true,
+  );
 
   return (
     <>
@@ -129,15 +142,17 @@ function ChildFields({
           <input
             type="checkbox"
             name="photoConsent"
-            defaultChecked={defaults?.photoConsent ?? true}
+            checked={photoConsent}
+            onChange={(event) => setPhotoConsent(event.target.checked)}
             className="mt-1 size-5 shrink-0 accent-[color:var(--color-leaf)]"
           />
           <span>
             <span className="font-bold">Photo consent given</span>
             <span className="mt-0.5 block text-sm text-ink-soft">
-              When this is off, the child cannot be tagged in new photos and is
-              left out of class albums. Photos already shared with their own
-              guardians stay visible.
+              Turning this off removes the child from every photo they are
+              already tagged in, and stops them being tagged in new ones. Photos
+              that showed only this child stop being visible to anyone,
+              including their own family.
             </span>
           </span>
         </label>

@@ -11,7 +11,7 @@ import { getUploadSessionPhotos, listUploadSessions } from "@/lib/data/photos";
 import { getTaggableChildren } from "@/lib/data/uploads";
 
 import { AddPhotosForm } from "../upload-form";
-import { PhotoCard, PublishForm } from "./photo-card";
+import { PhotoCard, PublishForm, UnpublishForm } from "./photo-card";
 
 export const metadata: Metadata = {
   title: "Tag photos",
@@ -23,7 +23,11 @@ export default async function TagPhotosPage({
   searchParams,
 }: {
   params: Promise<{ uploadSessionId: string }>;
-  searchParams: Promise<{ published?: string; unreachable?: string }>;
+  searchParams: Promise<{
+    published?: string;
+    unreachable?: string;
+    withdrawn?: string;
+  }>;
 }) {
   const { uploadSessionId } = await params;
   const query = await searchParams;
@@ -47,8 +51,17 @@ export default async function TagPhotosPage({
     : [];
 
   const published = upload.status === "PUBLISHED";
+  const isOwner = session.user.role === "OWNER";
+
   const untagged = photos.filter(
     (p) => p.tagCount === 0 && p.visibility !== "CLASS_ALBUM",
+  ).length;
+
+  // Photos that can reach someone but have not been published yet — including
+  // ones tagged after this upload was first published.
+  const unpublished = photos.filter(
+    (p) =>
+      !p.publishedAt && (p.tagCount > 0 || p.visibility === "CLASS_ALBUM"),
   ).length;
 
   return (
@@ -73,6 +86,17 @@ export default async function TagPhotosPage({
         }
       />
 
+      {query.withdrawn ? (
+        <div className="mb-6">
+          <Alert tone="success">
+            Withdrawn. {query.withdrawn} photo
+            {query.withdrawn === "1" ? " is" : "s are"} no longer visible to
+            families. Their tags are kept, so you can correct them and publish
+            again.
+          </Alert>
+        </div>
+      ) : null}
+
       {query.published ? (
         // Shown on the page rather than inside the publish form, which is
         // removed the moment publishing succeeds.
@@ -94,18 +118,31 @@ export default async function TagPhotosPage({
         />
       ) : (
         <>
-          {!published ? (
+          {unpublished > 0 ? (
             <Card className="mb-6">
-              <SectionTitle>Ready to share?</SectionTitle>
+              <SectionTitle>
+                {published ? "New photos to share" : "Ready to share?"}
+              </SectionTitle>
               <p className="mb-4 text-sm text-ink-soft">
-                Publishing makes these visible in the family portal and notifies
-                the parents of every tagged child — one message per family, not
-                one per photo.
+                {published
+                  ? "Photos tagged after this upload was published are not visible to families until you share them."
+                  : "Publishing makes these visible in the family portal and notifies the parents of every tagged child — one message per family, not one per photo."}
               </p>
               <PublishForm
                 uploadSessionId={uploadSessionId}
                 photoCount={photos.length}
                 untaggedCount={untagged}
+                unpublishedCount={unpublished}
+              />
+            </Card>
+          ) : null}
+
+          {published ? (
+            <Card className="mb-6">
+              <SectionTitle>Withdraw these photos</SectionTitle>
+              <UnpublishForm
+                uploadSessionId={uploadSessionId}
+                isOwner={isOwner}
               />
             </Card>
           ) : null}
@@ -122,11 +159,9 @@ export default async function TagPhotosPage({
             ))}
           </div>
 
-          {!published ? (
-            <Card className="mt-6 max-w-md">
-              <AddPhotosForm uploadSessionId={uploadSessionId} />
-            </Card>
-          ) : null}
+          <Card className="mt-6 max-w-md">
+            <AddPhotosForm uploadSessionId={uploadSessionId} />
+          </Card>
         </>
       )}
     </div>

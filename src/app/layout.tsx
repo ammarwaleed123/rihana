@@ -48,7 +48,14 @@ export default function RootLayout({
       dir="ltr"
       className={`${fredoka.variable} ${nunito.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      {/*
+        Browser extensions inject attributes onto <body> before React hydrates
+        (bis_register, __processed_<uuid>__ and similar), which React reports as
+        a hydration mismatch. It is the extension's markup, not ours, and there
+        is nothing to fix in the app — suppressing the warning on this one
+        element keeps a real mismatch elsewhere visible.
+      */}
+      <body className="flex min-h-full flex-col" suppressHydrationWarning>
         <a
           href="#main"
           className="sr-only-focusable absolute left-4 top-4 z-50 rounded-full bg-leaf px-5 py-2 font-semibold text-white"

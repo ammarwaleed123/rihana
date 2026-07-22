@@ -315,25 +315,43 @@ export async function updateChildAction(
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 
   try {
-    const { before, after } = await updateChild(session, childId, parsed.data);
+    const { before, after, untaggedFrom } = await updateChild(
+      session,
+      childId,
+      parsed.data,
+    );
 
     // Photo consent changing is the interesting one: it alters who may appear in
-    // future photographs, so it is called out rather than buried in a diff.
+    // photographs, so it is called out rather than buried in a diff.
     const consentChanged = before.photoConsent !== after.photoConsent;
+    const withdrawn = consentChanged && !after.photoConsent;
 
     await audit(session, {
       action: "child.updated",
       targetType: "child",
       targetId: after.id,
       childId: after.id,
-      summary: consentChanged
-        ? `Updated ${after.firstName} ${after.lastName} — photo consent ${after.photoConsent ? "granted" : "withdrawn"}`
-        : `Updated ${after.firstName} ${after.lastName}`,
-      metadata: { before, after: parsed.data },
+      summary: withdrawn
+        ? `Withdrew photo consent for ${after.firstName} ${after.lastName} and removed them from ${untaggedFrom} photo(s)`
+        : consentChanged
+          ? `Granted photo consent for ${after.firstName} ${after.lastName}`
+          : `Updated ${after.firstName} ${after.lastName}`,
+      metadata: { before, after: parsed.data, untaggedFrom },
     });
 
     revalidatePath("/admin/children");
     revalidatePath(`/admin/children/${childId}`);
+    revalidatePath("/admin/photos");
+
+    if (withdrawn) {
+      return {
+        success:
+          untaggedFrom > 0
+            ? `Saved. ${after.firstName} has been removed from ${untaggedFrom} photo${untaggedFrom === 1 ? "" : "s"}, which no family can now see them in.`
+            : `Saved. ${after.firstName} cannot be tagged in photos.`,
+      };
+    }
+
     return { success: "Details saved." };
   } catch (error) {
     return toFormState(error, "updateChild");

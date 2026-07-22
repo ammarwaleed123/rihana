@@ -241,7 +241,42 @@ export async function updateChild(
     select: { id: true, firstName: true, lastName: true, photoConsent: true },
   });
 
-  return { before, after };
+  /*
+   * Withdrawing consent removes the child from every photo they were tagged in.
+   *
+   * The earlier behaviour only blocked *future* tagging, so a child whose family
+   * had just withdrawn consent stayed visible in every photo already taken —
+   * which is not what withdrawing consent means. It now takes effect
+   * immediately and retroactively.
+   *
+   * Photos that showed only that child stop being visible to anyone, including
+   * their own family. That is the honest reading of the request: the nursery has
+   * been told to stop sharing this child's image.
+   */
+  let untaggedFrom = 0;
+
+  if (before.photoConsent && !input.photoConsent) {
+    const tagged = await prisma.photoTag.findMany({
+      where: { childId },
+      select: { photoId: true },
+    });
+
+    const { count } = await prisma.photoTag.deleteMany({ where: { childId } });
+    untaggedFrom = count;
+
+    // A TAGGED_ONLY photo with no tags left reaches nobody, so it must not sit
+    // published and unreachable.
+    await prisma.photo.updateMany({
+      where: {
+        id: { in: tagged.map((t) => t.photoId) },
+        visibility: "TAGGED_ONLY",
+        tags: { none: {} },
+      },
+      data: { publishedAt: null },
+    });
+  }
+
+  return { before, after, untaggedFrom };
 }
 
 /**

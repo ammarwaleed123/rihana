@@ -13,11 +13,13 @@ import { recordAudit } from "@/lib/data/audit";
 import {
   createUploadSession,
   deletePhoto,
+  discardUploadSession,
   ingestPhotos,
   publishUploadSession,
   setPhotoCaption,
   setPhotoTags,
   setPhotoVisibility,
+  unpublishUploadSession,
 } from "@/lib/data/uploads";
 import type { Session } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
@@ -54,43 +56,117 @@ function toState(error: unknown, scope: string): PhotoFormState {
  * until the photos are tagged, and dropping the admin back on an empty form
  * would make it easy to walk away mid-way.
  */
-export async function uploadPhotosAction(
-  _prev: PhotoFormState,
-  formData: FormData,
-): Promise<PhotoFormState> {
+/**
+ * Create an empty upload session.
+ *
+ * Separate from ingestion so the client can then send files in batches. A
+ * request carrying every photo at once would blow past any sane body limit —
+ * two hundred photos is gigabytes — so the batching lives in the browser and
+ * each batch is its own request.
+ */
+export async function startUploadAction(
+  classId: string,
+): Promise<{ uploadSessionId?: string; error?: string }> {
   const session = await requireSessionOrThrow();
 
-  const classId = String(formData.get("classId") ?? "");
   if (!cuid.safeParse(classId).success) {
     return { error: "Choose a class to upload into." };
   }
+
+  try {
+    const created = await createUploadSession(session, classId);
+    return { uploadSessionId: created.id };
+  } catch (error) {
+    return { error: toState(error, "startUpload").error };
+  }
+}
+
+/** Ingest one batch of files into an existing session. */
+export async function uploadBatchAction(
+  formData: FormData,
+): Promise<{
+  accepted: number;
+  rejected: Array<{ filename: string; reason: string }>;
+  error?: string;
+}> {
+  const session = await requireSessionOrThrow();
+  const uploadSessionId = String(formData.get("uploadSessionId") ?? "");
 
   const files = formData
     .getAll("photos")
     .filter((f): f is File => f instanceof File && f.size > 0);
 
-  if (files.length === 0) return { error: "Choose at least one photo." };
-
-  let uploadSessionId: string | null = null;
-  let outcome;
+  if (files.length === 0) return { accepted: 0, rejected: [] };
 
   try {
-    const created = await createUploadSession(session, classId);
-    uploadSessionId = created.id;
-    outcome = await ingestPhotos(session, created.id, files);
+    const outcome = await ingestPhotos(session, uploadSessionId, files);
+    return { accepted: outcome.accepted, rejected: outcome.rejected };
   } catch (error) {
-    return toState(error, "uploadPhotos");
-  }
-
-  if (outcome.accepted === 0) {
     return {
-      error: "None of those files could be used.",
-      rejected: outcome.rejected,
+      accepted: 0,
+      rejected: [],
+      error: toState(error, "uploadBatch").error,
     };
   }
+}
 
-  revalidatePath("/admin/photos");
-  redirect(`/admin/photos/${uploadSessionId}`);
+/** Discard an upload session that ended up with nothing usable in it. */
+export async function discardUploadAction(
+  uploadSessionId: string,
+): Promise<void> {
+  const session = await requireSessionOrThrow();
+
+  try {
+    await discardUploadSession(session, uploadSessionId);
+    revalidatePath("/admin/photos");
+  } catch (error) {
+    logger.warn({ err: error, scope: "discardUpload" }, "could not discard");
+  }
+}
+
+/**
+ * Withdraw a published upload from the family portal.
+ *
+ * Publishing was previously one-way, which left no way to undo sharing the
+ * wrong photo. Owner-only.
+ */
+export async function unpublishAction(
+  _prev: PhotoFormState,
+  formData: FormData,
+): Promise<PhotoFormState> {
+  const session = await requireSessionOrThrow();
+  const uploadSessionId = String(formData.get("uploadSessionId") ?? "");
+
+  /*
+   * Third time this shape has appeared, so worth stating: a form that removes
+   * itself on success cannot display its own success message. The withdraw card
+   * only renders while the upload is published, so it unmounts the instant this
+   * succeeds. Same for publish, and for deleting a child. The outcome travels in
+   * the URL instead, and the redirect sits outside the try/catch because Next
+   * signals redirects by throwing.
+   */
+  let withdrawn: number | null = null;
+
+  try {
+    const result = await unpublishUploadSession(session, uploadSessionId);
+
+    await recordAudit({
+      action: "photo.published",
+      targetType: "upload_session",
+      targetId: uploadSessionId,
+      summary: `Withdrew ${result.withdrawn} photo(s) from families`,
+      metadata: { withdrawn: result.withdrawn, direction: "unpublish" },
+      ...(await context(session)),
+    });
+
+    revalidatePath("/admin/photos");
+    revalidatePath(`/admin/photos/${uploadSessionId}`);
+    withdrawn = result.withdrawn;
+  } catch (error) {
+    return toState(error, "unpublish");
+  }
+
+  redirect(`/admin/photos/${uploadSessionId}?withdrawn=${withdrawn}`);
 }
 
 /** Add more photos to an existing, unpublished upload. */

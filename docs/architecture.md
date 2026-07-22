@@ -119,6 +119,25 @@ Publishing is a separate, deliberate step. Photos with neither tags nor
 class-album visibility are left unpublished rather than published into the void,
 because silently publishing them would hide a tagging mistake.
 
+**Publication is a property of the photo, not a one-shot event on the session.**
+`syncPublicationState` runs after anything that changes whether a photo can
+reach a family, and derives `publishedAt` from three facts: the session is
+published, the photo is not deleted, and somebody can actually see it. It works
+in both directions — removing the last tag from a `TAGGED_ONLY` photo withdraws
+it again. Treating publishing as a one-time event meant a photo tagged *after*
+its session was published stayed invisible forever, with nothing to indicate
+anything was wrong.
+
+An owner can withdraw a published upload. Photos and tags are kept, so a
+mistake can be corrected and published again.
+
+### Uploading is batched in the browser
+
+Server actions carry a bounded body, and 200 photos is gigabytes regardless of
+the bound. The client therefore creates the upload session first, then sends
+files in batches sized to fit one request, reporting progress as it goes. The
+number of photos a person can select is unlimited; only one batch is bounded.
+
 ### Image delivery
 
 ```

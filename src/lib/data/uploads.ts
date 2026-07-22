@@ -44,6 +44,27 @@ export async function createUploadSession(session: Session, classId: string) {
   });
 }
 
+/** Remove an upload session that has no usable photos in it. */
+export async function discardUploadSession(
+  session: Session,
+  uploadSessionId: string,
+): Promise<void> {
+  const uploadSession = await prisma.uploadSession.findUnique({
+    where: { id: uploadSessionId },
+    select: { id: true, classId: true, status: true, _count: { select: { photos: true } } },
+  });
+
+  if (!uploadSession?.classId) throw new NotFoundError();
+  await assertCanUploadTo(session, uploadSession.classId);
+
+  // Only ever discards an empty draft, so this cannot destroy real photos.
+  if (uploadSession.status === "PUBLISHED" || uploadSession._count.photos > 0) {
+    return;
+  }
+
+  await prisma.uploadSession.delete({ where: { id: uploadSessionId } });
+}
+
 /**
  * Ingest one batch of files into an upload session.
  *
@@ -63,10 +84,9 @@ export async function ingestPhotos(
   if (!uploadSession?.classId) throw new NotFoundError();
   await assertCanUploadTo(session, uploadSession.classId);
 
-  if (uploadSession.status === "PUBLISHED") {
-    throw new ForbiddenError("This upload has already been published.");
-  }
-
+  // Adding to a published upload is allowed: syncPublicationState publishes
+  // each new photo the moment it is tagged, so late additions reach families
+  // rather than sitting invisible.
   if (files.length > env.MAX_UPLOAD_FILES_PER_BATCH) {
     throw new ForbiddenError(
       `Please upload at most ${env.MAX_UPLOAD_FILES_PER_BATCH} photos at a time.`,
@@ -157,11 +177,13 @@ export async function ingestPhotos(
     }
   }
 
+  // Only the count moves. Forcing the status back to DRAFT here would silently
+  // withdraw an already-published upload from every family the moment a teacher
+  // added one more photo to it.
   await prisma.uploadSession.update({
     where: { id: uploadSessionId },
     data: {
       photoCount: await prisma.photo.count({ where: { uploadSessionId } }),
-      status: "DRAFT",
     },
   });
 
@@ -183,6 +205,57 @@ export async function ingestPhotos(
 // ---------------------------------------------------------------------------
 // Tagging
 // ---------------------------------------------------------------------------
+
+/**
+ * Keep one photo's `publishedAt` consistent with its upload session and tags.
+ *
+ * Called after anything that changes whether a photo can reach a family.
+ *
+ * Publishing used to be a one-shot event on the session, so a photo tagged
+ * *after* its session was published stayed unpublished forever — invisible to
+ * everyone, with no indication anything was wrong. Publication is now a
+ * property of the photo, derived from three facts: the session is published,
+ * the photo is not deleted, and somebody can actually see it.
+ *
+ * It works in both directions. Removing the last tag from a TAGGED_ONLY photo
+ * withdraws it again, because a photo nobody is tagged in should not sit
+ * "published" and unreachable.
+ */
+async function syncPublicationState(photoId: string): Promise<void> {
+  const photo = await prisma.photo.findUnique({
+    where: { id: photoId },
+    select: {
+      id: true,
+      visibility: true,
+      publishedAt: true,
+      deletedAt: true,
+      uploadSession: { select: { status: true, publishedAt: true } },
+      _count: { select: { tags: true } },
+    },
+  });
+
+  if (!photo || photo.deletedAt) return;
+
+  const sessionPublished = photo.uploadSession.status === "PUBLISHED";
+  const reachesSomeone =
+    photo._count.tags > 0 || photo.visibility === "CLASS_ALBUM";
+
+  const shouldBePublished = sessionPublished && reachesSomeone;
+
+  if (shouldBePublished && !photo.publishedAt) {
+    await prisma.photo.update({
+      where: { id: photoId },
+      data: {
+        publishedAt: photo.uploadSession.publishedAt ?? new Date(),
+      },
+    });
+  } else if (!shouldBePublished && photo.publishedAt) {
+    await prisma.photo.update({
+      where: { id: photoId },
+      data: { publishedAt: null },
+    });
+  }
+}
 
 /**
  * Set exactly which children appear in a photo.
@@ -238,6 +311,8 @@ export async function setPhotoTags(
     }),
   ]);
 
+  await syncPublicationState(photoId);
+
   return { tagged: allowed.length, skippedNoConsent };
 }
 
@@ -256,6 +331,11 @@ export async function setPhotoVisibility(
   await assertCanUploadTo(session, photo.classId);
 
   await prisma.photo.update({ where: { id: photoId }, data: { visibility } });
+
+  // Sharing with the class makes an untagged photo reachable, and un-sharing
+  // one can make it unreachable again. Either way its publication state moves.
+  await syncPublicationState(photoId);
+
   return photo;
 }
 
@@ -301,14 +381,11 @@ export async function publishUploadSession(
   if (!uploadSession?.classId) throw new NotFoundError();
   await assertCanUploadTo(session, uploadSession.classId);
 
-  if (uploadSession.status === "PUBLISHED") {
-    throw new ForbiddenError("This upload has already been published.");
-  }
-
   const publishable = await prisma.photo.findMany({
     where: {
       uploadSessionId,
       deletedAt: null,
+      publishedAt: null,
       status: { in: ["READY", "PROCESSING"] },
       OR: [{ tags: { some: {} } }, { visibility: "CLASS_ALBUM" }],
     },
@@ -342,6 +419,52 @@ export async function publishUploadSession(
   await enqueue(QUEUES.notifyPhotosPublished, { uploadSessionId });
 
   return { published: publishable.length, unreachable };
+}
+
+/**
+ * Withdraw a published upload from the family portal.
+ *
+ * The obvious thing to want after publishing the wrong photo, and there was no
+ * way to do it — publishing was one-way. Clearing `publishedAt` removes every
+ * photo in the session from every family's album immediately, while leaving the
+ * photos and their tags intact so they can be corrected and published again.
+ *
+ * Owner-only: a teacher can publish their own class's photos, but pulling
+ * something back after families have seen it is the owner's call.
+ */
+export async function unpublishUploadSession(
+  session: Session,
+  uploadSessionId: string,
+) {
+  if (session.user.role !== "OWNER") {
+    throw new ForbiddenError(
+      "Only the nursery owner can withdraw photos that have already been published.",
+    );
+  }
+
+  const uploadSession = await prisma.uploadSession.findUnique({
+    where: { id: uploadSessionId },
+    select: { id: true, classId: true, status: true },
+  });
+
+  if (!uploadSession?.classId) throw new NotFoundError();
+
+  if (uploadSession.status !== "PUBLISHED") {
+    throw new ForbiddenError("That upload has not been published.");
+  }
+
+  const [updated] = await prisma.$transaction([
+    prisma.photo.updateMany({
+      where: { uploadSessionId },
+      data: { publishedAt: null },
+    }),
+    prisma.uploadSession.update({
+      where: { id: uploadSessionId },
+      data: { status: "DRAFT", publishedAt: null },
+    }),
+  ]);
+
+  return { withdrawn: updated.count };
 }
 
 /** Delete a photo and queue its objects for removal from storage. */

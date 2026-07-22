@@ -8,7 +8,7 @@ import {
   encodeCursor,
   type Page,
 } from "@/lib/data/pagination";
-import { parentPhotoFilter } from "@/lib/data/photo-filter";
+import { childPhotoFilter, parentPhotoFilter } from "@/lib/data/photo-filter";
 import {
   childIdsForParent,
   classIdsForParent,
@@ -72,32 +72,33 @@ export async function getPhotosForParent(
 
   const limit = clampPageSize(options.limit);
   const cursor = decodeCursor(options.cursor);
-  const scopeFilter = await filterForParent(session);
+  const myChildIds = await childIdsForParent(session.user.id);
 
-  // Narrowing to one child is applied on top of the scope, never instead of it.
-  const childNarrow = options.childId
-    ? {
-        AND: [
-          { tags: { some: { childId: options.childId } } },
-          // Confirm the child is actually theirs, so a guessed id cannot turn
-          // the narrow into a widen.
-          {
-            tags: {
-              some: {
-                childId: {
-                  in: await childIdsForParent(session.user.id),
-                },
-              },
-            },
-          },
-        ],
-      }
-    : {};
+  /*
+   * Narrowing to one child.
+   *
+   * Resolved from the caller's own guardianships, never from the request: an id
+   * they do not guard yields the unnarrowed scope rather than someone else's
+   * child. And the narrow includes that child's class albums, because a photo
+   * of the whole class is a photo of that child too — omitting them made class
+   * albums disappear the moment a parent tapped a name.
+   */
+  let scopeFilter = await filterForParent(session);
+
+  if (options.childId && myChildIds.includes(options.childId)) {
+    const child = await prisma.child.findUnique({
+      where: { id: options.childId },
+      select: { id: true, classId: true },
+    });
+
+    if (child) {
+      scopeFilter = childPhotoFilter(child.id, child.classId);
+    }
+  }
 
   const rows = await prisma.photo.findMany({
     where: {
       ...scopeFilter,
-      ...childNarrow,
       ...(cursor
         ? {
             OR: [
@@ -119,7 +120,7 @@ export async function getPhotosForParent(
       tags: {
         // Only their own children's names, never a classmate's. A class-album
         // photo must not leak who else is in it.
-        where: { childId: { in: await childIdsForParent(session.user.id) } },
+        where: { childId: { in: myChildIds } },
         select: { child: { select: { id: true, firstName: true } } },
       },
     },
@@ -299,5 +300,5 @@ export async function listUploadSessions(session: Session, limit = 20) {
 }
 
 // Re-exported so callers have one import surface for photo access.
-export { parentPhotoFilter };
+export { parentPhotoFilter, childPhotoFilter };
 export { encodeCursor };

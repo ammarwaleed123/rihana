@@ -78,6 +78,22 @@ const nextConfig: NextConfig = {
   // wrong workspace root, which breaks file tracing. Pin it to this project.
   turbopack: { root: import.meta.dirname },
 
+  experimental: {
+    serverActions: {
+      /*
+       * Server actions default to a 1 MB body, which is a handful of phone
+       * photos — well short of the "an upload of 200 photos must not block or
+       * time out" requirement.
+       *
+       * Raising it alone would not be enough: 200 photos at 15 MB each is 3 GB,
+       * which no single request should carry. The client therefore uploads in
+       * batches sized to fit comfortably inside this limit (see UploadForm), and
+       * this value is the ceiling for one batch, not for one upload.
+       */
+      bodySizeLimit: "24mb",
+    },
+  },
+
   // sharp is a native module; it must not be bundled into the server build.
   serverExternalPackages: ["sharp", "pg-boss", "@node-rs/argon2"],
 

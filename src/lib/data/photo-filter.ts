@@ -37,6 +37,34 @@ export type ParentPhotoFilter = typeof VISIBLE & {
  * Takes ids rather than a session so it stays a pure function: same input, same
  * output, no ambient state.
  */
+/**
+ * The same rule, narrowed to one child.
+ *
+ * "Show me Laila's photos" must mean photos tagged with Laila **plus** class
+ * albums for Laila's class — she is in that class, so those photos are hers as
+ * much as the tagged ones. Filtering to tags alone made class-album photos
+ * vanish the moment a parent picked a child, which is exactly when they were
+ * looking for them.
+ *
+ * Callers must pass a child the parent actually guards, and that child's own
+ * class id — never one supplied by the request.
+ */
+export function childPhotoFilter(
+  childId: string,
+  childClassId: string | null,
+): ParentPhotoFilter {
+  return {
+    ...VISIBLE,
+    OR: [
+      { tags: { some: { childId: { in: [childId] } } } },
+      {
+        visibility: "CLASS_ALBUM",
+        classId: { in: childClassId ? [childClassId] : [] },
+      },
+    ],
+  };
+}
+
 export function parentPhotoFilter(
   childIds: string[],
   classIds: string[],

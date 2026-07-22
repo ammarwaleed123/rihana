@@ -133,6 +133,17 @@ prefix inlines values into the client bundle.
 record actor, action, target, timestamp, and a scrubbed before/after diff. Nothing
 in the application layer updates or deletes these rows.
 
+### Photo consent
+
+Withdrawing a child's photo consent takes effect **immediately and
+retroactively**: they are removed from every photo they were already tagged in,
+not merely blocked from future ones. Photos that showed only that child stop
+being visible to anyone, including their own family.
+
+An earlier version blocked future tagging while leaving existing photos in
+circulation, which is not what withdrawing consent means. The owner is told how
+many photos were affected, and the audit log records the count.
+
 ### Privacy
 
 Two distinct paths, because they answer different requests:

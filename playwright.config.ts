@@ -24,16 +24,17 @@ export default defineConfig({
       name: "mobile",
       use: { ...devices["Pixel 7"] },
       /*
-       * The photo suite runs on desktop only.
+       * The photo suites run on desktop only.
        *
-       * It verifies server-side authorization — who may see which photo — which
-       * is identical at every viewport, so a second run proves nothing. It is
-       * also by far the slowest suite (real image encoding, real round trips to
-       * object storage in another region), and running two projects against one
-       * dev server and one database made it contend with itself. Layout at
-       * mobile width is covered by screenshots and by the other suites.
+       * They verify server-side behaviour — who may see which photo, when a
+       * photo becomes published — which is identical at every viewport, so a
+       * second run proves nothing. They are also by far the slowest (real image
+       * encoding, real round trips to object storage in another region), and
+       * running two projects against one dev server and one database made them
+       * contend with each other. Layout at mobile width is covered by
+       * screenshots and by the other suites.
        */
-      testIgnore: /photos\.spec\.ts/,
+      testIgnore: /photos\.spec\.ts|photo-regressions\.spec\.ts/,
     },
     {
       name: "desktop",

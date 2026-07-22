@@ -45,13 +45,15 @@ export default async function PhotoPage({
 
       <div className="mt-6 flex flex-wrap gap-3">
         {/*
-          Downloads the full-size original. `download` asks the browser to save
-          rather than navigate; the bytes still come through the authorized
-          route, so this is not a way around the check.
+          `download=1` makes the route serve the bytes with a
+          Content-Disposition header rather than redirecting to storage.
+          The `download` attribute alone is ignored by browsers when the link
+          resolves cross-origin, which is what our signed storage URLs are — so
+          this used to open the image full-screen instead of saving it, and did
+          nothing at all on a phone.
         */}
         <a
-          href={`/api/img/${photo.id}?v=original`}
-          download
+          href={`/api/img/${photo.id}?v=original&download=1`}
           className="inline-flex items-center rounded-full bg-leaf px-6 py-3 font-bold text-white hover:bg-leaf-dark"
         >
           Download photo
