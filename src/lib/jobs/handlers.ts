@@ -2,6 +2,7 @@ import "server-only";
 
 import { createThumbnail } from "@/lib/images/process";
 import {
+  enqueue,
   QUEUES,
   type PhotoProcessJob,
   type StoragePurgeJob,
@@ -93,14 +94,72 @@ export async function handleStoragePurge(job: StoragePurgeJob): Promise<void> {
 }
 
 /** Housekeeping. Expired rows are not sensitive, but they are not free either. */
+/**
+ * How long a photo may sit in PROCESSING before the sweep assumes its job was
+ * lost. Comfortably longer than a real thumbnail takes, short enough that a
+ * family is not waiting on the next sweep for an hour.
+ */
+const STUCK_PHOTO_AFTER_MS = 2 * 60 * 1000;
+
+/** Bounded per sweep: a backlog should drain over several passes, not one. */
+const STUCK_PHOTO_BATCH = 100;
+
+/**
+ * Re-enqueue photos stranded in PROCESSING.
+ *
+ * Enqueueing is deliberately non-fatal — an upload's job is to store photos,
+ * and a queue blip must not fail the request someone is waiting on. The cost of
+ * that choice is that a photo whose job never got published stays PROCESSING,
+ * and PROCESSING means invisible to every family, permanently, with nothing but
+ * a small badge on an admin screen to say so.
+ *
+ * Two comments in this codebase already claimed the maintenance sweep picked
+ * these up. It did not — this is the code that makes the claim true. Found
+ * because a photo published in a test never appeared: the very first enqueue
+ * after a cold start had timed out while pg-boss ran its own migrations, which
+ * is exactly the situation the timeout exists to survive.
+ */
+export async function requeueStuckPhotos(): Promise<number> {
+  const stuck = await prisma.photo.findMany({
+    where: {
+      status: "PROCESSING",
+      deletedAt: null,
+      createdAt: { lt: new Date(Date.now() - STUCK_PHOTO_AFTER_MS) },
+    },
+    orderBy: { createdAt: "asc" },
+    take: STUCK_PHOTO_BATCH,
+    select: { id: true },
+  });
+
+  if (stuck.length === 0) return 0;
+
+  // `photo.process` is idempotent, so re-enqueueing one that is merely slow
+  // rather than lost costs a wasted lookup and nothing else.
+  const results = await Promise.allSettled(
+    stuck.map((photo) => enqueue(QUEUES.photoProcess, { photoId: photo.id })),
+  );
+
+  const requeued = results.filter(
+    (result) => result.status === "fulfilled" && result.value !== null,
+  ).length;
+
+  logger.warn(
+    { found: stuck.length, requeued },
+    "re-enqueued photos stuck in PROCESSING",
+  );
+
+  return requeued;
+}
+
 export async function handleMaintenance(): Promise<void> {
-  const [sessions, limits] = await Promise.all([
+  const [sessions, limits, photos] = await Promise.all([
     purgeExpiredSessions(),
     purgeExpiredRateLimits(),
+    requeueStuckPhotos(),
   ]);
 
-  if (sessions > 0 || limits > 0) {
-    logger.info({ sessions, limits }, "maintenance sweep");
+  if (sessions > 0 || limits > 0 || photos > 0) {
+    logger.info({ sessions, limits, photos }, "maintenance sweep");
   }
 }
 

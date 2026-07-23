@@ -103,9 +103,37 @@ excuse not to test a change to it.
 
 ### Sensitive actions
 
-Password re-entry is required for adding a pickup-authorized person and for
-changing an account email. Re-authentication is verified server-side within the
-same action, not tracked as a client-side flag.
+Password re-entry is required for adding a pickup-authorized person, for changing
+an account email, and for changing a password. Re-authentication is verified
+server-side within the same action, not tracked as a client-side flag — a flag is
+something the client asserts, and this is the control standing between a borrowed
+unlocked phone and taking over a family's account.
+
+Re-entry attempts are rate-limited per account (10 per hour), not per address:
+this is online guessing against one known user by someone already holding their
+browser.
+
+Changing a password invalidates every session for that user and then issues a
+fresh one for the browser doing the changing. Every other device is signed out —
+which is the whole reason someone changes a password under duress — while the
+person who just changed it is not thrown back to the sign-in screen for it.
+
+Changing an email to one already in use is refused with a message that does not
+say why. "That address already has an account" would turn the form into an oracle
+for whether a given family attends this nursery, which is the fact the rest of
+the system exists to protect.
+
+### Albums
+
+An album is a presentation grouping and **never** widens access. Every
+parent-facing album query composes `filterForParent`, the same function the photo
+pages use, so an album shows a family exactly the photos they could already see.
+The photo count on an album card and the album's cover image are both resolved
+through that filter as well — an unfiltered count would disclose how many photos
+of other children an album holds, and an unfiltered cover would put one on
+screen. See `docs/architecture.md` for the query shape and
+`e2e/albums.spec.ts`, which asserts a second family sees strictly less of the
+same album.
 
 ### Input and output
 

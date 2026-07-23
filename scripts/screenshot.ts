@@ -93,7 +93,9 @@ for (const viewport of ["desktop", "mobile"] as const) {
     "amal@rihana.test",
     [
       { path: "/portal", name: "home" },
+      { path: "/portal/photos", name: "photos" },
       { path: "/portal/albums", name: "albums" },
+      { path: "/portal/account", name: "account" },
     ],
     viewport,
   );

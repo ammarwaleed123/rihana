@@ -150,7 +150,7 @@ test.describe("publication follows tagging, not just the publish button", () => 
     // The fix: it publishes itself, because its session is already published.
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
 
     await expect(visibleText(page, captionA)).toBeVisible();
     await expect(visibleText(page, captionB)).toBeVisible();
@@ -180,12 +180,16 @@ test.describe("filtering to one child keeps their class albums", () => {
     await signIn(page, PARENT_AMAL);
 
     // Visible under "Everyone"…
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
     await expect(visibleText(page, caption)).toBeVisible();
 
     // …and must remain visible when narrowed to Laila, who is in that class.
     // This is the bug: it used to disappear.
-    await page.getByRole("link", { name: "Laila" }).click();
+    //
+    // `exact` because photo tiles are links too, and any photo captioned
+    // "Laila …" by another suite makes a loose name match ambiguous. The chip
+    // is labelled exactly "Laila".
+    await page.getByRole("link", { name: "Laila", exact: true }).click();
     await expect(visibleText(page, caption)).toBeVisible();
   });
 });
@@ -209,7 +213,7 @@ test.describe("published photos can be withdrawn", () => {
 
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
     await expect(visibleText(page, caption)).toBeVisible();
 
     // Withdraw it.
@@ -224,7 +228,7 @@ test.describe("published photos can be withdrawn", () => {
 
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
     await expect(page.getByText(caption)).toHaveCount(0);
   });
 
@@ -270,7 +274,7 @@ test.describe("downloading", () => {
 
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
     await visibleText(page, caption).click();
 
     // A real download event. Previously the signed URL was cross-origin, so the
@@ -316,7 +320,7 @@ test.describe("withdrawing photo consent takes effect immediately", () => {
     // Sami can see it.
     await page.context().clearCookies();
     await signIn(page, PARENT_SAMI);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
     await expect(visibleText(page, caption)).toBeVisible();
 
     // Owner withdraws Tariq's photo consent.
@@ -336,7 +340,7 @@ test.describe("withdrawing photo consent takes effect immediately", () => {
     // "withdrawn for future photos only".
     await page.context().clearCookies();
     await signIn(page, PARENT_SAMI);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
     await expect(page.getByText(caption)).toHaveCount(0);
   });
 

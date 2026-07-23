@@ -17,6 +17,7 @@ npm install
 cp .env.example .env.local     # then fill in the values
 npm run db:migrate             # apply migrations
 npm run db:seed                # demo classes, children, parents, photos
+npm run queue:warm             # once, on a fresh database
 npm run dev                    # http://localhost:3000
 npm run worker                 # in a second terminal — processes thumbnails
 ```
@@ -24,6 +25,14 @@ npm run worker                 # in a second terminal — processes thumbnails
 The worker is a separate process on purpose: app servers stay stateless, so
 they can be restarted or scaled without losing in-flight work. Without it,
 uploaded photos stay in `PROCESSING` and never get thumbnails.
+
+`queue:warm` is a one-off for a fresh database. Publishing a job is bounded at
+five seconds and never throws — an upload's job is to store photos, and a queue
+blip must not fail a request someone is waiting on — but the very first publish
+against an empty database waits on pg-boss running its own migrations, and times
+out. That photo then sits in `PROCESSING`, which means invisible to families,
+until the maintenance sweep re-queues it a few minutes later. Warming the queue
+up front avoids the whole detour.
 
 ## Stack
 
@@ -53,14 +62,19 @@ uploaded photos stay in `PROCESSING` and never get thumbnails.
 | `npm run db:seed` | Seed demo data |
 | `npm run db:studio` | Prisma Studio |
 | `npm run check:secrets` | Fail if any secret is exposed via `NEXT_PUBLIC_` |
+| `npm run queue:warm` | Start pg-boss once so its migrations run — do this on a fresh database, or the first upload's thumbnail job times out and that photo stays invisible until the maintenance sweep |
 
 ## Layout
 
 ```
 prisma/schema.prisma      data model, with the reasoning in comments
-src/app/(public)          marketing site
-src/app/(portal)          parent portal — requires PARENT
-src/app/(admin)           admin panel — requires OWNER or TEACHER
+src/app/portal/           parent portal — requires PARENT
+  photos/                   every photo this family may see
+  albums/                   named collections, filtered to this family
+  account/                  name, phone, email, password
+src/app/admin/            admin panel — requires OWNER or TEACHER
+  photos/                   upload, tag, publish
+  albums/                   group published photos into an album
 src/lib/auth/             sessions, password hashing, scope resolution
 src/lib/data/             THE ONLY place that queries scoped data
 src/lib/storage/          StorageAdapter: S3Driver | LocalDriver

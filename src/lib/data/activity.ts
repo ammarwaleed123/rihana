@@ -5,6 +5,7 @@ import {
   buildPage,
   clampPageSize,
   decodeCursor,
+  olderThan,
   type Page,
 } from "@/lib/data/pagination";
 import type { Session } from "@/lib/data/sessions";
@@ -40,15 +41,10 @@ export async function listActivity(
 
   const rows = await prisma.auditLog.findMany({
     where: {
-      ...(options.childId ? { childId: options.childId } : {}),
-      ...(cursor
-        ? {
-            OR: [
-              { createdAt: { lt: cursor.at } },
-              { createdAt: cursor.at, id: { lt: cursor.id } },
-            ],
-          }
-        : {}),
+      AND: [
+        options.childId ? { childId: options.childId } : {},
+        ...olderThan(cursor),
+      ],
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,

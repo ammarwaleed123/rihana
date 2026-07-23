@@ -91,19 +91,57 @@ export function buildPage<T>(
 }
 
 /**
- * Prisma `where` fragment for "strictly older than this cursor", for a list
+ * Prisma `where` fragments for "strictly older than this cursor", for a list
  * sorted by (createdAt DESC, id DESC).
  *
  * The compound comparison is what makes ties safe: rows sharing a timestamp are
  * ordered by id, so none is skipped or repeated across a page boundary.
+ *
+ * ---------------------------------------------------------------------------
+ * These return an ARRAY, and callers must compose them like this:
+ *
+ *     where: { AND: [scopeFilter, ...olderThan(cursor)] }
+ *
+ * never like this:
+ *
+ *     where: { ...scopeFilter, ...olderThan(cursor) }   // WRONG
+ *
+ * The cursor condition is an `OR`, and so is the photo routing rule. Spreading
+ * both into one object means the second `OR` silently *replaces* the first —
+ * the key wins, not the intent. That shipped: for one phase, a parent's album
+ * applied the routing rule on page 1 and then, from page 2 onward, returned
+ * every published photo in the nursery. It needed twenty-five photos and a tap
+ * on "Load more" to show itself, so no test and no manual pass ever saw it.
+ *
+ * Returning an array is what makes the safe form the natural one — there is
+ * nothing to spread into an object, so the mistake cannot be typed. Keep it
+ * that way; the literal field names below are also load-bearing, because a
+ * computed key would not type-check against Prisma's generated input types and
+ * that check is the last thing standing between a typo and a leak.
  */
-export function olderThan(cursor: Cursor | null, field = "createdAt") {
-  if (!cursor) return {};
+export function olderThan(cursor: Cursor | null) {
+  if (!cursor) return [];
 
-  return {
-    OR: [
-      { [field]: { lt: cursor.at } },
-      { [field]: cursor.at, id: { lt: cursor.id } },
-    ],
-  };
+  return [
+    {
+      OR: [
+        { createdAt: { lt: cursor.at } },
+        { createdAt: cursor.at, id: { lt: cursor.id } },
+      ],
+    },
+  ];
+}
+
+/** The same, for lists sorted by (publishedAt DESC, id DESC). */
+export function publishedBefore(cursor: Cursor | null) {
+  if (!cursor) return [];
+
+  return [
+    {
+      OR: [
+        { publishedAt: { lt: cursor.at } },
+        { publishedAt: cursor.at, id: { lt: cursor.id } },
+      ],
+    },
+  ];
 }

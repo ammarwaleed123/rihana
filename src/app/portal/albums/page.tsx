@@ -1,122 +1,99 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { LoadMore } from "@/components/portal/photo-grid";
 import { EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
-import { getMyChildren, getPhotosForParent } from "@/lib/data/photos";
+import { listAlbumsForParent } from "@/lib/data/albums";
 
 export const metadata: Metadata = {
-  title: "Photos",
+  title: "Albums",
   robots: { index: false, follow: false },
 };
+
+const dateFormat = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
 export default async function AlbumsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string; childId?: string }>;
+  searchParams: Promise<{ cursor?: string }>;
 }) {
   const params = await searchParams;
   const session = await requireParent("/portal/albums");
 
-  // Every photo below comes through getPhotosForParent — the routing rule. There
-  // is no other query on this page.
-  const page = await getPhotosForParent(session, {
+  // Only albums holding at least one photo this family may see. An album of
+  // other children simply does not exist here.
+  const page = await listAlbumsForParent(session, {
     cursor: params.cursor ?? null,
-    childId: params.childId,
   });
-
-  const children = await getMyChildren(session);
 
   return (
     <div>
       <PageHeader
-        title="Photos"
-        description="Photos of your children, and albums shared with their class."
+        title="Albums"
+        description="Collections the nursery has put together, like a sports day or a school trip."
       />
-
-      {children.length > 1 ? (
-        <nav aria-label="Filter by child" className="mb-6 flex flex-wrap gap-2">
-          <Link
-            href="/portal/albums"
-            aria-current={!params.childId ? "page" : undefined}
-            className={
-              !params.childId
-                ? "rounded-full border-2 border-leaf bg-leaf px-4 py-2 font-bold text-white"
-                : "rounded-full border-2 border-ink/15 bg-card px-4 py-2 font-bold hover:border-leaf"
-            }
-          >
-            Everyone
-          </Link>
-          {children.map((child) => (
-            <Link
-              key={child.id}
-              href={`/portal/albums?childId=${child.id}`}
-              aria-current={params.childId === child.id ? "page" : undefined}
-              className={
-                params.childId === child.id
-                  ? "rounded-full border-2 border-leaf bg-leaf px-4 py-2 font-bold text-white"
-                  : "rounded-full border-2 border-ink/15 bg-card px-4 py-2 font-bold hover:border-leaf"
-              }
-            >
-              {child.firstName}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
 
       {page.items.length === 0 ? (
         <EmptyState
-          title="No photos yet"
-          description="When the nursery shares photos of your child, they will appear here."
+          title="No albums yet"
+          description="When the nursery groups photos into an album, it will appear here."
         />
       ) : (
         <>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {page.items.map((photo) => (
-              <li key={photo.id}>
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {page.items.map((album) => (
+              <li key={album.id}>
                 <Link
-                  href={`/portal/albums/${photo.id}`}
-                  className="group block overflow-hidden rounded-xl border border-ink/10 bg-card shadow-pin"
+                  href={`/portal/albums/${album.id}`}
+                  className="group block overflow-hidden rounded-2xl border border-ink/10 bg-card shadow-pin transition-colors hover:border-leaf focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                 >
-                  <div className="aspect-square bg-paper-deep">
-                    {/* Served through /api/img, which authorizes before it
-                        redirects to a short-lived signed URL. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/img/${photo.id}?v=thumb`}
-                      alt={
-                        photo.caption ??
-                        (photo.taggedChildren.length > 0
-                          ? `Photo of ${photo.taggedChildren.map((c) => c.firstName).join(" and ")}`
-                          : "Class photo")
-                      }
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                      loading="lazy"
-                    />
+                  <div className="aspect-[3/2] bg-paper-deep">
+                    {album.coverPhotoId ? (
+                      // The cover is resolved per family: if the album's chosen
+                      // cover is a photo they may not see, they get the first
+                      // one they can.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/img/${album.coverPhotoId}?v=thumb`}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : null}
                   </div>
 
-                  {photo.caption ? (
-                    <p className="px-3 py-2 text-sm text-ink-soft">
-                      {photo.caption}
+                  <div className="p-4">
+                    <p className="font-display text-lg font-semibold">
+                      {album.title}
                     </p>
-                  ) : null}
+                    <p className="mt-0.5 text-sm text-ink-soft">
+                      {album.photoCount} photo
+                      {album.photoCount === 1 ? "" : "s"}
+                      {album.eventDate
+                        ? ` · ${dateFormat.format(album.eventDate)}`
+                        : ""}
+                    </p>
+                    {album.description ? (
+                      <p className="mt-2 line-clamp-2 text-sm text-ink-soft">
+                        {album.description}
+                      </p>
+                    ) : null}
+                  </div>
                 </Link>
               </li>
             ))}
           </ul>
 
           {page.hasMore && page.nextCursor ? (
-            <div className="mt-8 text-center">
-              <Link
-                href={{
-                  pathname: "/portal/albums",
-                  query: { ...params, cursor: page.nextCursor },
-                }}
-                className="inline-block rounded-full border-2 border-ink/15 bg-card px-6 py-3 font-bold hover:border-leaf hover:text-leaf"
-              >
-                Load more photos
-              </Link>
-            </div>
+            <LoadMore
+              href={`/portal/albums?cursor=${encodeURIComponent(page.nextCursor)}`}
+              label="Load more albums"
+            />
           ) : null}
         </>
       )}

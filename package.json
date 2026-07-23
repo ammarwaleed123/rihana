@@ -23,6 +23,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "check:secrets": "tsx scripts/check-secrets.ts",
+    "queue:warm": "tsx scripts/warm-queue.ts",
     "verify": "npm run typecheck && npm run lint && npm run check:secrets && npm run test"
   },
   "dependencies": {

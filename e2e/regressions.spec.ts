@@ -43,6 +43,39 @@ test.describe("navigation: exactly one tab is current", () => {
       await expect(current).toHaveText(label);
     });
   }
+
+  /*
+   * The portal has the same shape of bug available to it, and one extra trap:
+   * it renders two navs — a header row and a bottom tab bar — and hides one per
+   * breakpoint with CSS. Both are in the DOM, so `:visible` is what makes this
+   * assertion mean "one tab is lit" rather than "one nav exists".
+   */
+  for (const [path, label] of [
+    ["/portal", "Home"],
+    ["/portal/photos", "Photos"],
+    ["/portal/albums", "Albums"],
+    ["/portal/account", "Account"],
+  ] as const) {
+    test(`${path} marks only "${label}" in the portal`, async ({ page }) => {
+      await signIn(page, "amal@rihana.test");
+      await page.goto(path);
+
+      /*
+       * Scoped to the section nav.
+       *
+       * /portal/photos also carries per-child filter chips, and the selected
+       * chip is legitimately `aria-current="page"` — it is a real, distinct
+       * URL. Asserting across every nav on the page conflated "one tab is lit"
+       * with "one thing on the page is current", and only failed for the
+       * parent who happens to have two children.
+       */
+      const current = page.locator(
+        'nav[aria-label="Portal sections"] a[aria-current="page"]:visible',
+      );
+      await expect(current).toHaveCount(1);
+      await expect(current).toContainText(label);
+    });
+  }
 });
 
 test.describe("permanent deletion actually erases", () => {

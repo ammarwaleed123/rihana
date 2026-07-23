@@ -199,7 +199,7 @@ async function publishFixture(page: Page) {
 /** Ids of the two published photos, as seen by a parent who can see both. */
 async function photoIdsFor(page: Page, caption: string): Promise<string> {
   const link = page
-    .locator('a[href^="/portal/albums/"]')
+    .locator('a[href^="/portal/photos/"]')
     .filter({ hasText: caption });
 
   const href = await link.first().getAttribute("href");
@@ -216,7 +216,7 @@ test.describe("the routing rule, end to end", () => {
     // --- Amal: Laila is tagged, and Laila is in Sunflowers -----------------
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
 
     // Both of this run's photos reach her: rule (a) for the tagged one, rule
     // (b) for the class-wide one.
@@ -232,14 +232,14 @@ test.describe("the routing rule, end to end", () => {
     // --- Khalid: Zayn is in Sunflowers, but is not in Laila's photo --------
     await page.context().clearCookies();
     await signIn(page, PARENT_KHALID);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
 
     // Rule (b) reaches him; rule (a) does not. THE assertion of this phase.
     await expect(visibleText(page, CLASS_CAPTION)).toBeVisible();
     await expect(page.getByText(TAGGED_CAPTION)).toHaveCount(0);
 
     // --- The page: guessing the id gets a 404, not a 403 -------------------
-    const pageResponse = await page.goto(`/portal/albums/${lailaPhotoId}`);
+    const pageResponse = await page.goto(`/portal/photos/${lailaPhotoId}`);
     expect(pageResponse?.status()).toBe(404);
 
     // --- The bytes: the real prize, and the real test ----------------------
@@ -304,7 +304,7 @@ test.describe("unpublished photos reach nobody", () => {
     // Amal must not see it: publishedAt is null.
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
-    await page.goto("/portal/albums");
+    await page.goto("/portal/photos");
 
     // The draft's caption never appears for her, however many other photos
     // exist from earlier runs.

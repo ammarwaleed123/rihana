@@ -41,6 +41,11 @@ src/lib/auth/scope.ts
 
 | Action | Owner | Teacher | Parent |
 |---|---|---|---|
+| Create / edit albums | all | own classes only | no |
+| Create a nursery-wide album | yes | no | no |
+| Move an album between classes | yes | no | no |
+| Publish / withdraw / delete an album | yes | own classes only | no |
+| Change own name, phone, email, password | yes | yes | yes |
 | View children | all | own classes only | own children (portal) |
 | Create / edit / archive children | yes | no | no |
 | Delete a child permanently | yes | no | no |
@@ -85,6 +90,48 @@ Album membership is presentation only. An album never widens access; a parent se
 an album as the subset of its photos they were already entitled to, and an album
 that resolves to zero photos for them does not appear at all.
 
+`src/lib/data/albums.ts` composes `filterForParent` — the same function the photo
+pages use — rather than restating the rule. Two expressions of one access rule is
+one too many, and the second is always the one left behind when the first is
+corrected.
+
+```
+albums WHERE status = PUBLISHED AND deletedAt IS NULL
+  AND EXISTS (album_photos ap JOIN photos p ON ap.photo_id = p.id
+              WHERE ap.album_id = albums.id AND <the routing rule>)
+```
+
+Three consequences, each of which is a way this could otherwise leak:
+
+- The **photo count on an album card** is counted through the same filter. It is
+  how many photos *this family* can see, never the album's real size — the real
+  size would disclose how many photos of other children it holds.
+- The **cover photo** is resolved per family. If the album's chosen cover is a
+  photo they may not see, they get the first one they can. Covers for a whole
+  page are checked in one query, not one per album.
+- Album detail returns **null** for "no such album", "not published" and
+  "contains nothing for you" alike, and the page turns all three into a 404.
+
+### Cursor composition — the bug that made this rule fail
+
+Keyset conditions are `OR`, and so is the routing rule. Merging them with an
+object spread means the cursor's `OR` **replaces** the rule's — the key wins, not
+the intent, and the type checker is perfectly happy. That shipped in Phase 3:
+page 1 of a parent's album was correct, and every page after it returned every
+published photo in the nursery. It took twenty-five photos and a tap on "Load
+more" to show itself, so neither the tests nor a manual pass ever saw it.
+
+`olderThan(cursor)` and `publishedBefore(cursor)` therefore return **arrays**, and
+every paginated query composes them as:
+
+```ts
+where: { AND: [scopeFilter, ...olderThan(cursor)] }
+```
+
+There is nothing to spread into an object, so the mistake cannot be typed.
+`tests/pagination.test.ts` asserts the routing rule survives the composition, and
+spells out the broken form so the failure is legible.
+
 ## Request paths
 
 ### Photo upload
@@ -105,8 +152,23 @@ worker (npm run worker, separate process)
   notify.photos-published -> fan-out, one Notification per affected parent,
                              deduped by (userId, dedupeKey)     [Phase 5]
   storage.purge     -> remove objects after an erasure
-  maintenance       -> sweep expired sessions and rate-limit buckets
+  maintenance       -> expired sessions, rate-limit buckets, and photos
+                       stranded in PROCESSING (every 5 minutes)
 ```
+
+**A dropped job used to strand a photo forever.** `enqueue` is bounded at five
+seconds and never throws, because an upload's job is to store photos and a queue
+blip must not fail the request someone is waiting on. The cost is that a photo
+whose job was never published stays `PROCESSING` — and `PROCESSING` means
+invisible to every family, permanently, with nothing but a small badge on an
+admin screen to say so. Two comments claimed the maintenance sweep recovered
+these; it did not until Phase 4. It does now, and the sweep runs every five
+minutes rather than every fifteen because the interval is now measured in "how
+long a family cannot see a photograph of their child".
+
+The trigger in practice is a cold start: the very first `enqueue` against a fresh
+database waits on pg-boss running its own migrations, and times out.
+`scripts/warm-queue.ts` removes that stall for local runs and the test suite.
 
 Files are handled independently: one unreadable photo among two hundred is
 reported and skipped, not a reason to fail the batch.

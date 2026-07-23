@@ -21,7 +21,7 @@ export const cuid = z.string().min(20).max(40);
 /** A person's name. Deliberately permissive: names contain apostrophes,
  *  hyphens, spaces, and every script in Unicode. Rejecting "unusual" names is a
  *  reliable way to insult families. Length is the only real constraint. */
-const personName = text(1, 80, "Name");
+export const personName = text(1, 80, "Name");
 
 // ---------------------------------------------------------------------------
 // Classes
@@ -139,6 +139,45 @@ export const guardianshipInput = z.object({
   relationship: z.enum(GUARDIAN_RELATIONSHIPS),
   isPrimary: z.coerce.boolean().default(false),
 });
+
+// ---------------------------------------------------------------------------
+// Albums
+// ---------------------------------------------------------------------------
+
+/**
+ * The day the photos were taken, not the day they were uploaded.
+ *
+ * Optional, and past-only with a little slack: a nursery uploads Friday's
+ * sports day on Monday, but an event date in 2027 is a slipped digit.
+ */
+const eventDate = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ? new Date(value) : null))
+  .refine(
+    (date) => date === null || !Number.isNaN(date.getTime()),
+    "Enter a valid date",
+  )
+  .refine(
+    (date) => date === null || date.getTime() <= Date.now() + 86_400_000,
+    "An event date cannot be in the future",
+  );
+
+export const albumInput = z.object({
+  title: text(1, 80, "Album title"),
+  description: z
+    .string()
+    .trim()
+    .max(500, "Please keep the description under 500 characters")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  // Empty means the whole nursery. Owner-only; enforced in the data layer.
+  classId: cuid.nullable().or(z.literal("").transform(() => null)),
+  eventDate,
+});
+
+export type AlbumInput = z.infer<typeof albumInput>;
 
 // ---------------------------------------------------------------------------
 // Deletion

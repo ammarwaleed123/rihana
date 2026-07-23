@@ -5,6 +5,7 @@ import {
   buildPage,
   clampPageSize,
   decodeCursor,
+  olderThan,
   type Page,
 } from "@/lib/data/pagination";
 import { assertCanViewChild, classIdsForTeacher } from "@/lib/data/scope";
@@ -81,20 +82,20 @@ export async function listChildren(
     : {};
 
   const rows = await prisma.child.findMany({
+    // ANDed rather than spread: `searchFilter` and the cursor are both `OR`,
+    // and merging them into one object dropped the search on every page after
+    // the first. See the note on `olderThan`.
     where: {
-      deletedAt: null,
-      ...(options.includeArchived ? {} : { status: "ACTIVE" as const }),
-      ...scoped,
-      ...classFilter,
-      ...searchFilter,
-      ...(cursor
-        ? {
-            OR: [
-              { createdAt: { lt: cursor.at } },
-              { createdAt: cursor.at, id: { lt: cursor.id } },
-            ],
-          }
-        : {}),
+      AND: [
+        {
+          deletedAt: null,
+          ...(options.includeArchived ? {} : { status: "ACTIVE" as const }),
+          ...scoped,
+          ...classFilter,
+        },
+        searchFilter,
+        ...olderThan(cursor),
+      ],
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
@@ -371,6 +372,12 @@ export async function deleteChild(session: Session, childId: string) {
     // want to rely on implicitly.
     prisma.albumPhoto.deleteMany({ where: { photoId: { in: orphanedPhotoIds } } }),
     prisma.photoTag.deleteMany({ where: { photoId: { in: orphanedPhotoIds } } }),
+    // `coverPhotoId` is a plain column, not a foreign key, so nothing clears it
+    // for us — an erased child's photo could stay named as an album's cover.
+    prisma.album.updateMany({
+      where: { coverPhotoId: { in: orphanedPhotoIds } },
+      data: { coverPhotoId: null },
+    }),
     prisma.photo.deleteMany({ where: { id: { in: orphanedPhotoIds } } }),
 
     // Explicit rather than leaning on cascades, so the intent is readable and a

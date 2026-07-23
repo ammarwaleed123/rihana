@@ -12,6 +12,7 @@ export function AdminNav({ current, role }: { current: string; role: Role }) {
   const items = [
     { href: "/admin", label: "Overview" },
     { href: "/admin/photos", label: "Photos" },
+    { href: "/admin/albums", label: "Albums" },
     { href: "/admin/children", label: "Children" },
     { href: "/admin/classes", label: "Classes" },
     ...(role === "OWNER"

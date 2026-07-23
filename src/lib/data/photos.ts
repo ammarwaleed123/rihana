@@ -6,9 +6,14 @@ import {
   clampPageSize,
   decodeCursor,
   encodeCursor,
+  olderThan,
   type Page,
 } from "@/lib/data/pagination";
-import { childPhotoFilter, parentPhotoFilter } from "@/lib/data/photo-filter";
+import {
+  childPhotoFilter,
+  parentPhotoFilter,
+  type ParentPhotoFilter,
+} from "@/lib/data/photo-filter";
 import {
   childIdsForParent,
   classIdsForParent,
@@ -37,8 +42,17 @@ import { prisma } from "@/lib/db";
  * album that resolves to nothing for them does not appear at all.
  */
 
-/** Resolve the caller's scope, then build the filter. */
-async function filterForParent(session: Session) {
+/**
+ * Resolve the caller's scope, then build the filter.
+ *
+ * Exported because albums need the identical rule. An album is a presentation
+ * grouping and must never widen access, so it composes *this* filter rather
+ * than describing "which photos may this parent see" a second time — two
+ * statements of the same rule is one statement too many.
+ */
+export async function filterForParent(
+  session: Session,
+): Promise<ParentPhotoFilter> {
   const [childIds, classIds] = await Promise.all([
     childIdsForParent(session.user.id),
     classIdsForParent(session.user.id),
@@ -97,17 +111,15 @@ export async function getPhotosForParent(
   }
 
   const rows = await prisma.photo.findMany({
-    where: {
-      ...scopeFilter,
-      ...(cursor
-        ? {
-            OR: [
-              { createdAt: { lt: cursor.at } },
-              { createdAt: cursor.at, id: { lt: cursor.id } },
-            ],
-          }
-        : {}),
-    },
+    /*
+     * ANDed, never spread.
+     *
+     * Both the routing rule and the cursor are expressed as `OR`, so merging
+     * them into one object dropped the routing rule entirely and handed page 2
+     * of a parent's album every published photo in the nursery. See the note on
+     * `olderThan` — this is the composition that must not be undone.
+     */
+    where: { AND: [scopeFilter, ...olderThan(cursor)] },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     select: {
@@ -139,6 +151,52 @@ export async function getPhotosForParent(
     limit,
     (row) => ({ at: row.createdAt, id: row.id }),
   );
+}
+
+/**
+ * One photo, with the details needed to display a page about it.
+ *
+ * Separate from `getPhotoForUser` — which answers only "may you have these
+ * bytes" — because this returns captions and names, and the two questions
+ * deserve to stay separately auditable. Both compose the same filter.
+ */
+export async function getPhotoDetailForParent(
+  session: Session,
+  photoId: string,
+): Promise<PhotoListItem | null> {
+  if (session.user.role !== "PARENT") throw new ForbiddenError();
+
+  const filter = await filterForParent(session);
+  const myChildIds = await childIdsForParent(session.user.id);
+
+  const row = await prisma.photo.findFirst({
+    where: { AND: [filter, { id: photoId }] },
+    select: {
+      id: true,
+      caption: true,
+      width: true,
+      height: true,
+      createdAt: true,
+      classId: true,
+      tags: {
+        // Their own children only — never a classmate's name.
+        where: { childId: { in: myChildIds } },
+        select: { child: { select: { id: true, firstName: true } } },
+      },
+    },
+  });
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    caption: row.caption,
+    width: row.width,
+    height: row.height,
+    createdAt: row.createdAt,
+    classId: row.classId,
+    taggedChildren: row.tags.map((tag) => tag.child),
+  };
 }
 
 /** The caller's own children, for the portal's per-child filter chips. */

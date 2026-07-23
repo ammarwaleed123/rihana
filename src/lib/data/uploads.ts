@@ -486,6 +486,17 @@ export async function deletePhoto(session: Session, photoId: string) {
   await prisma.$transaction([
     prisma.photoTag.deleteMany({ where: { photoId } }),
     prisma.albumPhoto.deleteMany({ where: { photoId } }),
+    /*
+     * `coverPhotoId` is a plain column, not a foreign key, so nothing clears it
+     * for us. Left dangling it points at a photo that no longer exists, and the
+     * staff album list renders a broken tile. Parents never saw this — their
+     * cover is resolved through the routing filter, which a deleted photo
+     * cannot pass — which is exactly why it would have gone unnoticed.
+     */
+    prisma.album.updateMany({
+      where: { coverPhotoId: photoId },
+      data: { coverPhotoId: null },
+    }),
     prisma.photo.delete({ where: { id: photoId } }),
   ]);
 

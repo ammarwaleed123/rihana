@@ -44,9 +44,17 @@ async function main() {
     logger.info({ queue }, "worker listening");
   }
 
-  // Housekeeping every fifteen minutes. `singletonKey` keeps a second worker
-  // process from scheduling a duplicate.
-  await boss.schedule(QUEUES.maintenance, "*/15 * * * *", {}, {
+  /*
+   * Housekeeping every five minutes. `singletonKey` keeps a second worker
+   * process from scheduling a duplicate.
+   *
+   * It was fifteen. The sweep now also rescues photos stranded in PROCESSING by
+   * a failed enqueue, and that is time a family spends unable to see a
+   * photograph of their child — so the cadence is set by how long that is
+   * tolerable, not by how often expired sessions need clearing. The sweep is
+   * three cheap indexed queries; running it more often costs nothing.
+   */
+  await boss.schedule(QUEUES.maintenance, "*/5 * * * *", {}, {
     singletonKey: "maintenance",
   });
 

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PhotoGrid } from "@/components/portal/photo-grid";
 import { Card, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
+import { listAlbumsForParent } from "@/lib/data/albums";
 import { getMyChildren, getPhotosForParent } from "@/lib/data/photos";
 
 export const metadata: Metadata = {
@@ -13,12 +15,13 @@ export const metadata: Metadata = {
 export default async function PortalHome() {
   const session = await requireParent("/portal");
 
-  const [children, recent] = await Promise.all([
+  const [children, recent, albums] = await Promise.all([
     getMyChildren(session),
     getPhotosForParent(session, { limit: 8 }),
+    listAlbumsForParent(session, { limit: 2 }),
   ]);
 
-  const names = children.map((c) => c.firstName);
+  const names = children.map((child) => child.firstName);
 
   return (
     <div>
@@ -33,41 +36,11 @@ export default async function PortalHome() {
 
       {recent.items.length > 0 ? (
         <section className="mb-8">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-xl font-semibold">Latest photos</h2>
-            <Link
-              href="/portal/albums"
-              className="text-sm font-semibold text-leaf underline underline-offset-4"
-            >
-              See all
-            </Link>
-          </div>
-
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {recent.items.map((photo) => (
-              <li key={photo.id}>
-                <Link
-                  href={`/portal/albums/${photo.id}`}
-                  className="block overflow-hidden rounded-xl border border-ink/10 bg-card shadow-pin"
-                >
-                  <div className="aspect-square bg-paper-deep">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/img/${photo.id}?v=thumb`}
-                      alt={
-                        photo.caption ??
-                        (photo.taggedChildren.length > 0
-                          ? `Photo of ${photo.taggedChildren.map((c) => c.firstName).join(" and ")}`
-                          : "Class photo")
-                      }
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <SectionHeading title="Latest photos" href="/portal/photos" />
+          <PhotoGrid
+            photos={recent.items}
+            hrefFor={(photo) => `/portal/photos/${photo.id}?from=/portal`}
+          />
         </section>
       ) : (
         <Card className="mb-8">
@@ -79,6 +52,44 @@ export default async function PortalHome() {
           </p>
         </Card>
       )}
+
+      {albums.items.length > 0 ? (
+        <section className="mb-8">
+          <SectionHeading title="Albums" href="/portal/albums" />
+
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {albums.items.map((album) => (
+              <li key={album.id}>
+                <Link
+                  href={`/portal/albums/${album.id}`}
+                  className="group block overflow-hidden rounded-2xl border border-ink/10 bg-card shadow-pin transition-colors hover:border-leaf"
+                >
+                  <div className="aspect-[3/2] bg-paper-deep">
+                    {album.coverPhotoId ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/img/${album.coverPhotoId}?v=thumb`}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : null}
+                  </div>
+                  <div className="p-4">
+                    <p className="font-display text-lg font-semibold">
+                      {album.title}
+                    </p>
+                    <p className="mt-0.5 text-sm text-ink-soft">
+                      {album.photoCount} photo
+                      {album.photoCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Card>
@@ -93,6 +104,20 @@ export default async function PortalHome() {
           <p className="mt-2 text-ink-soft">Arriving in Phase 6.</p>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function SectionHeading({ title, href }: { title: string; href: string }) {
+  return (
+    <div className="mb-3 flex items-baseline justify-between gap-3">
+      <h2 className="font-display text-xl font-semibold">{title}</h2>
+      <Link
+        href={href}
+        className="text-sm font-semibold text-leaf underline underline-offset-4"
+      >
+        See all
+      </Link>
     </div>
   );
 }
