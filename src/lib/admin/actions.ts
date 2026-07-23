@@ -315,7 +315,7 @@ export async function updateChildAction(
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 
   try {
-    const { before, after, untaggedFrom } = await updateChild(
+    const { before, after, photosHidden, photosRestored } = await updateChild(
       session,
       childId,
       parsed.data,
@@ -325,6 +325,7 @@ export async function updateChildAction(
     // photographs, so it is called out rather than buried in a diff.
     const consentChanged = before.photoConsent !== after.photoConsent;
     const withdrawn = consentChanged && !after.photoConsent;
+    const restored = consentChanged && after.photoConsent;
 
     await audit(session, {
       action: "child.updated",
@@ -332,11 +333,11 @@ export async function updateChildAction(
       targetId: after.id,
       childId: after.id,
       summary: withdrawn
-        ? `Withdrew photo consent for ${after.firstName} ${after.lastName} and removed them from ${untaggedFrom} photo(s)`
-        : consentChanged
-          ? `Granted photo consent for ${after.firstName} ${after.lastName}`
+        ? `Withdrew photo consent for ${after.firstName} ${after.lastName}; hid ${photosHidden} photo(s)`
+        : restored
+          ? `Granted photo consent for ${after.firstName} ${after.lastName}; restored ${photosRestored} photo(s)`
           : `Updated ${after.firstName} ${after.lastName}`,
-      metadata: { before, after: parsed.data, untaggedFrom },
+      metadata: { before, after: parsed.data, photosHidden, photosRestored },
     });
 
     revalidatePath("/admin/children");
@@ -346,9 +347,18 @@ export async function updateChildAction(
     if (withdrawn) {
       return {
         success:
-          untaggedFrom > 0
-            ? `Saved. ${after.firstName} has been removed from ${untaggedFrom} photo${untaggedFrom === 1 ? "" : "s"}, which no family can now see them in.`
-            : `Saved. ${after.firstName} cannot be tagged in photos.`,
+          photosHidden > 0
+            ? `Saved. ${after.firstName}'s photo consent is withdrawn, and ${photosHidden} photo${photosHidden === 1 ? "" : "s"} showing only them ${photosHidden === 1 ? "is" : "are"} now hidden from every family.`
+            : `Saved. ${after.firstName}'s photo consent is withdrawn; they cannot be tagged in new photos.`,
+      };
+    }
+
+    if (restored) {
+      return {
+        success:
+          photosRestored > 0
+            ? `Saved. ${after.firstName}'s photo consent is restored, and ${photosRestored} photo${photosRestored === 1 ? "" : "s"} ${photosRestored === 1 ? "is" : "are"} visible to their family again.`
+            : `Saved. ${after.firstName} can be tagged in photos again.`,
       };
     }
 

@@ -6,10 +6,19 @@ import {
   clampPageSize,
   decodeCursor,
   olderThan,
+  pageOffset,
   publishedBefore,
+  type NumberedPage,
   type Page,
 } from "@/lib/data/pagination";
-import { filterForParent, type PhotoListItem } from "@/lib/data/photos";
+import {
+  filterForParent,
+  parentScopeForChild,
+  photoListSelect,
+  toPhotoListItem,
+  PARENT_PHOTOS_PER_PAGE,
+  type PhotoListItem,
+} from "@/lib/data/photos";
 import { childIdsForParent, classIdsForTeacher } from "@/lib/data/scope";
 import type { Session } from "@/lib/data/sessions";
 import { prisma } from "@/lib/db";
@@ -122,13 +131,17 @@ export type ParentAlbumSummary = {
  */
 export async function listAlbumsForParent(
   session: Session,
-  options: { cursor?: string | null; limit?: number } = {},
+  options: { cursor?: string | null; limit?: number; childId?: string } = {},
 ): Promise<Page<ParentAlbumSummary>> {
   if (session.user.role !== "PARENT") throw new ForbiddenError();
 
   const limit = clampPageSize(options.limit ?? 12);
   const cursor = decodeCursor(options.cursor);
-  const filter = await filterForParent(session);
+  // Narrowed to one child when asked. `photos: { some: { photo: filter } }`
+  // then lists only albums holding a photo THAT child may see, and the count
+  // and cover follow the same filter — an album with nothing for the chosen
+  // child simply does not appear under their name.
+  const filter = await parentScopeForChild(session, options.childId);
 
   const rows = await prisma.album.findMany({
     where: {
@@ -216,11 +229,11 @@ export type ParentAlbumDetail = {
     className: string | null;
     photoCount: number;
   };
-  photos: Page<PhotoListItem>;
+  photos: NumberedPage<PhotoListItem>;
 };
 
 /**
- * One album, as this parent sees it.
+ * One album, as this parent sees it, in numbered pages of six.
  *
  * Returns null for "no such album", "not published" and "contains nothing you
  * may see" alike — the caller turns all three into a 404. Distinguishing them
@@ -229,19 +242,18 @@ export type ParentAlbumDetail = {
  * Photos are ordered newest-first like every other photo list, not by the
  * album's `sortOrder`. Curated ordering is a staff convenience for choosing a
  * cover; parents scrolling a graduation album expect the same order as the rest
- * of the portal, and a second sort key would need a second cursor codec to
- * paginate safely.
+ * of the portal.
  */
 export async function getAlbumForParent(
   session: Session,
   albumId: string,
-  options: { cursor?: string | null; limit?: number } = {},
+  options: { page?: number; pageSize?: number } = {},
 ): Promise<ParentAlbumDetail | null> {
   if (session.user.role !== "PARENT") throw new ForbiddenError();
 
-  const limit = clampPageSize(options.limit);
-  const cursor = decodeCursor(options.cursor);
+  const pageSize = options.pageSize ?? PARENT_PHOTOS_PER_PAGE;
   const filter = await filterForParent(session);
+  const myChildIds = await childIdsForParent(session.user.id);
 
   const album = await prisma.album.findFirst({
     where: {
@@ -257,40 +269,24 @@ export async function getAlbumForParent(
       description: true,
       eventDate: true,
       class: { select: { name: true } },
+      // The visible-to-this-family total, which is also the pagination total.
       _count: { select: { photos: { where: { photo: filter } } } },
     },
   });
 
   if (!album) return null;
 
-  const myChildIds = await childIdsForParent(session.user.id);
+  const total = album._count.photos;
+  const { page, pageCount, skip } = pageOffset(options.page ?? 1, total, pageSize);
 
   const rows = await prisma.photo.findMany({
-    // The routing rule, membership of this album, and the cursor — all ANDed.
-    where: {
-      AND: [
-        filter,
-        { albumPhotos: { some: { albumId } } },
-        ...olderThan(cursor),
-      ],
-    },
+    // The routing rule AND membership of this album. Nothing here widens access;
+    // the album only narrows the family's own photos to this collection.
+    where: { AND: [filter, { albumPhotos: { some: { albumId } } }] },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: limit + 1,
-    select: {
-      id: true,
-      caption: true,
-      width: true,
-      height: true,
-      createdAt: true,
-      classId: true,
-      tags: {
-        // Their own children only. An album is exactly where a photo of twenty
-        // children ends up, and naming the other nineteen in the alt text would
-        // undo the care taken everywhere else.
-        where: { childId: { in: myChildIds } },
-        select: { child: { select: { id: true, firstName: true } } },
-      },
-    },
+    skip,
+    take: pageSize,
+    select: photoListSelect(myChildIds),
   });
 
   return {
@@ -300,21 +296,15 @@ export async function getAlbumForParent(
       description: album.description,
       eventDate: album.eventDate,
       className: album.class?.name ?? null,
-      photoCount: album._count.photos,
+      photoCount: total,
     },
-    photos: buildPage(
-      rows.map((row) => ({
-        id: row.id,
-        caption: row.caption,
-        width: row.width,
-        height: row.height,
-        createdAt: row.createdAt,
-        classId: row.classId,
-        taggedChildren: row.tags.map((tag) => tag.child),
-      })),
-      limit,
-      (row) => ({ at: row.createdAt, id: row.id }),
-    ),
+    photos: {
+      items: rows.map(toPhotoListItem),
+      page,
+      pageCount,
+      pageSize,
+      total,
+    },
   };
 }
 
@@ -322,12 +312,26 @@ export async function getAlbumForParent(
 // Staff-facing reads
 // ---------------------------------------------------------------------------
 
+/**
+ * Albums a staff member sees on the admin list.
+ *
+ * Owner: everything. Teacher: every PUBLISHED album, of any class, plus their
+ * own classes' drafts. Published albums are shared staff-wide — any teacher can
+ * open one and view its photos — while a draft belongs to the class that is
+ * still preparing it. Editing is a separate question, decided per album by
+ * `canManageAlbum`.
+ */
 export async function listAlbumsForStaff(session: Session, limit = 50) {
   if (session.user.role === "PARENT") throw new ForbiddenError();
 
   const scoped =
     session.user.role === "TEACHER"
-      ? { classId: { in: await classIdsForTeacher(session.user.id) } }
+      ? {
+          OR: [
+            { status: "PUBLISHED" as const },
+            { classId: { in: await classIdsForTeacher(session.user.id) } },
+          ],
+        }
       : {};
 
   return prisma.album.findMany({
@@ -349,9 +353,59 @@ export async function listAlbumsForStaff(session: Session, limit = 50) {
   });
 }
 
-/** One album plus its photos, for the staff editing screen. */
+/**
+ * Whether this staff member may edit this album.
+ *
+ * Owner always; a teacher only for a class they are assigned to. A nursery-wide
+ * album (no class) is owner-only, because editing it reaches across every class.
+ * This is the single source of truth the write actions defer to, and it is what
+ * the view/edit split on the detail screen is built from.
+ */
+async function canManageAlbum(
+  session: Session,
+  album: { classId: string | null },
+): Promise<boolean> {
+  if (session.user.role === "OWNER") return true;
+  if (session.user.role !== "TEACHER") return false;
+  if (!album.classId) return false;
+  const classIds = await classIdsForTeacher(session.user.id);
+  return classIds.includes(album.classId);
+}
+
+/**
+ * One album plus its photos, for the staff screen.
+ *
+ * Any staff member may VIEW a published album; a teacher may also view a draft
+ * of their own class. The returned `canManage` flag tells the page whether to
+ * render the editing controls — a teacher looking at another class's published
+ * album sees it read-only.
+ */
 export async function getAlbumForStaff(session: Session, albumId: string) {
-  const album = await assertCanManageAlbum(session, albumId);
+  if (session.user.role === "PARENT") throw new ForbiddenError();
+
+  const album = await prisma.album.findFirst({
+    where: { id: albumId, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      classId: true,
+      coverPhotoId: true,
+      eventDate: true,
+      status: true,
+      publishedAt: true,
+      createdAt: true,
+      class: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!album) throw new NotFoundError();
+
+  const manage = await canManageAlbum(session, album);
+
+  // A teacher who cannot manage may still view — but only a published album.
+  // A draft in another class does not exist as far as they are concerned.
+  if (!manage && album.status !== "PUBLISHED") throw new NotFoundError();
 
   const photos = await prisma.photo.findMany({
     where: { albumPhotos: { some: { albumId } }, deletedAt: null },
@@ -368,6 +422,7 @@ export async function getAlbumForStaff(session: Session, albumId: string) {
 
   return {
     ...album,
+    canManage: manage,
     photos: photos.map((photo) => ({
       id: photo.id,
       caption: photo.caption,

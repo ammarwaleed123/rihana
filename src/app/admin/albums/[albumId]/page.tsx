@@ -45,15 +45,22 @@ export default async function AlbumDetailPage({
   try {
     album = await getAlbumForStaff(session, albumId);
   } catch (error) {
-    // An album outside this teacher's classes 404s rather than 403s.
+    // A draft in another class 404s rather than 403s.
     if (error instanceof NotFoundError) notFound();
     throw error;
   }
 
-  const [available, classes] = await Promise.all([
-    getPhotosAvailableForAlbum(session, albumId, { cursor: query.cursor }),
-    listClassesForSession(session),
-  ]);
+  const canManage = album.canManage;
+
+  // The photo picker and the class list are only needed by someone who can
+  // edit. A view-only teacher never fetches them — `getPhotosAvailableForAlbum`
+  // would refuse them anyway, since it is an edit-path query.
+  const [available, classes] = canManage
+    ? await Promise.all([
+        getPhotosAvailableForAlbum(session, albumId, { cursor: query.cursor }),
+        listClassesForSession(session),
+      ])
+    : [null, []];
 
   const isOwner = session.user.role === "OWNER";
   const published = album.status === "PUBLISHED";
@@ -103,6 +110,15 @@ export default async function AlbumDetailPage({
         </div>
       ) : null}
 
+      {!canManage ? (
+        <div className="mb-6">
+          <Alert tone="info">
+            You can view this album. Only the {album.class?.name ?? "nursery"}{" "}
+            {album.class ? "teacher" : "owner"} can edit it.
+          </Alert>
+        </div>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,20rem)]">
         <div className="space-y-6 lg:order-1">
           <Card>
@@ -110,11 +126,13 @@ export default async function AlbumDetailPage({
 
             {album.photos.length === 0 ? (
               <p className="text-sm text-ink-soft">
-                Nothing here yet. Choose some photos below.
+                {canManage
+                  ? "Nothing here yet. Choose some photos below."
+                  : "Nothing here yet."}
               </p>
             ) : (
               <>
-                {reachable < album.photos.length ? (
+                {canManage && reachable < album.photos.length ? (
                   <div className="mb-4">
                     <Alert tone="info">
                       {album.photos.length - reachable} of these have not been
@@ -131,6 +149,7 @@ export default async function AlbumDetailPage({
                         albumId={album.id}
                         photo={photo}
                         isCover={album.coverPhotoId === photo.id}
+                        canManage={canManage}
                       />
                     </li>
                   ))}
@@ -139,46 +158,50 @@ export default async function AlbumDetailPage({
             )}
           </Card>
 
-          <Card>
-            <SectionTitle>Add photos</SectionTitle>
-            <AddPhotosPicker
-              albumId={album.id}
-              photos={available.items}
-              nextCursor={available.nextCursor}
-            />
-          </Card>
-        </div>
-
-        <div className="space-y-6 lg:order-2">
-          <Card>
-            <SectionTitle>
-              {published ? "Withdraw from families" : "Share this album"}
-            </SectionTitle>
-            {published ? (
-              <UnpublishAlbumForm albumId={album.id} />
-            ) : (
-              <PublishAlbumForm
+          {canManage && available ? (
+            <Card>
+              <SectionTitle>Add photos</SectionTitle>
+              <AddPhotosPicker
                 albumId={album.id}
-                reachable={reachable}
-                total={album.photos.length}
+                photos={available.items}
+                nextCursor={available.nextCursor}
               />
-            )}
-          </Card>
-
-          <Card>
-            <SectionTitle>Album details</SectionTitle>
-            <EditAlbumForm
-              album={album}
-              classes={classes}
-              canChooseClass={isOwner}
-            />
-          </Card>
-
-          <Card>
-            <SectionTitle>Delete album</SectionTitle>
-            <DeleteAlbumForm albumId={album.id} title={album.title} />
-          </Card>
+            </Card>
+          ) : null}
         </div>
+
+        {canManage ? (
+          <div className="space-y-6 lg:order-2">
+            <Card>
+              <SectionTitle>
+                {published ? "Withdraw from families" : "Share this album"}
+              </SectionTitle>
+              {published ? (
+                <UnpublishAlbumForm albumId={album.id} />
+              ) : (
+                <PublishAlbumForm
+                  albumId={album.id}
+                  reachable={reachable}
+                  total={album.photos.length}
+                />
+              )}
+            </Card>
+
+            <Card>
+              <SectionTitle>Album details</SectionTitle>
+              <EditAlbumForm
+                album={album}
+                classes={classes}
+                canChooseClass={isOwner}
+              />
+            </Card>
+
+            <Card>
+              <SectionTitle>Delete album</SectionTitle>
+              <DeleteAlbumForm albumId={album.id} title={album.title} />
+            </Card>
+          </div>
+        ) : null}
       </div>
     </div>
   );

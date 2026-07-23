@@ -191,11 +191,15 @@ function AddButton({ count }: { count: number }) {
   );
 }
 
-/** Remove one photo from the album, and optionally make it the cover. */
+/**
+ * One album photo. Shows cover/remove controls only to someone who can edit —
+ * a teacher viewing another class's published album sees the tiles, read-only.
+ */
 export function AlbumPhotoCard({
   albumId,
   photo,
   isCover,
+  canManage,
 }: {
   albumId: string;
   photo: {
@@ -205,6 +209,7 @@ export function AlbumPhotoCard({
     visibility: string;
   };
   isCover: boolean;
+  canManage: boolean;
 }) {
   const [removeState, remove] = useActionState<AlbumFormState, FormData>(
     removePhotoAction,
@@ -230,12 +235,11 @@ export function AlbumPhotoCard({
             Cover
           </span>
         ) : null}
-        {!photo.publishedAt ? (
+        {canManage && !photo.publishedAt ? (
           /*
            * The single most confusing thing about albums, called out on every
            * tile that needs it: adding a photo to an album does not share it.
-           * Without this, staff publish an album and reasonably assume families
-           * can see all of it.
+           * Only shown to an editor — a view-only teacher cannot act on it.
            */
           <span className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-sun-soft px-2 py-1 text-center text-xs font-bold">
             Not shared yet
@@ -243,43 +247,47 @@ export function AlbumPhotoCard({
         ) : null}
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-        {isCover ? (
-          <span className="text-xs text-ink-faint">Album cover</span>
-        ) : (
-          <form action={setCover}>
-            <input type="hidden" name="albumId" value={albumId} />
-            <input type="hidden" name="photoId" value={photo.id} />
-            <button
-              type="submit"
-              className="text-xs font-semibold text-leaf underline underline-offset-2"
-            >
-              Make cover
-            </button>
-          </form>
-        )}
+      {canManage ? (
+        <>
+          <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+            {isCover ? (
+              <span className="text-xs text-ink-faint">Album cover</span>
+            ) : (
+              <form action={setCover}>
+                <input type="hidden" name="albumId" value={albumId} />
+                <input type="hidden" name="photoId" value={photo.id} />
+                <button
+                  type="submit"
+                  className="text-xs font-semibold text-leaf underline underline-offset-2"
+                >
+                  Make cover
+                </button>
+              </form>
+            )}
 
-        <form action={remove}>
-          <input type="hidden" name="albumId" value={albumId} />
-          <input type="hidden" name="photoId" value={photo.id} />
-          <button
-            type="submit"
-            className="text-xs font-semibold text-danger underline underline-offset-2"
-          >
-            Remove
-          </button>
-        </form>
-      </div>
+            <form action={remove}>
+              <input type="hidden" name="albumId" value={albumId} />
+              <input type="hidden" name="photoId" value={photo.id} />
+              <button
+                type="submit"
+                className="text-xs font-semibold text-danger underline underline-offset-2"
+              >
+                Remove
+              </button>
+            </form>
+          </div>
 
-      {removeState.error ? (
-        <p className="px-2 pb-2 text-xs font-semibold text-danger">
-          {removeState.error}
-        </p>
-      ) : null}
-      {coverState.error ? (
-        <p className="px-2 pb-2 text-xs font-semibold text-danger">
-          {coverState.error}
-        </p>
+          {removeState.error ? (
+            <p className="px-2 pb-2 text-xs font-semibold text-danger">
+              {removeState.error}
+            </p>
+          ) : null}
+          {coverState.error ? (
+            <p className="px-2 pb-2 text-xs font-semibold text-danger">
+              {coverState.error}
+            </p>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

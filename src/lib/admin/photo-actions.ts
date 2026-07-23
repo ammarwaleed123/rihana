@@ -297,8 +297,13 @@ export async function deletePhotoAction(
   const photoId = String(formData.get("photoId") ?? "");
   const uploadSessionId = String(formData.get("uploadSessionId") ?? "");
 
+  // Set when that was the last photo in the upload. The redirect then happens
+  // outside the try/catch, because Next signals a redirect by throwing.
+  let sessionEmptied = false;
+
   try {
-    await deletePhoto(session, photoId);
+    const result = await deletePhoto(session, photoId);
+    sessionEmptied = result.sessionEmptied;
 
     await recordAudit({
       action: "photo.deleted",
@@ -308,11 +313,18 @@ export async function deletePhotoAction(
       ...(await context(session)),
     });
 
+    revalidatePath("/admin/photos");
     revalidatePath(`/admin/photos/${uploadSessionId}`);
-    return { success: "Photo deleted." };
+
+    if (!sessionEmptied) return { success: "Photo deleted." };
   } catch (error) {
     return toState(error, "deletePhoto");
   }
+
+  // The upload is now empty: its tagging page would 404 (an empty session is
+  // hidden from the list), so land on the list instead — where the empty
+  // upload is already gone.
+  redirect("/admin/photos?deleted=1");
 }
 
 export async function publishAction(

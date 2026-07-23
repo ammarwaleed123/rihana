@@ -132,6 +132,51 @@ export function olderThan(cursor: Cursor | null) {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// Numbered pages (offset)
+// ---------------------------------------------------------------------------
+
+/**
+ * A numbered page — "page 3 of 12", with prev/next.
+ *
+ * Used ONLY for the parent-facing photo and album views. Keyset pagination
+ * cannot say "page 3 of 12": it has no running count and no way to jump to an
+ * arbitrary page, which is exactly the interface a parent asked for. Offset can,
+ * and the cost that makes offset a bad idea elsewhere does not apply here: the
+ * set being paged is one family's own photos — a few dozen, at most a few
+ * hundred — never the whole nursery's tens of thousands. The class-wide feeds
+ * and every admin list stay keyset; see the note on `olderThan`.
+ */
+export type NumberedPage<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  pageCount: number;
+};
+
+/** Parse a `?page=` query value to a 1-based page, defaulting to 1. */
+export function parsePageParam(value: string | undefined | null): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.floor(n);
+}
+
+/**
+ * Clamp a requested page into range once the total is known, and return the
+ * offset to query with. A page past the end lands on the last page rather than
+ * showing an empty grid — a stale bookmark or a hand-typed number should not 404.
+ */
+export function pageOffset(
+  requested: number,
+  total: number,
+  pageSize: number,
+): { page: number; pageCount: number; skip: number } {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(1, requested), pageCount);
+  return { page, pageCount, skip: (page - 1) * pageSize };
+}
+
 /** The same, for lists sorted by (publishedAt DESC, id DESC). */
 export function publishedBefore(cursor: Cursor | null) {
   if (!cursor) return [];

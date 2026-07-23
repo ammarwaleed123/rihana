@@ -92,14 +92,46 @@ export const email = z
   .pipe(z.email("Enter a valid email address"))
   .refine((v) => v.length <= 254, "That email address is too long");
 
-/** Optional free-text phone. Not regex-validated: international formats vary
- *  wildly and a rejected valid number is worse than a stored odd one. */
+/**
+ * Egyptian mobile number.
+ *
+ * 11 digits starting `01`, with a real carrier prefix — 010 (Vodafone),
+ * 011 (Etisalat), 012 (Orange), 015 (WE). Anything else is a typo: a string of
+ * zeros, a landline, a half-typed number.
+ *
+ * Formatting is forgiving so a parent can paste whatever their contacts app
+ * shows — spaces, dashes and parentheses are stripped, and an international
+ * `+20` / `0020` prefix is folded back to the local `0`-leading form — but the
+ * value is stored in exactly one shape (`01XXXXXXXXX`) so the nursery is never
+ * comparing `+20 10…` against `010…` by eye.
+ *
+ * Optional: an empty field stays empty. When given, it must be valid.
+ */
+const EGYPT_MOBILE = /^01[0125]\d{8}$/;
+
 export const phone = z
   .string()
   .trim()
-  .max(40)
-  .optional()
-  .or(z.literal("").transform(() => undefined));
+  .transform((raw) => {
+    // Blank field -> genuinely absent. Distinct from "typed something with no
+    // usable digits", which is a typo and must be rejected, not silently
+    // dropped — so absence is `null` here and garbage stays a non-null string.
+    if (raw === "") return null;
+
+    let digits = raw.replace(/\D/g, "");
+    // 0020… (international access code) -> 20…
+    if (digits.startsWith("0020")) digits = digits.slice(2);
+    // 20 1x xxxx xxxx (country code, leading 0 dropped) -> 01x xxxx xxxx
+    if (digits.startsWith("20") && digits.length === 12) {
+      digits = `0${digits.slice(2)}`;
+    }
+    return digits;
+  })
+  .refine(
+    (value) => value === null || EGYPT_MOBILE.test(value),
+    "Enter a valid Egyptian mobile number, e.g. 01012345678",
+  )
+  .transform((value) => value ?? undefined);
 
 export const inviteParentInput = z.object({
   name: personName,

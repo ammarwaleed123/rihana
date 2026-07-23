@@ -230,7 +230,11 @@ async function syncPublicationState(photoId: string): Promise<void> {
       publishedAt: true,
       deletedAt: true,
       uploadSession: { select: { status: true, publishedAt: true } },
-      _count: { select: { tags: true } },
+      // Only tags of children WITH consent count. A photo tagged solely with a
+      // child whose consent has been withdrawn reaches nobody it may reach, so
+      // it should not be published — and the moment consent is restored the tag
+      // counts again and the photo comes back. See `resyncPhotosForChild`.
+      _count: { select: { tags: { where: { child: { photoConsent: true } } } } },
     },
   });
 
@@ -255,6 +259,60 @@ async function syncPublicationState(photoId: string): Promise<void> {
       data: { publishedAt: null },
     });
   }
+}
+
+/**
+ * Re-derive publication for every photo a child is tagged in.
+ *
+ * The reversible half of photo consent. Withdrawing consent no longer deletes
+ * the child's tags — it keeps them and re-runs this, so a photo tagged only with
+ * that child stops being published (it now reaches nobody with consent).
+ * Restoring consent re-runs the same thing: the tag counts again, so the photo
+ * comes back on its own. Deleting the tags, as an earlier version did, threw
+ * away the very information restoration needs.
+ *
+ * Returns how many photos changed each way, so the caller can tell the owner
+ * exactly what happened.
+ */
+export async function resyncPhotosForChild(
+  childId: string,
+): Promise<{ published: number; unpublished: number }> {
+  const photos = await prisma.photo.findMany({
+    where: { tags: { some: { childId } }, deletedAt: null },
+    select: {
+      id: true,
+      visibility: true,
+      publishedAt: true,
+      uploadSession: { select: { status: true, publishedAt: true } },
+      _count: { select: { tags: { where: { child: { photoConsent: true } } } } },
+    },
+  });
+
+  let published = 0;
+  let unpublished = 0;
+
+  for (const photo of photos) {
+    const sessionPublished = photo.uploadSession.status === "PUBLISHED";
+    const reachesSomeone =
+      photo._count.tags > 0 || photo.visibility === "CLASS_ALBUM";
+    const shouldBePublished = sessionPublished && reachesSomeone;
+
+    if (shouldBePublished && !photo.publishedAt) {
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { publishedAt: photo.uploadSession.publishedAt ?? new Date() },
+      });
+      published += 1;
+    } else if (!shouldBePublished && photo.publishedAt) {
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { publishedAt: null },
+      });
+      unpublished += 1;
+    }
+  }
+
+  return { published, unpublished };
 }
 
 /**
@@ -474,6 +532,7 @@ export async function deletePhoto(session: Session, photoId: string) {
     select: {
       id: true,
       classId: true,
+      uploadSessionId: true,
       storageKeyOriginal: true,
       storageKeyWeb: true,
       storageKeyThumb: true,
@@ -508,7 +567,15 @@ export async function deletePhoto(session: Session, photoId: string) {
 
   await enqueue(QUEUES.storagePurge, { keys });
 
-  return photo;
+  // Whether that was the last photo in its upload. When it was, the tagging
+  // screen has nothing left to show and the session is hidden from the list, so
+  // the caller redirects to the list rather than re-rendering an empty page
+  // that would 404.
+  const remaining = await prisma.photo.count({
+    where: { uploadSessionId: photo.uploadSessionId },
+  });
+
+  return { ...photo, sessionEmptied: remaining === 0 };
 }
 
 /** Children who may be tagged in a class's photos, for the tagging UI. */

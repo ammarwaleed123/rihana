@@ -169,7 +169,17 @@ Admin → Parents & staff if you would rather not touch a seeded account.
 
 - [ ] Portal → Account. Your children are listed with class, date of birth, your
       relationship, and whether photos are shared.
-- [ ] Change your name and phone → **Save details** → reload. It stuck.
+- [ ] Change your name and a valid phone (`01012345678`) → **Save details** →
+      reload. It stuck.
+- [ ] Enter `00000000000`, or a landline like `0223456789`, or letters → refused
+      with "valid Egyptian mobile". Formats like `+20 100 000 0000`,
+      `010 1234 5678` are accepted and normalised to `01…`.
+
+**Email**
+
+- [ ] The email is shown **read-only** — there is no field to edit it and no
+      "Change email" button. It says the nursery sets it. (A parent changing
+      their own email would be able to redirect their own password reset.)
 
 **Password**
 
@@ -182,14 +192,6 @@ Admin → Parents & staff if you would rather not touch a seeded account.
 - [ ] Sign in on a second browser first, then change the password in the first.
       The second browser is **signed out** on its next page load.
 - [ ] The old password no longer works. The new one does.
-
-**Email**
-
-- [ ] Change your email with the **wrong** password → refused, address unchanged.
-- [ ] Try to change it to `amal@rihana.test` (an address in use) → refused with a
-      message that does **not** say the account exists. Saying so would let anyone
-      test whether a family attends this nursery.
-- [ ] Change it properly → you can sign in with the new address, and not the old.
 
 ---
 
@@ -209,6 +211,6 @@ lost. It self-heals within about five minutes.
 
 ## 12. Audit trail
 
-- [ ] As the owner, Activity shows entries for creating and publishing albums, for
-      password changes, and for email changes.
+- [ ] As the owner, Activity shows entries for creating and publishing albums and
+      for password changes.
 - [ ] No entry anywhere contains a password, a token, or a signed URL.

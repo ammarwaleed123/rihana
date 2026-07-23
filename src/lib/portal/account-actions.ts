@@ -7,24 +7,20 @@ import {
   clientIpFromHeaders,
   setSessionCookie,
 } from "@/lib/auth/cookies";
-import { ForbiddenError } from "@/lib/auth/errors";
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
 } from "@/lib/auth/password-constants";
 import { requireSessionOrThrow } from "@/lib/auth/scope";
 import { hashIp } from "@/lib/auth/tokens";
-import {
-  changeMyEmail,
-  updateMyContactDetails,
-} from "@/lib/data/account";
+import { updateMyContactDetails } from "@/lib/data/account";
 import { recordAudit } from "@/lib/data/audit";
 import { setPassword, verifyPasswordForUser } from "@/lib/data/auth";
 import { consumeRateLimit } from "@/lib/data/rate-limit";
 import { createSession, type Session } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { email as emailSchema, personName, phone } from "@/lib/validation";
+import { personName, phone } from "@/lib/validation";
 
 /**
  * Account self-service.
@@ -161,82 +157,15 @@ export async function changePasswordAction(
   };
 }
 
-const emailChange = z.object({
-  email: emailSchema,
-  currentPassword: z.string().min(1, "Enter your password to confirm"),
-});
-
-export async function changeEmailAction(
-  _prev: AccountState,
-  formData: FormData,
-): Promise<AccountState> {
-  const session = await requireSessionOrThrow();
-
-  const parsed = emailChange.safeParse({
-    email: formData.get("email"),
-    currentPassword: formData.get("currentPassword"),
-  });
-
-  if (!parsed.success) {
-    const errors: Record<string, string> = {};
-    for (const issue of parsed.error.issues) {
-      errors[issue.path.join(".") || "_"] ??= issue.message;
-    }
-    return { errors };
-  }
-
-  const ctx = await context(session);
-
-  if (!(await checkReauthLimit(session.user.id))) {
-    return { error: "Too many attempts. Please try again later." };
-  }
-
-  // The email is the account's identity and its password-reset destination, so
-  // changing it is a takeover if left unguarded.
-  const confirmed = await verifyPasswordForUser(
-    session.user.id,
-    parsed.data.currentPassword,
-  );
-
-  if (!confirmed) {
-    return { errors: { currentPassword: "That is not your password" } };
-  }
-
-  try {
-    const result = await changeMyEmail(session, parsed.data.email);
-
-    if (!result.ok) {
-      /*
-       * Deliberately vague, and deliberately the same message a success would
-       * not produce. Saying "that address already has an account" turns this
-       * form into an oracle for whether a given family attends this nursery,
-       * which is precisely the fact the whole system is built to protect.
-       */
-      return {
-        error:
-          "That email address cannot be used. Please try another, or contact the nursery.",
-      };
-    }
-
-    if (result.from !== result.to) {
-      await recordAudit({
-        action: "auth.email_changed",
-        targetType: "user",
-        targetId: session.user.id,
-        summary: "Changed their own email address",
-        metadata: { from: result.from, to: result.to },
-        ...ctx,
-      });
-    }
-
-    return { success: "Email address updated." };
-  } catch (error) {
-    if (error instanceof ForbiddenError) return { error: error.message };
-
-    logger.error({ err: error, scope: "changeEmail" }, "email change failed");
-    return { error: "Something went wrong. Please try again." };
-  }
-}
+/*
+ * There is deliberately no changeEmailAction.
+ *
+ * A parent's email is issued by the nursery — it is the account's identity and
+ * its password-reset destination — so it is not the parent's to change. The
+ * only self-service credential change here is the password. If an address is
+ * wrong, the nursery corrects it; a parent who could change their own email
+ * could take over the account from a borrowed unlocked phone.
+ */
 
 const contactDetails = z.object({
   name: personName,

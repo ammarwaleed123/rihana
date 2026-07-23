@@ -66,40 +66,13 @@ export async function getMyFamily(session: Session) {
 }
 
 /**
- * Change the caller's own email.
+ * Update the caller's own name and phone.
  *
- * Returns a discriminated result rather than throwing on a duplicate, because
- * "that address is already in use" is a normal outcome a form should render —
- * and because the caller decides how much to say. See the note at the call
- * site about not confirming which addresses exist.
+ * Email is deliberately not here. A parent's email is issued by the nursery and
+ * is the account's identity and its password-reset destination; letting a parent
+ * change it themselves is a self-service account takeover from a borrowed phone,
+ * so it is the nursery's to set, not the parent's.
  */
-export async function changeMyEmail(
-  session: Session,
-  email: string,
-): Promise<{ ok: true; from: string; to: string } | { ok: false }> {
-  const current = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { email: true },
-  });
-
-  if (!current) throw new ForbiddenError();
-  if (current.email === email) return { ok: true, from: email, to: email };
-
-  const taken = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-
-  if (taken) return { ok: false };
-
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { email },
-  });
-
-  return { ok: true, from: current.email, to: email };
-}
-
 export async function updateMyContactDetails(
   session: Session,
   input: { name: string; phone: string | null },

@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { LoadMore, PhotoGrid } from "@/components/portal/photo-grid";
+import { Pager } from "@/components/portal/pager";
+import { PhotoGrid } from "@/components/portal/photo-grid";
 import { PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
 import { getAlbumForParent } from "@/lib/data/albums";
+import { parsePageParam } from "@/lib/data/pagination";
 
 export const metadata: Metadata = {
   title: "Album",
@@ -23,7 +25,7 @@ export default async function AlbumPage({
   searchParams,
 }: {
   params: Promise<{ albumId: string }>;
-  searchParams: Promise<{ cursor?: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { albumId } = await params;
   const query = await searchParams;
@@ -33,11 +35,16 @@ export default async function AlbumPage({
   // alike. All three are a 404 — telling them apart would confirm the album
   // exists and, from its title, roughly what is in it.
   const detail = await getAlbumForParent(session, albumId, {
-    cursor: query.cursor ?? null,
+    page: parsePageParam(query.page),
   });
   if (!detail) notFound();
 
   const { album, photos } = detail;
+
+  const hrefFor = (n: number) =>
+    n > 1
+      ? `/portal/albums/${album.id}?page=${n}`
+      : `/portal/albums/${album.id}`;
 
   return (
     <div>
@@ -66,18 +73,20 @@ export default async function AlbumPage({
 
       <PhotoGrid
         photos={photos.items}
-        // `from` brings the back link home to this album rather than the photo
-        // list. Validated as an in-portal path on the way out.
+        // `from` brings the back link home to this album (this page) rather than
+        // the photo list. Validated as an in-portal path on the way out.
         hrefFor={(photo) =>
-          `/portal/photos/${photo.id}?from=/portal/albums/${album.id}`
+          `/portal/photos/${photo.id}?from=${encodeURIComponent(hrefFor(photos.page))}`
         }
       />
 
-      {photos.hasMore && photos.nextCursor ? (
-        <LoadMore
-          href={`/portal/albums/${album.id}?cursor=${encodeURIComponent(photos.nextCursor)}`}
-        />
+      {photos.pageCount > 1 ? (
+        <p className="mt-6 text-center text-sm text-ink-soft">
+          Page {photos.page} of {photos.pageCount}
+        </p>
       ) : null}
+
+      <Pager page={photos.page} pageCount={photos.pageCount} hrefFor={hrefFor} />
     </div>
   );
 }

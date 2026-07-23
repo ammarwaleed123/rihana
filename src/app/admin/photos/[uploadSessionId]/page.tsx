@@ -7,7 +7,7 @@ import { Alert } from "@/components/ui/form";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
-import { getUploadSessionPhotos, listUploadSessions } from "@/lib/data/photos";
+import { getUploadSession, getUploadSessionPhotos } from "@/lib/data/photos";
 import { getTaggableChildren } from "@/lib/data/uploads";
 
 import { AddPhotosForm } from "../upload-form";
@@ -34,17 +34,17 @@ export default async function TagPhotosPage({
   const session = await requireStaff(`/admin/photos/${uploadSessionId}`);
 
   let photos;
+  let upload;
   try {
-    photos = await getUploadSessionPhotos(session, uploadSessionId);
+    [photos, upload] = await Promise.all([
+      getUploadSessionPhotos(session, uploadSessionId),
+      getUploadSession(session, uploadSessionId),
+    ]);
   } catch (error) {
-    // Out-of-scope upload sessions 404 rather than 403.
+    // Out-of-scope or missing upload sessions 404 rather than 403.
     if (error instanceof NotFoundError) notFound();
     throw error;
   }
-
-  const uploads = await listUploadSessions(session, 50);
-  const upload = uploads.find((u) => u.id === uploadSessionId);
-  if (!upload) notFound();
 
   const children = upload.class
     ? await getTaggableChildren(session, upload.class.id)

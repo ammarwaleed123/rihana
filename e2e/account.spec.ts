@@ -63,7 +63,7 @@ test.describe("account settings", () => {
 
     await page.goto("/portal/account");
     await page.getByLabel("Your name").fill("Account Tester Renamed");
-    await page.getByLabel("Phone").fill("+20 100 000 0000");
+    await page.getByLabel("Phone").fill("01012345678");
     await page.getByRole("button", { name: "Save details" }).click();
 
     await expect(visibleText(page, "Your details have been saved")).toBeVisible();
@@ -71,6 +71,38 @@ test.describe("account settings", () => {
     await page.reload();
     await expect(page.getByLabel("Your name")).toHaveValue(
       "Account Tester Renamed",
+    );
+    await expect(page.getByLabel("Phone")).toHaveValue("01012345678");
+  });
+
+  test("a phone number that is not an Egyptian mobile is rejected", async ({
+    page,
+  }) => {
+    await signIn(page, EMAIL, FIRST_PASSWORD);
+    await page.waitForURL("/portal");
+    await page.goto("/portal/account");
+
+    // The exact complaint: a string of zeros used to be accepted.
+    await page.getByLabel("Phone").fill("00000000000");
+    await page.getByRole("button", { name: "Save details" }).click();
+    await expect(visibleText(page, "valid Egyptian mobile")).toBeVisible();
+
+    // A landline-shaped number (no 01 mobile prefix) is refused too.
+    await page.getByLabel("Phone").fill("0223456789");
+    await page.getByRole("button", { name: "Save details" }).click();
+    await expect(visibleText(page, "valid Egyptian mobile")).toBeVisible();
+  });
+
+  test("the email address is shown but cannot be changed", async ({ page }) => {
+    await signIn(page, EMAIL, FIRST_PASSWORD);
+    await page.waitForURL("/portal");
+    await page.goto("/portal/account");
+
+    // The nursery issues the email; the parent only sees it.
+    await expect(visibleText(page, EMAIL)).toBeVisible();
+    await expect(page.getByLabel("Email address")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Change email" })).toHaveCount(
+      0,
     );
   });
 
@@ -146,67 +178,6 @@ test.describe("account settings", () => {
 
     await signIn(page, EMAIL, SECOND_PASSWORD);
     await expect(page).toHaveURL("/portal");
-  });
-
-  test("changing the email requires the password", async ({ page }) => {
-    await signIn(page, EMAIL, SECOND_PASSWORD);
-    await page.waitForURL("/portal");
-    await page.goto("/portal/account");
-
-    const newEmail = `moved${RUN}@rihana.test`;
-
-    await page.getByLabel("Email address").fill(newEmail);
-    await page.getByLabel("Your password").fill("wrong-password-entirely");
-    await page.getByRole("button", { name: "Change email" }).click();
-
-    await expect(visibleText(page, "That is not your password")).toBeVisible();
-
-    // Still signs in under the original address.
-    await signIn(page, EMAIL, SECOND_PASSWORD);
-    await expect(page).toHaveURL("/portal");
-  });
-
-  test("an email already in use is refused without confirming it exists", async ({
-    page,
-  }) => {
-    await signIn(page, EMAIL, SECOND_PASSWORD);
-    await page.waitForURL("/portal");
-    await page.goto("/portal/account");
-
-    // A seeded parent's address. The message must not say "that account
-    // exists" — this form would otherwise reveal which families attend.
-    await page.getByLabel("Email address").fill("amal@rihana.test");
-    await page.getByLabel("Your password").fill(SECOND_PASSWORD);
-    await page.getByRole("button", { name: "Change email" }).click();
-
-    await expect(
-      visibleText(page, "That email address cannot be used"),
-    ).toBeVisible();
-    await expect(page.getByText(/already (has|in use|registered)/i)).toHaveCount(
-      0,
-    );
-  });
-
-  test("with the right password, the email changes and becomes the login", async ({
-    page,
-  }) => {
-    const newEmail = `moved${RUN}@rihana.test`;
-
-    await signIn(page, EMAIL, SECOND_PASSWORD);
-    await page.waitForURL("/portal");
-    await page.goto("/portal/account");
-
-    await page.getByLabel("Email address").fill(newEmail);
-    await page.getByLabel("Your password").fill(SECOND_PASSWORD);
-    await page.getByRole("button", { name: "Change email" }).click();
-
-    await expect(visibleText(page, "Email address updated")).toBeVisible();
-
-    await signIn(page, newEmail, SECOND_PASSWORD);
-    await expect(page).toHaveURL("/portal");
-
-    await signIn(page, EMAIL, SECOND_PASSWORD);
-    await expect(page).toHaveURL(/\/signin/);
   });
 });
 

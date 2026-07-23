@@ -103,11 +103,11 @@ excuse not to test a change to it.
 
 ### Sensitive actions
 
-Password re-entry is required for adding a pickup-authorized person, for changing
-an account email, and for changing a password. Re-authentication is verified
-server-side within the same action, not tracked as a client-side flag — a flag is
-something the client asserts, and this is the control standing between a borrowed
-unlocked phone and taking over a family's account.
+Password re-entry is required for adding a pickup-authorized person and for
+changing a password. Re-authentication is verified server-side within the same
+action, not tracked as a client-side flag — a flag is something the client
+asserts, and this is the control standing between a borrowed unlocked phone and
+taking over a family's account.
 
 Re-entry attempts are rate-limited per account (10 per hour), not per address:
 this is online guessing against one known user by someone already holding their
@@ -118,10 +118,14 @@ fresh one for the browser doing the changing. Every other device is signed out �
 which is the whole reason someone changes a password under duress — while the
 person who just changed it is not thrown back to the sign-in screen for it.
 
-Changing an email to one already in use is refused with a message that does not
-say why. "That address already has an account" would turn the form into an oracle
-for whether a given family attends this nursery, which is the fact the rest of
-the system exists to protect.
+A parent **cannot change their own email.** The email is issued by the nursery,
+and it is both the account's identity and its password-reset destination — so a
+parent who could change it could redirect their own reset link and take the
+account over from a borrowed unlocked phone. It is shown read-only on the account
+page; the nursery sets and corrects it. (The build spec listed email-change
+re-auth as a control; that control is moot here because the action does not exist
+parent-side. If owner-side email editing is added later, it re-enters as an
+owner-only, audited action.)
 
 ### Albums
 
@@ -164,13 +168,28 @@ in the application layer updates or deletes these rows.
 ### Photo consent
 
 Withdrawing a child's photo consent takes effect **immediately and
-retroactively**: they are removed from every photo they were already tagged in,
-not merely blocked from future ones. Photos that showed only that child stop
-being visible to anyone, including their own family.
+retroactively**, and it is **reversible**. A photo tagged only with that child
+stops being visible to anyone, including their own family, the moment consent is
+withdrawn — and comes back the moment it is restored.
 
-An earlier version blocked future tagging while leaving existing photos in
-circulation, which is not what withdrawing consent means. The owner is told how
-many photos were affected, and the audit log records the count.
+Consent is a factor in whether a photo is *published*: reachability, computed in
+`syncPublicationState`, counts only tags of children who currently have consent,
+so a photo reaching nobody-with-consent is unpublished. Withdrawing consent flips
+the child's flag and re-derives publication for every photo they are tagged in;
+restoring it does the same in reverse. The child's tags are deliberately **kept**,
+because they are the record of which photos to bring back — an earlier version
+*deleted* them, which made restoration impossible and was a real bug a family
+would have hit the first time they changed their mind. The owner is told how many
+photos were hidden or restored, and the audit log records the count.
+
+One boundary worth stating plainly: **class-album photos are class-level sharing
+and are not gated by an individual child's consent.** A `CLASS_ALBUM` photo stays
+visible to the whole class regardless of any one child's consent, and a parent
+keeps seeing their class's albums because that access comes from class
+membership, not from tagging. The system acts on tags; a class-album photo is not
+individually tagged, so withdrawing one child's consent cannot single it out.
+Staff who need a specific child kept out of shared photos should tag that child
+(so the tag-based rule applies) rather than rely on class-album visibility.
 
 ### Privacy
 

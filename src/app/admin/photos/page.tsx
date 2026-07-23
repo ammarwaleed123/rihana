@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AdminNav } from "@/components/admin/admin-nav";
+import { Alert } from "@/components/ui/form";
 import {
   Badge,
   Card,
@@ -20,7 +21,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function PhotosPage() {
+export default async function PhotosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ deleted?: string }>;
+}) {
+  const query = await searchParams;
   const session = await requireStaff("/admin/photos");
 
   // Both scoped: a teacher uploads into, and sees uploads for, their own
@@ -38,6 +44,16 @@ export default async function PhotosPage() {
         title="Photos"
         description="Upload photos, tag who is in them, then publish to families."
       />
+
+      {query.deleted ? (
+        // Shown here because the tagging page it was deleted from no longer
+        // exists once its last photo is gone.
+        <div className="mb-6">
+          <Alert tone="success">
+            Photo deleted. The upload it emptied has been removed from the list.
+          </Alert>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <Card>

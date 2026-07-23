@@ -5,7 +5,6 @@ import { useFormStatus } from "react-dom";
 
 import { Alert, Button, Field, Input } from "@/components/ui/form";
 import {
-  changeEmailAction,
   changePasswordAction,
   updateContactDetailsAction,
   type AccountState,
@@ -50,15 +49,17 @@ export function ContactDetailsForm({
       <Field
         label="Phone"
         htmlFor="account-phone"
-        hint="Used by the nursery to reach you. Optional."
+        hint="Egyptian mobile, e.g. 01012345678. Used by the nursery to reach you. Optional."
         error={state.errors?.phone}
       >
         <Input
           id="account-phone"
           name="phone"
           type="tel"
-          defaultValue={phone ?? ""}
+          inputMode="numeric"
           autoComplete="tel"
+          placeholder="01012345678"
+          defaultValue={phone ?? ""}
         />
       </Field>
 
@@ -67,59 +68,6 @@ export function ContactDetailsForm({
   );
 }
 
-/**
- * Change email.
- *
- * The password field is not decoration: this address is where a password reset
- * would be sent, so changing it unguarded is a complete account takeover from a
- * borrowed unlocked phone.
- */
-export function ChangeEmailForm({ email }: { email: string }) {
-  const [state, action] = useActionState<AccountState, FormData>(
-    changeEmailAction,
-    {},
-  );
-
-  return (
-    <form action={action} className="space-y-4">
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      {state.success ? <Alert tone="success">{state.success}</Alert> : null}
-
-      <Field
-        label="Email address"
-        htmlFor="account-email"
-        hint="You sign in with this address."
-        error={state.errors?.email}
-      >
-        <Input
-          id="account-email"
-          name="email"
-          type="email"
-          required
-          defaultValue={email}
-          autoComplete="email"
-        />
-      </Field>
-
-      <Field
-        label="Your password"
-        htmlFor="email-current-password"
-        hint="Confirms it is really you."
-        error={state.errors?.currentPassword}
-      >
-        <Input
-          id="email-current-password"
-          name="currentPassword"
-          type="password"
-          required
-          autoComplete="current-password"
-        />
-      </Field>
-
-      <Submit label="Change email" pendingLabel="Changing…" />
-    </form>
-  );
-}
 
 export function ChangePasswordForm({ minLength }: { minLength: number }) {
   const [state, action] = useActionState<AccountState, FormData>(

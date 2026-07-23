@@ -7,6 +7,8 @@ import {
   encodeCursor,
   MAX_PAGE_SIZE,
   olderThan,
+  pageOffset,
+  parsePageParam,
   publishedBefore,
 } from "@/lib/data/pagination";
 import { parentPhotoFilter } from "@/lib/data/photo-filter";
@@ -175,5 +177,63 @@ describe("buildPage", () => {
     expect(page.items).toEqual([]);
     expect(page.hasMore).toBe(false);
     expect(page.nextCursor).toBeNull();
+  });
+});
+
+describe("numbered pages (offset)", () => {
+  describe("parsePageParam", () => {
+    it("defaults anything unusable to page 1", () => {
+      // These arrive from the query string, so garbage must not throw.
+      expect(parsePageParam(undefined)).toBe(1);
+      expect(parsePageParam(null)).toBe(1);
+      expect(parsePageParam("")).toBe(1);
+      expect(parsePageParam("0")).toBe(1);
+      expect(parsePageParam("-4")).toBe(1);
+      expect(parsePageParam("banana")).toBe(1);
+    });
+
+    it("reads a real page number", () => {
+      expect(parsePageParam("1")).toBe(1);
+      expect(parsePageParam("7")).toBe(7);
+      // Fractional strings floor rather than round.
+      expect(parsePageParam("3.9")).toBe(3);
+    });
+  });
+
+  describe("pageOffset", () => {
+    const SIZE = 6;
+
+    it("computes the page count from the total", () => {
+      expect(pageOffset(1, 0, SIZE).pageCount).toBe(1); // never zero pages
+      expect(pageOffset(1, 6, SIZE).pageCount).toBe(1);
+      expect(pageOffset(1, 7, SIZE).pageCount).toBe(2);
+      expect(pageOffset(1, 34, SIZE).pageCount).toBe(6);
+    });
+
+    it("returns the right offset for a page in range", () => {
+      expect(pageOffset(1, 34, SIZE).skip).toBe(0);
+      expect(pageOffset(2, 34, SIZE).skip).toBe(6);
+      expect(pageOffset(6, 34, SIZE).skip).toBe(30);
+    });
+
+    it("lands a too-large page on the last page rather than an empty grid", () => {
+      // A stale bookmark or a hand-typed number should not show nothing.
+      const result = pageOffset(999, 34, SIZE);
+      expect(result.page).toBe(6);
+      expect(result.skip).toBe(30);
+    });
+
+    it("clamps a below-range page up to the first", () => {
+      const result = pageOffset(0, 34, SIZE);
+      expect(result.page).toBe(1);
+      expect(result.skip).toBe(0);
+    });
+
+    it("stays on page 1 when there is nothing to show", () => {
+      const result = pageOffset(3, 0, SIZE);
+      expect(result.page).toBe(1);
+      expect(result.pageCount).toBe(1);
+      expect(result.skip).toBe(0);
+    });
   });
 });

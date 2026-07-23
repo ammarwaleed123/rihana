@@ -42,8 +42,14 @@ export default async function PhotoPage({
    * in-portal path: an attacker-supplied `from` would otherwise turn every
    * photo page into an open redirect off the site.
    */
+  /*
+   * In-portal path, optionally with a query string (the page number and child
+   * filter it was opened from). The pattern rejects a protocol-relative or
+   * absolute URL, so `from` can never turn this into an open redirect off the
+   * site.
+   */
   const back =
-    query.from && /^\/portal(\/[\w-]+)*$/.test(query.from)
+    query.from && /^\/portal(\/[\w-]+)*(\?[\w=&%.-]*)?$/.test(query.from)
       ? query.from
       : "/portal/photos";
 

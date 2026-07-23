@@ -10,6 +10,7 @@ import {
 } from "@/lib/data/pagination";
 import { assertCanViewChild, classIdsForTeacher } from "@/lib/data/scope";
 import type { Session } from "@/lib/data/sessions";
+import { resyncPhotosForChild } from "@/lib/data/uploads";
 import { prisma } from "@/lib/db";
 import type { ChildInput } from "@/lib/validation";
 
@@ -243,41 +244,30 @@ export async function updateChild(
   });
 
   /*
-   * Withdrawing consent removes the child from every photo they were tagged in.
+   * Photo consent is retroactive AND reversible.
    *
-   * The earlier behaviour only blocked *future* tagging, so a child whose family
-   * had just withdrawn consent stayed visible in every photo already taken —
-   * which is not what withdrawing consent means. It now takes effect
-   * immediately and retroactively.
+   * Withdrawing it hides the child's photos immediately: a photo tagged only
+   * with this child stops being visible to anyone, including their own family,
+   * because the nursery has been told to stop sharing this child's image.
+   * Restoring it brings those same photos back.
    *
-   * Photos that showed only that child stop being visible to anyone, including
-   * their own family. That is the honest reading of the request: the nursery has
-   * been told to stop sharing this child's image.
+   * The reversibility is the point, and it is why the tags are KEPT rather than
+   * deleted. Consent is now a factor in whether a photo is published (see
+   * `syncPublicationState`), so flipping the flag and re-deriving publication is
+   * all it takes — in both directions. An earlier version deleted the tags on
+   * withdrawal, which made restoration impossible: the record of which photos
+   * the child appeared in was gone.
    */
-  let untaggedFrom = 0;
+  let photosHidden = 0;
+  let photosRestored = 0;
 
-  if (before.photoConsent && !input.photoConsent) {
-    const tagged = await prisma.photoTag.findMany({
-      where: { childId },
-      select: { photoId: true },
-    });
-
-    const { count } = await prisma.photoTag.deleteMany({ where: { childId } });
-    untaggedFrom = count;
-
-    // A TAGGED_ONLY photo with no tags left reaches nobody, so it must not sit
-    // published and unreachable.
-    await prisma.photo.updateMany({
-      where: {
-        id: { in: tagged.map((t) => t.photoId) },
-        visibility: "TAGGED_ONLY",
-        tags: { none: {} },
-      },
-      data: { publishedAt: null },
-    });
+  if (before.photoConsent !== input.photoConsent) {
+    const result = await resyncPhotosForChild(childId);
+    photosHidden = result.unpublished;
+    photosRestored = result.published;
   }
 
-  return { before, after, untaggedFrom };
+  return { before, after, photosHidden, photosRestored };
 }
 
 /**

@@ -41,11 +41,15 @@ src/lib/auth/scope.ts
 
 | Action | Owner | Teacher | Parent |
 |---|---|---|---|
+| View a published album (+ its photos) | all | **all teachers** | own children (portal) |
+| View a draft album | all | own classes only | no |
 | Create / edit albums | all | own classes only | no |
 | Create a nursery-wide album | yes | no | no |
 | Move an album between classes | yes | no | no |
 | Publish / withdraw / delete an album | yes | own classes only | no |
-| Change own name, phone, email, password | yes | yes | yes |
+| Change own name and phone | yes | yes | yes |
+| Change own password | yes | yes | yes |
+| Change own email | no (owner sets it) | no | no |
 | View children | all | own classes only | own children (portal) |
 | Create / edit / archive children | yes | no | no |
 | Delete a child permanently | yes | no | no |
@@ -85,6 +89,16 @@ WHERE status = READY AND publishedAt IS NOT NULL AND deletedAt IS NULL
 A signed URL is minted **only** after it returns non-null, so an unauthorized ID
 produces a 404 before any storage call is made. Guessing IDs yields nothing, and
 cuid2 keys make guessing infeasible in the first place.
+
+For a **teacher**, that gate allows two kinds of photo: any photo of their own
+assigned classes (including unpublished ones — they do the tagging), and any
+photo that sits in a **published album**, of any class. Published albums are
+shared staff-wide: every teacher can view one and the photos in it, even across
+classes, which is what lets a Sunflowers teacher see the Olives pictures an owner
+grouped into a Sunflowers album instead of a wall of broken thumbnails. Viewing
+is not editing — an album's edit controls (add, remove, cover, publish, delete,
+rename, move) stay restricted to the owner and the assigned teacher, enforced on
+the write path via `canManageAlbum`, not here.
 
 Album membership is presentation only. An album never widens access; a parent sees
 an album as the subset of its photos they were already entitled to, and an album
@@ -219,9 +233,17 @@ when a graduation album drops and every parent opens the site within the hour.
   Sessions live in Postgres, not in memory, so any instance can serve any request.
 - **The database is never in the image path.** It answers "may you see photo X" and
   hands back a key. Bytes come from the bucket via CDN.
-- **Cursor pagination everywhere.** Keyset on `(createdAt, id)`; no `OFFSET`, no
-  unbounded query. The parent album paginates off the covering index
-  `photo_tags(childId, photoCreatedAt DESC)` without a join.
+- **Cursor pagination on every unbounded list.** Keyset on `(createdAt, id)`; no
+  `OFFSET` on the class-wide feeds, the admin lists, or anywhere the row count
+  grows with the nursery. The one deliberate exception is the parent-facing
+  **photo and album views**, which use numbered offset pages ("page 3 of 12",
+  six a page) because families asked for page numbers and prev/next, which keyset
+  cannot express. That is safe precisely because the set being paged is *one
+  family's own photos* — bounded and small — so the offset walks tens of rows,
+  never the nursery's tens of thousands. `pageOffset` in
+  `src/lib/data/pagination.ts` is the only offset in the codebase, and the type
+  of the value it pages (`NumberedPage`) is the marker for where that trade-off
+  was made.
 - **Async heavy work.** Image processing and notification fan-out are pg-boss jobs
   with retries and idempotency keys. A retried fan-out cannot double-notify because
   `notifications(userId, dedupeKey)` is unique.

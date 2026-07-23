@@ -6,11 +6,7 @@ import { requireParent } from "@/lib/auth/scope";
 import { getMyAccount, getMyFamily } from "@/lib/data/account";
 import { guardianRelationshipLabels } from "@/lib/validation";
 
-import {
-  ChangeEmailForm,
-  ChangePasswordForm,
-  ContactDetailsForm,
-} from "./account-forms";
+import { ChangePasswordForm, ContactDetailsForm } from "./account-forms";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -106,7 +102,16 @@ export default async function AccountPage() {
 
         <Card>
           <SectionTitle>Email address</SectionTitle>
-          <ChangeEmailForm email={account.email} />
+          {/*
+            Read-only. The email is issued by the nursery and is what a password
+            reset would be sent to, so it is theirs to change, not the parent's.
+            Shown here so the parent knows which address they sign in with.
+          */}
+          <p className="font-semibold">{account.email}</p>
+          <p className="mt-2 text-sm text-ink-soft">
+            This is the address you sign in with. It is set by the nursery — if
+            it is wrong, please contact them and they will correct it.
+          </p>
         </Card>
 
         <Card>

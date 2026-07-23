@@ -83,6 +83,33 @@ export function PhotoCard({
     new Set(photo.taggedChildren.map((c) => c.id)),
   );
 
+  /*
+   * Caption is controlled and saves when you click away, not only when you press
+   * its own Save button.
+   *
+   * A per-field Save is easy to skip: type a caption, then click Publish, and
+   * the caption you thought you set is silently gone. That happened — three
+   * photos were published with the captions never written to the database. Blur
+   * is the honest "I'm done with this field" signal, so we save on it; the
+   * button stays for keyboard users and anyone who wants explicit confirmation.
+   */
+  const [caption, setCaption] = useState(photo.caption ?? "");
+
+  function handleCaptionBlur(event: React.FocusEvent<HTMLInputElement>) {
+    // If focus went to this caption form's own Save button, let the button
+    // submit — firing here as well would double-submit the same value.
+    const next = event.relatedTarget as HTMLElement | null;
+    if (
+      next?.getAttribute("type") === "submit" &&
+      event.currentTarget.form?.contains(next)
+    ) {
+      return;
+    }
+    // Nothing to do if it has not changed from what is already stored.
+    if (caption === (photo.caption ?? "")) return;
+    event.currentTarget.form?.requestSubmit();
+  }
+
   const isClassAlbum = photo.visibility === "CLASS_ALBUM";
   const reachesNobody = selected.size === 0 && !isClassAlbum;
 
@@ -246,18 +273,27 @@ export function PhotoCard({
             <input
               id={`caption-${photo.id}`}
               name="caption"
-              defaultValue={photo.caption ?? ""}
+              value={caption}
+              onChange={(event) => setCaption(event.target.value)}
+              onBlur={handleCaptionBlur}
               maxLength={300}
               placeholder="Painting in the garden"
               className="min-w-0 flex-1 rounded-xl border-2 border-ink/15 bg-card px-3 py-2 text-sm focus:border-leaf focus:outline-none"
             />
             <SaveButton label="Save" />
           </div>
-          {capState.error ? (
-            <p className="mt-1 text-sm font-semibold text-danger">
-              {capState.error}
-            </p>
-          ) : null}
+          <div aria-live="polite">
+            {capState.success ? (
+              <p className="mt-1 text-sm font-semibold text-leaf-dark">
+                {capState.success}
+              </p>
+            ) : null}
+            {capState.error ? (
+              <p className="mt-1 text-sm font-semibold text-danger">
+                {capState.error}
+              </p>
+            ) : null}
+          </div>
         </form>
 
         <form action={delAction} className="border-t border-ink/10 pt-3">

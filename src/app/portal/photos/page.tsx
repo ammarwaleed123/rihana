@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { LoadMore, PhotoGrid } from "@/components/portal/photo-grid";
+import { Pager } from "@/components/portal/pager";
+import { PhotoGrid } from "@/components/portal/photo-grid";
 import { EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
-import { getMyChildren, getPhotosForParent } from "@/lib/data/photos";
+import { parsePageParam } from "@/lib/data/pagination";
+import { getMyChildren, getPhotosPageForParent } from "@/lib/data/photos";
 
 export const metadata: Metadata = {
   title: "Photos",
@@ -14,20 +16,28 @@ export const metadata: Metadata = {
 export default async function PhotosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string; childId?: string }>;
+  searchParams: Promise<{ page?: string; childId?: string }>;
 }) {
   const params = await searchParams;
   const session = await requireParent("/portal/photos");
 
-  // Every photo below comes through getPhotosForParent — the routing rule.
-  // There is no other query on this page.
+  // Every photo below comes through the routing rule; there is no other query.
   const [page, children] = await Promise.all([
-    getPhotosForParent(session, {
-      cursor: params.cursor ?? null,
+    getPhotosPageForParent(session, {
+      page: parsePageParam(params.page),
       childId: params.childId,
     }),
     getMyChildren(session),
   ]);
+
+  // Preserve the child filter when moving between pages.
+  const hrefFor = (n: number) => {
+    const query = new URLSearchParams();
+    if (params.childId) query.set("childId", params.childId);
+    if (n > 1) query.set("page", String(n));
+    const qs = query.toString();
+    return qs ? `/portal/photos?${qs}` : "/portal/photos";
+  };
 
   return (
     <div>
@@ -53,7 +63,7 @@ export default async function PhotosPage({
         </nav>
       ) : null}
 
-      {page.items.length === 0 ? (
+      {page.total === 0 ? (
         <EmptyState
           title="No photos yet"
           description="When the nursery shares photos of your child, they will appear here."
@@ -62,17 +72,17 @@ export default async function PhotosPage({
         <>
           <PhotoGrid
             photos={page.items}
-            hrefFor={(photo) => `/portal/photos/${photo.id}`}
+            hrefFor={(photo) =>
+              `/portal/photos/${photo.id}?from=${encodeURIComponent(hrefFor(page.page))}`
+            }
           />
 
-          {page.hasMore && page.nextCursor ? (
-            <LoadMore
-              href={`/portal/photos?${new URLSearchParams({
-                ...(params.childId ? { childId: params.childId } : {}),
-                cursor: page.nextCursor,
-              })}`}
-            />
-          ) : null}
+          <p className="mt-6 text-center text-sm text-ink-soft">
+            Page {page.page} of {page.pageCount} · {page.total} photo
+            {page.total === 1 ? "" : "s"}
+          </p>
+
+          <Pager page={page.page} pageCount={page.pageCount} hrefFor={hrefFor} />
         </>
       )}
     </div>

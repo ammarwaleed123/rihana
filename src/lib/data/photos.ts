@@ -7,6 +7,8 @@ import {
   decodeCursor,
   encodeCursor,
   olderThan,
+  pageOffset,
+  type NumberedPage,
   type Page,
 } from "@/lib/data/pagination";
 import {
@@ -71,12 +73,97 @@ export type PhotoListItem = {
   taggedChildren: Array<{ id: string; firstName: string }>;
 };
 
+/** How many photos a parent sees per page. Parents asked for six. */
+export const PARENT_PHOTOS_PER_PAGE = 6;
+
+/**
+ * The select used for every parent-facing photo list, and the mapper that turns
+ * a row into a `PhotoListItem`. One definition so the tag filter — "only this
+ * family's own children's names" — is stated once. A class-album photo must
+ * never leak who else is in it, and the way that guarantee gets lost is someone
+ * copying the select and dropping the `where`.
+ */
+export function photoListSelect(myChildIds: string[]) {
+  return {
+    id: true,
+    caption: true,
+    width: true,
+    height: true,
+    createdAt: true,
+    classId: true,
+    tags: {
+      where: { childId: { in: myChildIds } },
+      select: { child: { select: { id: true, firstName: true } } },
+    },
+  } as const;
+}
+
+type PhotoListRow = {
+  id: string;
+  caption: string | null;
+  width: number | null;
+  height: number | null;
+  createdAt: Date;
+  classId: string | null;
+  tags: Array<{ child: { id: string; firstName: string } }>;
+};
+
+export function toPhotoListItem(row: PhotoListRow): PhotoListItem {
+  return {
+    id: row.id,
+    caption: row.caption,
+    width: row.width,
+    height: row.height,
+    createdAt: row.createdAt,
+    classId: row.classId,
+    taggedChildren: row.tags.map((tag) => tag.child),
+  };
+}
+
+/**
+ * Resolve the scope filter for a parent, optionally narrowed to one child.
+ *
+ * Narrowing is resolved from the caller's own guardianships, never from the
+ * request: an id they do not guard yields the unnarrowed scope rather than
+ * someone else's child. The narrow includes that child's class albums, because
+ * a photo of the whole class is a photo of that child too — omitting them made
+ * class albums vanish the moment a parent tapped a name.
+ */
+async function resolveParentScope(
+  session: Session,
+  childId: string | undefined,
+  myChildIds: string[],
+): Promise<ParentPhotoFilter> {
+  if (childId && myChildIds.includes(childId)) {
+    const child = await prisma.child.findUnique({
+      where: { id: childId },
+      select: { id: true, classId: true },
+    });
+    if (child) return childPhotoFilter(child.id, child.classId);
+  }
+  return filterForParent(session);
+}
+
+/**
+ * The parent's photo filter, optionally narrowed to one of their own children.
+ *
+ * Exported for the albums module, which narrows an album list to one child the
+ * same way — always resolving the child from the caller's own guardianships,
+ * never from the request.
+ */
+export async function parentScopeForChild(
+  session: Session,
+  childId?: string,
+): Promise<ParentPhotoFilter> {
+  const myChildIds = await childIdsForParent(session.user.id);
+  return resolveParentScope(session, childId, myChildIds);
+}
+
 /**
  * A parent's album, newest first, keyset paginated.
  *
- * `childId` narrows to one child but never widens: the filter is ANDed with the
- * scope, so passing another family's child id yields nothing rather than
- * everything.
+ * Still used where a running "load more" is wanted (the dashboard's latest
+ * strip). The main photos page uses `getPhotosPageForParent` for numbered pages.
  */
 export async function getPhotosForParent(
   session: Session,
@@ -87,70 +174,54 @@ export async function getPhotosForParent(
   const limit = clampPageSize(options.limit);
   const cursor = decodeCursor(options.cursor);
   const myChildIds = await childIdsForParent(session.user.id);
-
-  /*
-   * Narrowing to one child.
-   *
-   * Resolved from the caller's own guardianships, never from the request: an id
-   * they do not guard yields the unnarrowed scope rather than someone else's
-   * child. And the narrow includes that child's class albums, because a photo
-   * of the whole class is a photo of that child too — omitting them made class
-   * albums disappear the moment a parent tapped a name.
-   */
-  let scopeFilter = await filterForParent(session);
-
-  if (options.childId && myChildIds.includes(options.childId)) {
-    const child = await prisma.child.findUnique({
-      where: { id: options.childId },
-      select: { id: true, classId: true },
-    });
-
-    if (child) {
-      scopeFilter = childPhotoFilter(child.id, child.classId);
-    }
-  }
+  const scopeFilter = await resolveParentScope(session, options.childId, myChildIds);
 
   const rows = await prisma.photo.findMany({
-    /*
-     * ANDed, never spread.
-     *
-     * Both the routing rule and the cursor are expressed as `OR`, so merging
-     * them into one object dropped the routing rule entirely and handed page 2
-     * of a parent's album every published photo in the nursery. See the note on
-     * `olderThan` — this is the composition that must not be undone.
-     */
+    // ANDed, never spread: both the routing rule and the cursor are `OR`, and
+    // merging them into one object dropped the rule and leaked every photo from
+    // page 2 on. See the note on `olderThan`.
     where: { AND: [scopeFilter, ...olderThan(cursor)] },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
-    select: {
-      id: true,
-      caption: true,
-      width: true,
-      height: true,
-      createdAt: true,
-      classId: true,
-      tags: {
-        // Only their own children's names, never a classmate's. A class-album
-        // photo must not leak who else is in it.
-        where: { childId: { in: myChildIds } },
-        select: { child: { select: { id: true, firstName: true } } },
-      },
-    },
+    select: photoListSelect(myChildIds),
   });
 
-  return buildPage(
-    rows.map((row) => ({
-      id: row.id,
-      caption: row.caption,
-      width: row.width,
-      height: row.height,
-      createdAt: row.createdAt,
-      classId: row.classId,
-      taggedChildren: row.tags.map((t) => t.child),
-    })),
-    limit,
-    (row) => ({ at: row.createdAt, id: row.id }),
-  );
+  return buildPage(rows.map(toPhotoListItem), limit, (row) => ({
+    at: row.createdAt,
+    id: row.id,
+  }));
+}
+
+/**
+ * A parent's album as numbered pages — "page 3 of 12", six photos a page.
+ *
+ * Offset rather than keyset, on purpose and only here: parents asked for page
+ * numbers and prev/next, which keyset cannot express. The set is one family's
+ * own photos, so the offset walks tens of rows, not the nursery's tens of
+ * thousands. See `NumberedPage` for the full reasoning.
+ */
+export async function getPhotosPageForParent(
+  session: Session,
+  options: { page?: number; childId?: string; pageSize?: number } = {},
+): Promise<NumberedPage<PhotoListItem>> {
+  if (session.user.role !== "PARENT") throw new ForbiddenError();
+
+  const pageSize = options.pageSize ?? PARENT_PHOTOS_PER_PAGE;
+  const myChildIds = await childIdsForParent(session.user.id);
+  const scopeFilter = await resolveParentScope(session, options.childId, myChildIds);
+
+  const total = await prisma.photo.count({ where: scopeFilter });
+  const { page, pageCount, skip } = pageOffset(options.page ?? 1, total, pageSize);
+
+  const rows = await prisma.photo.findMany({
+    where: scopeFilter,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip,
+    take: pageSize,
+    select: photoListSelect(myChildIds),
+  });
+
+  return { items: rows.map(toPhotoListItem), page, pageCount, pageSize, total };
 }
 
 /**
@@ -171,32 +242,10 @@ export async function getPhotoDetailForParent(
 
   const row = await prisma.photo.findFirst({
     where: { AND: [filter, { id: photoId }] },
-    select: {
-      id: true,
-      caption: true,
-      width: true,
-      height: true,
-      createdAt: true,
-      classId: true,
-      tags: {
-        // Their own children only — never a classmate's name.
-        where: { childId: { in: myChildIds } },
-        select: { child: { select: { id: true, firstName: true } } },
-      },
-    },
+    select: photoListSelect(myChildIds),
   });
 
-  if (!row) return null;
-
-  return {
-    id: row.id,
-    caption: row.caption,
-    width: row.width,
-    height: row.height,
-    createdAt: row.createdAt,
-    classId: row.classId,
-    taggedChildren: row.tags.map((tag) => tag.child),
-  };
+  return row ? toPhotoListItem(row) : null;
 }
 
 /** The caller's own children, for the portal's per-child filter chips. */
@@ -246,13 +295,34 @@ export async function getPhotoForUser(
       });
 
     case "TEACHER": {
-      // Teachers see photos of their assigned classes only, including ones not
-      // yet published — they are the people doing the tagging.
+      /*
+       * A teacher sees two kinds of photo:
+       *
+       *   1. Photos of their own assigned classes — including unpublished ones,
+       *      because they are the people tagging and publishing them.
+       *   2. Any photo that sits in a PUBLISHED album, whatever class it belongs
+       *      to. Published albums are shared staff-wide: every teacher can view
+       *      one and the pictures in it, even across classes. Editing the album
+       *      stays restricted to the assigned teacher — that is enforced on the
+       *      write path, not here. This is what lets the Sunflowers teacher see
+       *      the Olives photos an owner grouped into a Sunflowers album, instead
+       *      of a wall of broken thumbnails.
+       */
       const classIds = await classIdsForTeacher(session.user.id);
-      if (classIds.length === 0) return null;
 
       return prisma.photo.findFirst({
-        where: { id: photoId, deletedAt: null, classId: { in: classIds } },
+        where: {
+          id: photoId,
+          deletedAt: null,
+          OR: [
+            { classId: { in: classIds } },
+            {
+              albumPhotos: {
+                some: { album: { status: "PUBLISHED", deletedAt: null } },
+              },
+            },
+          ],
+        },
         select: base,
       });
     }
@@ -331,6 +401,40 @@ export async function getUploadSessionPhotos(
   }));
 }
 
+/**
+ * One upload session by id, for the tagging screen.
+ *
+ * Fetched directly rather than found within the recent list, because that list
+ * now hides empty sessions — so relying on it 404'd the tagging page the moment
+ * you deleted the last photo. Auth-scoped like everything else: a teacher only
+ * reaches a session for a class they teach.
+ */
+export async function getUploadSession(session: Session, uploadSessionId: string) {
+  if (session.user.role === "PARENT") throw new ForbiddenError();
+
+  const uploadSession = await prisma.uploadSession.findUnique({
+    where: { id: uploadSessionId },
+    select: {
+      id: true,
+      status: true,
+      publishedAt: true,
+      createdAt: true,
+      class: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!uploadSession) throw new NotFoundError();
+
+  if (session.user.role === "TEACHER") {
+    const classIds = await classIdsForTeacher(session.user.id);
+    if (!uploadSession.class || !classIds.includes(uploadSession.class.id)) {
+      throw new NotFoundError();
+    }
+  }
+
+  return uploadSession;
+}
+
 /** Recent upload sessions for the staff photo screen. */
 export async function listUploadSessions(session: Session, limit = 20) {
   const scoped =
@@ -341,7 +445,15 @@ export async function listUploadSessions(session: Session, limit = 20) {
   if (session.user.role === "PARENT") throw new ForbiddenError();
 
   return prisma.uploadSession.findMany({
-    where: scoped,
+    where: {
+      ...scoped,
+      // Only sessions that actually hold a photo. An empty session — one whose
+      // upload was abandoned before any file landed, or whose photos were all
+      // deleted — is noise on this screen: there is nothing to tag, publish or
+      // view. It stays in the table (it may be mid-upload), it just does not
+      // clutter the list.
+      photos: { some: {} },
+    },
     orderBy: { createdAt: "desc" },
     take: limit,
     select: {

@@ -285,9 +285,7 @@ test.describe("albums never widen access", () => {
 });
 
 test.describe("album authorization", () => {
-  test("a teacher cannot open an album for a class they do not teach", async ({
-    page,
-  }) => {
+  test("a teacher cannot open another class's DRAFT album", async ({ page }) => {
     await signIn(page, OWNER);
 
     await page.goto("/admin/albums");
@@ -299,7 +297,8 @@ test.describe("album authorization", () => {
 
     const sunflowersAlbumId = page.url().split("/").pop()!.split("?")[0];
 
-    // The Olives teacher has no business here — and gets 404, not 403.
+    // A DRAFT belongs to the class still preparing it. The Olives teacher gets
+    // 404, not 403, and it is not on their list.
     await page.context().clearCookies();
     await signIn(page, TEACHER_OLIVE);
 
@@ -308,6 +307,72 @@ test.describe("album authorization", () => {
 
     await page.goto("/admin/albums");
     await expect(page.getByText(`Sunflowers private ${RUN}`)).toHaveCount(0);
+  });
+
+  test("a teacher can VIEW another class's PUBLISHED album, but not edit it", async ({
+    page,
+    request,
+  }) => {
+    /*
+     * The reported bug and the requested behaviour: a Sunflowers album the
+     * owner filled with photos should be viewable by every teacher — thumbnails
+     * and all — while only the Sunflowers teacher may edit it. Here the Olives
+     * teacher looks at a published Sunflowers album.
+     */
+    const caption = `Shared album photo ${RUN}`;
+
+    await signIn(page, OWNER);
+    await publishOne(
+      page,
+      await makePhoto(`shared-${RUN}.jpg`, "#3E7C4F"),
+      caption,
+      "whole-class",
+    );
+
+    await page.goto("/admin/albums");
+    await page.getByRole("button", { name: "New album" }).click();
+    await page.getByLabel("Album title").fill(`Shared album ${RUN}`);
+    await page.getByLabel("Class").selectOption({ label: "Sunflowers" });
+    await page.getByRole("button", { name: "Create album" }).click();
+    await page.waitForURL(/\/admin\/albums\/[a-z0-9]+/);
+    const albumId = page.url().split("/").pop()!.split("?")[0];
+
+    await pick(page, caption);
+    await page.getByRole("button", { name: /^Add 1 photo/ }).click();
+    await page.getByRole("button", { name: "Publish album" }).click();
+    await expect(visibleText(page, "Album published")).toBeVisible();
+
+    // --- Olives teacher: sees it, opens it, no edit controls ---------------
+    await page.context().clearCookies();
+    await signIn(page, TEACHER_OLIVE);
+
+    await page.goto("/admin/albums");
+    await expect(visibleText(page, `Shared album ${RUN}`)).toBeVisible();
+
+    const response = await page.goto(`/admin/albums/${albumId}`);
+    expect(response?.status()).toBe(200);
+
+    await expect(
+      visibleText(page, "Only the Sunflowers teacher can edit"),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Withdraw album" })).toHaveCount(0);
+    await expect(page.getByText("Add photos")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Remove" })).toHaveCount(0);
+
+    // The thumbnail actually loads for them — the crux of the bug. The image
+    // route must authorize this cross-class photo because it is in a published
+    // album.
+    const src = await page
+      .locator('img[src^="/api/img/"]')
+      .first()
+      .getAttribute("src");
+    expect(src).toBeTruthy();
+
+    const cookies = (await page.context().cookies())
+      .map((c) => `${c.name}=${c.value}`)
+      .join("; ");
+    const imageResponse = await request.get(src!, { headers: { cookie: cookies } });
+    expect(imageResponse.status()).toBeLessThan(400);
   });
 
   test("a teacher cannot create a nursery-wide album", async ({ page }) => {

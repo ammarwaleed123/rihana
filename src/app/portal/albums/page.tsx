@@ -5,6 +5,7 @@ import { LoadMore } from "@/components/portal/photo-grid";
 import { EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
 import { listAlbumsForParent } from "@/lib/data/albums";
+import { getMyChildren } from "@/lib/data/photos";
 
 export const metadata: Metadata = {
   title: "Albums",
@@ -20,16 +21,24 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
 export default async function AlbumsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string }>;
+  searchParams: Promise<{ cursor?: string; childId?: string }>;
 }) {
   const params = await searchParams;
   const session = await requireParent("/portal/albums");
 
-  // Only albums holding at least one photo this family may see. An album of
-  // other children simply does not exist here.
-  const page = await listAlbumsForParent(session, {
-    cursor: params.cursor ?? null,
-  });
+  // Only albums holding at least one photo this family may see — narrowed to
+  // one child when a chip is chosen. An album of other children simply does not
+  // exist here.
+  const [page, children] = await Promise.all([
+    listAlbumsForParent(session, {
+      cursor: params.cursor ?? null,
+      childId: params.childId,
+    }),
+    getMyChildren(session),
+  ]);
+
+  const loadMoreQuery = new URLSearchParams();
+  if (params.childId) loadMoreQuery.set("childId", params.childId);
 
   return (
     <div>
@@ -37,6 +46,23 @@ export default async function AlbumsPage({
         title="Albums"
         description="Collections the nursery has put together, like a sports day or a school trip."
       />
+
+      {children.length > 1 ? (
+        <nav aria-label="Filter by child" className="mb-6 flex flex-wrap gap-2">
+          <ChildChip href="/portal/albums" active={!params.childId}>
+            Everyone
+          </ChildChip>
+          {children.map((child) => (
+            <ChildChip
+              key={child.id}
+              href={`/portal/albums?childId=${child.id}`}
+              active={params.childId === child.id}
+            >
+              {child.firstName}
+            </ChildChip>
+          ))}
+        </nav>
+      ) : null}
 
       {page.items.length === 0 ? (
         <EmptyState
@@ -91,12 +117,40 @@ export default async function AlbumsPage({
 
           {page.hasMore && page.nextCursor ? (
             <LoadMore
-              href={`/portal/albums?cursor=${encodeURIComponent(page.nextCursor)}`}
+              href={(() => {
+                const query = new URLSearchParams(loadMoreQuery);
+                query.set("cursor", page.nextCursor);
+                return `/portal/albums?${query}`;
+              })()}
               label="Load more albums"
             />
           ) : null}
         </>
       )}
     </div>
+  );
+}
+
+function ChildChip({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={
+        active
+          ? "rounded-full border-2 border-leaf bg-leaf px-4 py-2 font-bold text-white"
+          : "rounded-full border-2 border-ink/15 bg-card px-4 py-2 font-bold hover:border-leaf"
+      }
+    >
+      {children}
+    </Link>
   );
 }

@@ -250,9 +250,11 @@ test.describe("published photos can be withdrawn", () => {
       .getByRole("button", { name: "Delete this photo permanently" })
       .click();
 
-    await expect(
-      page.locator("form", { has: page.getByText("Who is in this photo?") }),
-    ).toHaveCount(0);
+    // That was the upload's only photo, so it lands back on the list — not on a
+    // 404, which is what an empty tagging page became once empty uploads are
+    // hidden from the list.
+    await expect(page).toHaveURL(/\/admin\/photos(\?|$)/);
+    await expect(visibleText(page, "Photo deleted")).toBeVisible();
   });
 });
 
@@ -334,7 +336,7 @@ test.describe("withdrawing photo consent takes effect immediately", () => {
 
     await page.getByLabel(/Photo consent given/).uncheck();
     await page.getByRole("button", { name: "Save changes" }).click();
-    await expect(visibleText(page, "has been removed from")).toBeVisible();
+    await expect(visibleText(page, "hidden from every family")).toBeVisible();
 
     // Gone from his family's album — consent withdrawn means withdrawn, not
     // "withdrawn for future photos only".
@@ -344,7 +346,9 @@ test.describe("withdrawing photo consent takes effect immediately", () => {
     await expect(page.getByText(caption)).toHaveCount(0);
   });
 
-  test("granting consent again makes the child taggable", async ({ page }) => {
+  test("granting consent again brings the photos back", async ({ page }) => {
+    const caption = `Consent test ${RUN}`;
+
     await signIn(page, OWNER);
     await page.goto("/admin/children");
     await page
@@ -355,19 +359,58 @@ test.describe("withdrawing photo consent takes effect immediately", () => {
     const consentBox = page.getByLabel(/Photo consent given/);
 
     // Wait for the box to settle at its server-rendered value before touching
-    // it. The input is uncontrolled (defaultChecked), so clicking it before
-    // React finishes hydrating lets the hydration pass reset it — the click is
-    // accepted, then silently undone, and the save writes the old value.
+    // it. The input is controlled now, but this also confirms the previous
+    // test's withdrawal actually persisted.
     await expect(consentBox).not.toBeChecked();
 
     await consentBox.check();
     await page.getByRole("button", { name: "Save changes" }).click();
-    await expect(visibleText(page, "Details saved")).toBeVisible();
+    // Restoration reports the photos it brought back — the whole point of the
+    // fix. Withdrawal used to delete the tags, so there was nothing to restore.
+    await expect(visibleText(page, "visible to their family again")).toBeVisible();
 
-    // Asserted by reloading rather than trusting the success message: the
-    // message appears for any successful save, including one that did not
-    // change what we intended.
     await page.reload();
     await expect(page.getByLabel(/Photo consent given/)).toBeChecked();
+
+    // The crux: the photo Sami lost is back, not gone forever.
+    await page.context().clearCookies();
+    await signIn(page, PARENT_SAMI);
+    await page.goto("/portal/photos");
+    await expect(visibleText(page, caption)).toBeVisible();
+  });
+});
+
+test.describe("a caption is not lost by publishing without pressing its Save", () => {
+  test("typing a caption then moving straight on still saves it", async ({
+    page,
+  }) => {
+    const photo = await makePhoto(`caption-${RUN}.jpg`, "#FF7A6E");
+    const caption = `Blur saved ${RUN}`;
+
+    await signIn(page, OWNER);
+    await uploadInto(page, "Sunflowers", [photo]);
+
+    /*
+     * The reported bug, reproduced: caption three photos, publish, and find the
+     * captions never made it to the database. The caption field has its own
+     * Save that is easy to skip — so here we deliberately DO NOT click it. We
+     * type the caption and go straight to sharing and publishing. Clicking away
+     * must save it on its own.
+     */
+    await page.getByLabel("Caption").fill(caption);
+
+    // Move focus off the caption without touching its Save button.
+    await page.getByRole("button", { name: "Share with the whole class" }).click();
+    await expect(visibleText(page, "Shared with the whole class")).toBeVisible();
+
+    await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
+    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+
+    // The caption reached the parent — which it only can if it reached the
+    // database first.
+    await page.context().clearCookies();
+    await signIn(page, PARENT_AMAL);
+    await page.goto("/portal/photos");
+    await expect(visibleText(page, caption)).toBeVisible();
   });
 });
