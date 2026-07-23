@@ -54,7 +54,7 @@ export default defineConfig({
        * suites — including the portal tab-bar assertions in regressions.spec.
        */
       testIgnore:
-        /photos\.spec\.ts|photo-regressions\.spec\.ts|albums\.spec\.ts|account\.spec\.ts/,
+        /photos\.spec\.ts|photo-regressions\.spec\.ts|albums\.spec\.ts|account\.spec\.ts|notifications\.spec\.ts/,
     },
     {
       name: "desktop",

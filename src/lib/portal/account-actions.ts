@@ -16,6 +16,7 @@ import { hashIp } from "@/lib/auth/tokens";
 import { updateMyContactDetails } from "@/lib/data/account";
 import { recordAudit } from "@/lib/data/audit";
 import { setPassword, verifyPasswordForUser } from "@/lib/data/auth";
+import { updateNotificationPreferences } from "@/lib/data/notifications";
 import { consumeRateLimit } from "@/lib/data/rate-limit";
 import { createSession, type Session } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
@@ -201,6 +202,33 @@ export async function updateContactDetailsAction(
     return { success: "Your details have been saved." };
   } catch (error) {
     logger.error({ err: error, scope: "updateContact" }, "contact update failed");
+    return { error: "Something went wrong. Please try again." };
+  }
+}
+
+/**
+ * Notification preferences.
+ *
+ * A checkbox absent from a form submission is unchecked, so each preference is
+ * read as `=== "on"`. These gate the proactive channels — the app-icon badge and
+ * push in Phase 8, and email if it is ever switched on. The in-app bell always
+ * shows everything; there is nothing to opt out of there.
+ */
+export async function updatePreferencesAction(
+  _prev: AccountState,
+  formData: FormData,
+): Promise<AccountState> {
+  const session = await requireSessionOrThrow();
+
+  try {
+    await updateNotificationPreferences(session, {
+      emailNewPhotos: formData.get("emailNewPhotos") === "on",
+      emailAnnouncements: formData.get("emailAnnouncements") === "on",
+      emailPickupUpdates: formData.get("emailPickupUpdates") === "on",
+    });
+    return { success: "Notification preferences saved." };
+  } catch (error) {
+    logger.error({ err: error, scope: "updatePreferences" }, "prefs update failed");
     return { error: "Something went wrong. Please try again." };
   }
 }

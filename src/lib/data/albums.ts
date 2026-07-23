@@ -22,6 +22,7 @@ import {
 import { childIdsForParent, classIdsForTeacher } from "@/lib/data/scope";
 import type { Session } from "@/lib/data/sessions";
 import { prisma } from "@/lib/db";
+import { enqueue, QUEUES } from "@/lib/jobs/queue";
 import type { AlbumInput } from "@/lib/validation";
 
 /**
@@ -642,10 +643,20 @@ export async function publishAlbum(session: Session, albumId: string) {
     throw new ForbiddenError("Add at least one photo before publishing.");
   }
 
+  const wasPublished = album.status === "PUBLISHED";
+
   await prisma.album.update({
     where: { id: albumId },
     data: { status: "PUBLISHED", publishedAt: album.publishedAt ?? new Date() },
   });
+
+  // Notify the families who can see the album — only on the transition to
+  // published, off the request, deduped on the album id. Skipped when nothing
+  // is reachable yet: an album whose photos are all still unpublished would tell
+  // nobody, so there is nothing to announce.
+  if (!wasPublished && reachable > 0) {
+    await enqueue(QUEUES.notifyAlbumPublished, { albumId });
+  }
 
   return { title: album.title, total, reachable };
 }

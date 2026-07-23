@@ -212,6 +212,27 @@ export const albumInput = z.object({
 export type AlbumInput = z.infer<typeof albumInput>;
 
 // ---------------------------------------------------------------------------
+// Announcements
+// ---------------------------------------------------------------------------
+
+export const ANNOUNCEMENT_AUDIENCES = ["ALL_NURSERY", "CLASS"] as const;
+
+export const announcementInput = z
+  .object({
+    title: text(1, 120, "Title"),
+    body: text(1, 5000, "Announcement"),
+    audience: z.enum(ANNOUNCEMENT_AUDIENCES),
+    // Required when audience is CLASS; ignored otherwise. Enforced by the refine.
+    classId: cuid.nullable().or(z.literal("").transform(() => null)),
+  })
+  .refine((data) => data.audience !== "CLASS" || Boolean(data.classId), {
+    message: "Choose which class this is for",
+    path: ["classId"],
+  });
+
+export type AnnouncementInput = z.infer<typeof announcementInput>;
+
+// ---------------------------------------------------------------------------
 // Deletion
 // ---------------------------------------------------------------------------
 

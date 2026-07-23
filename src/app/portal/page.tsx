@@ -5,6 +5,7 @@ import { PhotoGrid } from "@/components/portal/photo-grid";
 import { Card, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
 import { listAlbumsForParent } from "@/lib/data/albums";
+import { listAnnouncementsForParent } from "@/lib/data/announcements";
 import { getMyChildren, getPhotosForParent } from "@/lib/data/photos";
 
 export const metadata: Metadata = {
@@ -15,10 +16,11 @@ export const metadata: Metadata = {
 export default async function PortalHome() {
   const session = await requireParent("/portal");
 
-  const [children, recent, albums] = await Promise.all([
+  const [children, recent, albums, announcements] = await Promise.all([
     getMyChildren(session),
     getPhotosForParent(session, { limit: 8 }),
     listAlbumsForParent(session, { limit: 2 }),
+    listAnnouncementsForParent(session, { limit: 2 }),
   ]);
 
   const names = children.map((child) => child.firstName);
@@ -91,10 +93,39 @@ export default async function PortalHome() {
         </section>
       ) : null}
 
+      {announcements.items.length > 0 ? (
+        <section className="mb-8">
+          <SectionHeading title="Announcements" href="/portal/announcements" />
+          <div className="space-y-3">
+            {announcements.items.map((a) => (
+              <Link
+                key={a.id}
+                href="/portal/announcements"
+                className="block rounded-2xl border border-ink/10 bg-card p-4 shadow-pin transition-colors hover:border-leaf"
+              >
+                <p className="font-display text-lg font-semibold">{a.title}</p>
+                <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{a.body}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="grid gap-5 sm:grid-cols-2">
         <Card>
           <h2 className="font-display text-xl font-semibold">Announcements</h2>
-          <p className="mt-2 text-ink-soft">Arriving in Phase 5.</p>
+          <p className="mt-2 text-ink-soft">
+            {announcements.items.length > 0 ? (
+              <Link
+                href="/portal/announcements"
+                className="font-semibold text-leaf underline underline-offset-4"
+              >
+                See all announcements
+              </Link>
+            ) : (
+              "News and reminders from the nursery will appear here."
+            )}
+          </p>
         </Card>
 
         <Card>

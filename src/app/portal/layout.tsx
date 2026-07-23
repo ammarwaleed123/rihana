@@ -1,8 +1,10 @@
 import Link from "next/link";
 
+import { NotificationBell } from "@/components/portal/notification-bell";
 import { PortalNavDesktop, PortalNavMobile } from "@/components/portal/portal-nav";
 import { SignOutButton } from "@/components/sign-out-button";
 import { requireParent } from "@/lib/auth/scope";
+import { unreadNotificationCount } from "@/lib/data/notifications";
 
 /**
  * Parent portal shell.
@@ -18,6 +20,7 @@ export default async function PortalLayout({
   children: React.ReactNode;
 }) {
   const session = await requireParent("/portal");
+  const unread = await unreadNotificationCount(session);
 
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
@@ -34,6 +37,7 @@ export default async function PortalLayout({
             <span className="hidden text-sm text-ink-soft md:inline">
               {session.user.name}
             </span>
+            <NotificationBell unread={unread} />
             <SignOutButton />
           </div>
         </div>

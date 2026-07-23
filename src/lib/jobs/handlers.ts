@@ -4,12 +4,20 @@ import { createThumbnail } from "@/lib/images/process";
 import {
   enqueue,
   QUEUES,
+  type NotifyAlbumPublishedJob,
+  type NotifyAnnouncementJob,
+  type NotifyPhotosPublishedJob,
   type PhotoProcessJob,
   type StoragePurgeJob,
 } from "@/lib/jobs/queue";
 import { logger, reportError } from "@/lib/logger";
 import { photoKey, storage } from "@/lib/storage";
 import { prisma } from "@/lib/db";
+import {
+  fanOutAlbumPublished,
+  fanOutAnnouncement,
+  fanOutPhotosPublished,
+} from "@/lib/data/notifications";
 import { purgeExpiredRateLimits } from "@/lib/data/rate-limit";
 import { purgeExpiredSessions } from "@/lib/data/sessions";
 
@@ -163,9 +171,47 @@ export async function handleMaintenance(): Promise<void> {
   }
 }
 
+/**
+ * Fan out notifications for a freshly-published upload.
+ *
+ * Idempotent through the unique `(userId, dedupeKey)` on notifications, so a
+ * pg-boss retry re-runs this safely — the second pass creates nothing.
+ */
+export async function handleNotifyPhotosPublished(
+  job: NotifyPhotosPublishedJob,
+): Promise<void> {
+  const { created } = await fanOutPhotosPublished(job.uploadSessionId);
+  logger.info(
+    { uploadSessionId: job.uploadSessionId, created },
+    "photo notifications fanned out",
+  );
+}
+
+/** Fan out notifications for a published announcement. Idempotent, as above. */
+export async function handleNotifyAnnouncement(
+  job: NotifyAnnouncementJob,
+): Promise<void> {
+  const { created } = await fanOutAnnouncement(job.announcementId);
+  logger.info(
+    { announcementId: job.announcementId, created },
+    "announcement notifications fanned out",
+  );
+}
+
+/** Fan out notifications for a published album. Idempotent, as above. */
+export async function handleNotifyAlbumPublished(
+  job: NotifyAlbumPublishedJob,
+): Promise<void> {
+  const { created } = await fanOutAlbumPublished(job.albumId);
+  logger.info({ albumId: job.albumId, created }, "album notifications fanned out");
+}
+
 /** Queue name to handler. Used by the worker entry point. */
 export const HANDLERS = {
   [QUEUES.photoProcess]: handlePhotoProcess,
+  [QUEUES.notifyPhotosPublished]: handleNotifyPhotosPublished,
+  [QUEUES.notifyAnnouncement]: handleNotifyAnnouncement,
+  [QUEUES.notifyAlbumPublished]: handleNotifyAlbumPublished,
   [QUEUES.storagePurge]: handleStoragePurge,
   [QUEUES.maintenance]: handleMaintenance,
 } as const;

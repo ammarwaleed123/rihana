@@ -163,12 +163,42 @@ staff browser
        |
 worker (npm run worker, separate process)
   photo.process     -> thumbnail, Photo{status: READY}
-  notify.photos-published -> fan-out, one Notification per affected parent,
-                             deduped by (userId, dedupeKey)     [Phase 5]
+  notify.photos-published -> fan-out, one Notification per family per child,
+                             deduped by (userId, dedupeKey)
+  notify.announcement     -> fan-out to the audience, deduped on announcement id
   storage.purge     -> remove objects after an erasure
   maintenance       -> expired sessions, rate-limit buckets, and photos
                        stranded in PROCESSING (every 5 minutes)
 ```
+
+### Notifications (the second flagship)
+
+One table, one mechanism, every channel. "New photos", "new announcement" and
+later pickup updates all become a `Notification` row; the in-app bell reads them,
+and the app-icon badge and push (Phase 8) will read the same rows. Fan-out runs
+in the worker, never in the request that publishes.
+
+- **Who is notified reuses the routing rule.** A parent is notified about a photo
+  exactly when they may see it: `fanOutPhotosPublished` counts, per child, the
+  session's now-visible photos that child's family newly sees (tagged with the
+  child *with consent*, or a class-album for their class), and writes one
+  notification per guardian per child — "3 new photos of Laila", never one per
+  photo. Consent is honoured here as it is everywhere: a withdrawn child produces
+  no notification.
+- **Idempotency is structural.** Every row carries a `dedupeKey`
+  (`photos:<sessionId>:<childId>`, `announcement:<id>`) and `(userId, dedupeKey)`
+  is unique, so the fan-out inserts with `skipDuplicates`. However many times
+  pg-boss retries a job, the second pass creates nothing — no check-then-act,
+  which would race.
+- **Announcement bodies are markdown rendered to React elements only**
+  (`AnnouncementBody`), never raw HTML. Links are restricted to http(s); there
+  is no `dangerouslySetInnerHTML` anywhere, which is also why no markdown library
+  was added — most hand back an HTML string. `tests/announcement-body.test.ts`
+  asserts injection attempts degrade to inert text.
+- **Preferences** (`emailNewPhotos`, `emailAnnouncements`, `emailPickupUpdates`,
+  denormalised booleans on `User`) gate the proactive channels — the badge and
+  push in Phase 8, email if it is ever enabled. The in-app bell always shows
+  everything; there is nothing to opt out of there.
 
 **A dropped job used to strand a photo forever.** `enqueue` is bounded at five
 seconds and never throws, because an upload's job is to store photos and a queue

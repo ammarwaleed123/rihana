@@ -6,7 +6,13 @@ import { requireParent } from "@/lib/auth/scope";
 import { getMyAccount, getMyFamily } from "@/lib/data/account";
 import { guardianRelationshipLabels } from "@/lib/validation";
 
-import { ChangePasswordForm, ContactDetailsForm } from "./account-forms";
+import { getNotificationPreferences } from "@/lib/data/notifications";
+
+import {
+  ChangePasswordForm,
+  ContactDetailsForm,
+  PreferencesForm,
+} from "./account-forms";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -22,9 +28,10 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
 export default async function AccountPage() {
   const session = await requireParent("/portal/account");
 
-  const [account, family] = await Promise.all([
+  const [account, family, prefs] = await Promise.all([
     getMyAccount(session),
     getMyFamily(session),
+    getNotificationPreferences(session),
   ]);
 
   return (
@@ -112,6 +119,11 @@ export default async function AccountPage() {
             This is the address you sign in with. It is set by the nursery — if
             it is wrong, please contact them and they will correct it.
           </p>
+        </Card>
+
+        <Card>
+          <SectionTitle>Notifications</SectionTitle>
+          <PreferencesForm defaults={prefs} />
         </Card>
 
         <Card>

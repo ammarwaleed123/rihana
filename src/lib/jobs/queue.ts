@@ -26,6 +26,8 @@ export const QUEUES = {
   notifyPhotosPublished: "notify.photos-published",
   /** Fan out notifications for a published announcement. */
   notifyAnnouncement: "notify.announcement",
+  /** Fan out notifications for a published album. */
+  notifyAlbumPublished: "notify.album-published",
   /** Send one queued email. */
   emailSend: "email.send",
   /** Remove objects from storage after a deletion. */
@@ -37,6 +39,7 @@ export const QUEUES = {
 export type PhotoProcessJob = { photoId: string };
 export type NotifyPhotosPublishedJob = { uploadSessionId: string };
 export type NotifyAnnouncementJob = { announcementId: string };
+export type NotifyAlbumPublishedJob = { albumId: string };
 export type EmailSendJob = { outboundEmailId: string };
 export type StoragePurgeJob = { keys: string[] };
 
