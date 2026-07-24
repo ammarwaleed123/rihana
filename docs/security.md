@@ -103,11 +103,12 @@ excuse not to test a change to it.
 
 ### Sensitive actions
 
-Password re-entry is required for adding a pickup-authorized person and for
-changing a password. Re-authentication is verified server-side within the same
-action, not tracked as a client-side flag — a flag is something the client
-asserts, and this is the control standing between a borrowed unlocked phone and
-taking over a family's account.
+Password re-entry is required for changing a password and for every safety-critical
+pickup change — adding a pickup person, editing one, and switching a child between
+door collection and the nursery bus. Re-authentication is verified server-side
+within the same action, not tracked as a client-side flag — a flag is something the
+client asserts, and this is the control standing between a borrowed unlocked phone
+and taking over a family's account, or authorizing a stranger to collect a child.
 
 Re-entry attempts are rate-limited per account (10 per hour), not per address:
 this is online guessing against one known user by someone already holding their
@@ -138,6 +139,30 @@ of other children an album holds, and an unfiltered cover would put one on
 screen. See `docs/architecture.md` for the query shape and
 `e2e/albums.spec.ts`, which asserts a second family sees strictly less of the
 same album.
+
+### Pickup authorization
+
+Who a child may be released to is the most consequential thing a parent controls,
+so it sits behind two independent gates:
+
+- **Approval is the gate.** A pickup person is created `PENDING` and appears on no
+  door board until an **owner** approves it — exactly as a photo is invisible until
+  published. Editing an approved person returns them to `PENDING`: the approval was
+  for specific details, and a changed name or number could substitute a different
+  person entirely.
+- **Re-authentication is the second gate.** Adding, editing, or changing the pickup
+  method requires the parent's password, checked server-side (see *Sensitive
+  actions*). Removing a person is not gated — it only ever *reduces* who may
+  collect, the safe direction.
+
+Every read is scoped through `assertCanViewChild`, the same edge the photo pages
+use, so a parent reaches only their own children and a teacher only their classes.
+The pickup person's photograph is served through `/api/img/pickup/[id]`, which runs
+that same check before minting a short-lived signed URL and returns a 404 — never a
+403 — for anything the caller may not see. Removing a person soft-deletes the row
+(status `REVOKED`) rather than erasing it, so the audit trail of who was once
+authorized, and by whom, survives. Every state change — created, approved,
+rejected, revoked, method changed — writes an append-only `AuditLog` row.
 
 ### Input and output
 

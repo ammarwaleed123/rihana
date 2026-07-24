@@ -133,6 +133,30 @@ export const phone = z
   )
   .transform((value) => value ?? undefined);
 
+/**
+ * A required Egyptian mobile number.
+ *
+ * Same normalisation as `phone`, but a pickup person must be reachable — a staff
+ * member turning someone away at the door needs a number to call — so an empty
+ * value is an error here rather than a silent absence.
+ */
+export const requiredPhone = z
+  .string()
+  .trim()
+  .min(1, "A phone number is required")
+  .transform((raw) => {
+    let digits = raw.replace(/\D/g, "");
+    if (digits.startsWith("0020")) digits = digits.slice(2);
+    if (digits.startsWith("20") && digits.length === 12) {
+      digits = `0${digits.slice(2)}`;
+    }
+    return digits;
+  })
+  .refine(
+    (value) => EGYPT_MOBILE.test(value),
+    "Enter a valid Egyptian mobile number, e.g. 01012345678",
+  );
+
 export const inviteParentInput = z.object({
   name: personName,
   email,
@@ -170,6 +194,73 @@ export const guardianshipInput = z.object({
   childId: cuid,
   relationship: z.enum(GUARDIAN_RELATIONSHIPS),
   isPrimary: z.coerce.boolean().default(false),
+});
+
+// ---------------------------------------------------------------------------
+// Pickup authorization
+// ---------------------------------------------------------------------------
+
+export const PICKUP_METHODS = ["HANDOVER", "BUS"] as const;
+
+export const pickupMethodLabels: Record<(typeof PICKUP_METHODS)[number], string> = {
+  HANDOVER: "Collected at the door",
+  BUS: "Nursery bus",
+};
+
+/**
+ * A time-boxed authorization, e.g. "grandmother, this week only".
+ *
+ * Optional. When given it must be today or later — an authorization that expired
+ * before it was created is a typo, and a `date`-typed input never carries a time,
+ * so the comparison is against the start of today rather than the current minute.
+ */
+const pickupExpiry = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ? new Date(value) : null))
+  .refine(
+    (date) => date === null || !Number.isNaN(date.getTime()),
+    "Enter a valid date",
+  )
+  .refine((date) => {
+    if (date === null) return true;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return date.getTime() >= startOfToday.getTime();
+  }, "An end date cannot be in the past");
+
+/**
+ * Someone a parent authorizes to collect their child.
+ *
+ * `relationship` is free text, not an enum: "grandmother", "our neighbour Fatima",
+ * "the childminder" are all things a parent legitimately types, and a fixed list
+ * would force the honest ones into "Other". Length is the only constraint. The
+ * phone is required — see `requiredPhone`.
+ */
+export const pickupPersonInput = z.object({
+  fullName: personName,
+  relationship: text(1, 60, "Relationship"),
+  phone: requiredPhone,
+  expiresAt: pickupExpiry,
+});
+
+export type PickupPersonInput = z.infer<typeof pickupPersonInput>;
+
+export const pickupMethodInput = z.object({
+  childId: cuid,
+  method: z.enum(PICKUP_METHODS),
+});
+
+/** An optional note shown to the parent when their request is turned down. */
+export const pickupRejectionInput = z.object({
+  pickupPersonId: cuid,
+  reason: z
+    .string()
+    .trim()
+    .max(300, "Please keep the reason under 300 characters")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 // ---------------------------------------------------------------------------

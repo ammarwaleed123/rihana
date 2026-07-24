@@ -57,6 +57,10 @@ src/lib/auth/scope.ts
 | Assign teachers to classes | yes | no | no |
 | Invite or disable accounts | yes | no | no |
 | Link or unlink guardians | yes | no | no |
+| Add / edit / remove a pickup person | no | no | own children (re-auth) |
+| Choose door vs. bus for a child | no | no | own children (re-auth) |
+| Approve / reject a pickup person | yes | no | no |
+| View the door board | all | own classes only | no |
 | Read the audit log | yes | no | no |
 
 Writes to people, classes and guardianships are owner-only on purpose: each of
@@ -236,6 +240,34 @@ anything was wrong.
 
 An owner can withdraw a published upload. Photos and tags are kept, so a
 mistake can be corrected and published again.
+
+### Pickup authorization (the third flagship)
+
+Who may collect a child is gated the same way a photo is: **approval is the
+event.** A parent proposes a pickup person (name, relationship, phone, optional
+photo, optional expiry); the row is created `PENDING` and is invisible on the door
+board until an **owner** approves it. This is the exact shape of photo publication
+— a thing exists but reaches nobody until a controller signs off — and it is why a
+teacher can read the board but only an owner can populate it.
+
+A second, orthogonal fact lives on the child: `pickupMethod` is `HANDOVER`
+(collected at the door) or `BUS` (goes home on the nursery bus). The bus is the
+nursery's own vehicle, so it needs no per-person approval — the choice itself is
+the record. The parent sets it, because the family arranges bus service; the door
+board reads it. A `HANDOVER` child with no approved people is flagged on the board
+in red, because that is a child staff must not release without checking.
+
+The door board's "who may collect **now**" is derived, not stored: an expired
+time-boxed authorization (`expiresAt` before the start of today) is filtered out in
+the read, so the board reflects today without a cron job rewriting rows. That rule
+(`isExpired` / `isActivePickup`) is a pure function in `pickup-rules.ts` and is unit
+-tested there.
+
+Review runs in the worker, off the request, through the same idempotent fan-out as
+every other notification: approving or rejecting enqueues a job that tells the
+requesting parent, and a new request tells the owners. Dedupe keys carry the
+review timestamp, so a genuine re-approval after an edit notifies afresh while a
+worker retry does not.
 
 ### Uploading is batched in the browser
 

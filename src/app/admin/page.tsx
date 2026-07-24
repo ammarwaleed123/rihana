@@ -7,6 +7,7 @@ import { requireStaff } from "@/lib/auth/scope";
 import { getOverviewStats } from "@/lib/data/activity";
 import { countChildren } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
+import { countPendingPickupApprovals } from "@/lib/data/pickup";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -46,10 +47,11 @@ export default async function AdminHome() {
   const session = await requireStaff("/admin");
   const isOwner = session.user.role === "OWNER";
 
-  const [stats, classes, childCount] = await Promise.all([
+  const [stats, classes, childCount, pendingPickups] = await Promise.all([
     isOwner ? getOverviewStats(session) : Promise.resolve(null),
     listClassesForSession(session),
     countChildren(session),
+    countPendingPickupApprovals(session),
   ]);
 
   return (
@@ -110,16 +112,53 @@ export default async function AdminHome() {
         <Card>
           <h2 className="font-display text-xl font-semibold">Photos</h2>
           <p className="mt-2 text-ink-soft">
-            Uploading and tagging arrives in Phase 3. Storage is configured and
-            verified.
+            Upload, tag and publish photos for families.
           </p>
+          <Link
+            href="/admin/photos"
+            className="mt-3 inline-block font-semibold text-leaf underline underline-offset-4"
+          >
+            Go to photos
+          </Link>
         </Card>
 
         <Card>
-          <h2 className="font-display text-xl font-semibold">Pickup approvals</h2>
-          <p className="mt-2 text-ink-soft">
-            Reviewing who may collect each child arrives in Phase 6.
-          </p>
+          <h2 className="font-display text-xl font-semibold">Pickup</h2>
+          {isOwner ? (
+            <>
+              <p className="mt-2 text-ink-soft">
+                {pendingPickups > 0
+                  ? `${pendingPickups} pickup ${pendingPickups === 1 ? "request is" : "requests are"} waiting for your approval.`
+                  : "Nothing waiting for approval right now."}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <Link
+                  href="/admin/pickup/approvals"
+                  className="font-semibold text-leaf underline underline-offset-4"
+                >
+                  Review approvals
+                </Link>
+                <Link
+                  href="/admin/pickup"
+                  className="font-semibold text-leaf underline underline-offset-4"
+                >
+                  Pickup board
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-2 text-ink-soft">
+                See who may collect each child in your classes today.
+              </p>
+              <Link
+                href="/admin/pickup"
+                className="mt-3 inline-block font-semibold text-leaf underline underline-offset-4"
+              >
+                Open the pickup board
+              </Link>
+            </>
+          )}
         </Card>
       </div>
     </div>

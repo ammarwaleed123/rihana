@@ -123,15 +123,21 @@ test.describe("photo notifications", () => {
 
   test("marking all read clears the badge", async ({ page }) => {
     await signIn(page, PARENT_AMAL);
-    await page.goto("/portal/notifications");
 
-    const markAll = page.getByRole("button", { name: "Mark all as read" });
-    if (await markAll.count()) await markAll.click();
+    // Fan-out is asynchronous: the worker may still be delivering notifications
+    // from earlier tests, so a straggler can arrive between the click and the
+    // check. Mark-all and re-check together, retrying until the badge stays
+    // cleared — this asserts the same thing without racing the worker.
+    await expect(async () => {
+      await page.goto("/portal/notifications");
+      const markAll = page.getByRole("button", { name: "Mark all as read" });
+      if (await markAll.count()) await markAll.click();
 
-    await page.goto("/portal");
-    await expect(
-      page.getByRole("link", { name: /Notifications, \d+ unread/ }),
-    ).toHaveCount(0);
+      await page.goto("/portal");
+      await expect(
+        page.getByRole("link", { name: /Notifications, \d+ unread/ }),
+      ).toHaveCount(0);
+    }).toPass({ timeout: 30_000 });
   });
 });
 

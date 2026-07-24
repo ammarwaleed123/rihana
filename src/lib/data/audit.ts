@@ -54,7 +54,8 @@ export type AuditAction =
   | "pickup_person.approved"
   | "pickup_person.rejected"
   | "pickup_person.revoked"
-  | "pickup_person.updated";
+  | "pickup_person.updated"
+  | "pickup_method.changed";
 
 export type AuditEntry = {
   action: AuditAction;

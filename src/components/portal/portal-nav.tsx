@@ -22,6 +22,7 @@ const items = [
   { href: "/portal", label: "Home", icon: HomeIcon },
   { href: "/portal/photos", label: "Photos", icon: PhotoIcon },
   { href: "/portal/albums", label: "Albums", icon: AlbumIcon },
+  { href: "/portal/pickup", label: "Pickup", icon: PickupIcon },
   { href: "/portal/account", label: "Account", icon: AccountIcon },
 ];
 
@@ -161,6 +162,16 @@ function AccountIcon() {
     <svg {...iconProps()}>
       <circle cx="12" cy="8.5" r="3.5" />
       <path d="M5 20a7 7 0 0 1 14 0" />
+    </svg>
+  );
+}
+
+function PickupIcon() {
+  // A shield: this is the safety-critical zone — who may collect the child.
+  return (
+    <svg {...iconProps()}>
+      <path d="M12 3 5 6v6c0 4 3 6.5 7 9 4-2.5 7-5 7-9V6l-7-3Z" />
+      <path d="m9.5 12 1.8 1.8L15 10" />
     </svg>
   );
 }

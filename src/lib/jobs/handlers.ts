@@ -7,6 +7,8 @@ import {
   type NotifyAlbumPublishedJob,
   type NotifyAnnouncementJob,
   type NotifyPhotosPublishedJob,
+  type NotifyPickupPendingJob,
+  type NotifyPickupReviewedJob,
   type PhotoProcessJob,
   type StoragePurgeJob,
 } from "@/lib/jobs/queue";
@@ -17,6 +19,8 @@ import {
   fanOutAlbumPublished,
   fanOutAnnouncement,
   fanOutPhotosPublished,
+  fanOutPickupPendingReview,
+  fanOutPickupReviewed,
 } from "@/lib/data/notifications";
 import { purgeExpiredRateLimits } from "@/lib/data/rate-limit";
 import { purgeExpiredSessions } from "@/lib/data/sessions";
@@ -206,12 +210,36 @@ export async function handleNotifyAlbumPublished(
   logger.info({ albumId: job.albumId, created }, "album notifications fanned out");
 }
 
+/** Tell the owners a pickup person needs review. Idempotent, as above. */
+export async function handleNotifyPickupPending(
+  job: NotifyPickupPendingJob,
+): Promise<void> {
+  const { created } = await fanOutPickupPendingReview(job.pickupPersonId);
+  logger.info(
+    { pickupPersonId: job.pickupPersonId, created },
+    "pickup-pending notifications fanned out",
+  );
+}
+
+/** Tell the parent how their pickup request was reviewed. Idempotent, as above. */
+export async function handleNotifyPickupReviewed(
+  job: NotifyPickupReviewedJob,
+): Promise<void> {
+  const { created } = await fanOutPickupReviewed(job.pickupPersonId);
+  logger.info(
+    { pickupPersonId: job.pickupPersonId, created },
+    "pickup-reviewed notification fanned out",
+  );
+}
+
 /** Queue name to handler. Used by the worker entry point. */
 export const HANDLERS = {
   [QUEUES.photoProcess]: handlePhotoProcess,
   [QUEUES.notifyPhotosPublished]: handleNotifyPhotosPublished,
   [QUEUES.notifyAnnouncement]: handleNotifyAnnouncement,
   [QUEUES.notifyAlbumPublished]: handleNotifyAlbumPublished,
+  [QUEUES.notifyPickupPending]: handleNotifyPickupPending,
+  [QUEUES.notifyPickupReviewed]: handleNotifyPickupReviewed,
   [QUEUES.storagePurge]: handleStoragePurge,
   [QUEUES.maintenance]: handleMaintenance,
 } as const;

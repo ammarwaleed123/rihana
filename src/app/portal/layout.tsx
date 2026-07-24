@@ -25,16 +25,19 @@ export default async function PortalLayout({
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
       <header className="border-b border-ink/10 bg-card">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-5 py-4">
-          <div className="flex items-center gap-6">
-            <Link href="/portal" className="font-display text-xl font-semibold">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-4">
+          <div className="flex min-w-0 items-center gap-6">
+            <Link
+              href="/portal"
+              className="whitespace-nowrap font-display text-xl font-semibold"
+            >
               Rihana Nursery
             </Link>
             <PortalNavDesktop />
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-ink-soft md:inline">
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="hidden max-w-[14ch] truncate text-sm text-ink-soft lg:inline">
               {session.user.name}
             </span>
             <NotificationBell unread={unread} />

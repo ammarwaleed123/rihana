@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { NotificationBell } from "@/components/portal/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 import { requireStaff } from "@/lib/auth/scope";
+import { unreadNotificationCount } from "@/lib/data/notifications";
 
 /**
  * Admin shell — owner and teachers.
@@ -17,24 +19,29 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await requireStaff("/admin");
+  const unread = await unreadNotificationCount(session);
 
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
       <header className="border-b border-ink/10 bg-card">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4">
-          <div className="flex items-baseline gap-3">
-            <Link href="/admin" className="font-display text-xl font-semibold">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <Link
+              href="/admin"
+              className="whitespace-nowrap font-display text-xl font-semibold"
+            >
               Rihana Nursery
             </Link>
-            <span className="rounded-full bg-sun-soft px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-ink">
+            <span className="whitespace-nowrap rounded-full bg-sun-soft px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-ink">
               {session.user.role === "OWNER" ? "Owner" : "Teacher"}
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-ink-soft sm:inline">
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="hidden max-w-[16ch] truncate text-sm text-ink-soft sm:inline">
               {session.user.name}
             </span>
+            <NotificationBell unread={unread} href="/admin/notifications" />
             <SignOutButton />
           </div>
         </div>

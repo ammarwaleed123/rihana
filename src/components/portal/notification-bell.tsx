@@ -11,7 +11,14 @@ import Link from "next/link";
  * The badge caps at 9+ so a parent returning after a graduation-day drop does
  * not get a three-digit number spilling out of a small circle.
  */
-export function NotificationBell({ unread }: { unread: number }) {
+export function NotificationBell({
+  unread,
+  href = "/portal/notifications",
+}: {
+  unread: number;
+  /** Where the bell links — the parent list by default, the staff list on admin. */
+  href?: string;
+}) {
   const label =
     unread > 0
       ? `Notifications, ${unread} unread`
@@ -19,7 +26,7 @@ export function NotificationBell({ unread }: { unread: number }) {
 
   return (
     <Link
-      href="/portal/notifications"
+      href={href}
       aria-label={label}
       className="relative inline-flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink"
     >

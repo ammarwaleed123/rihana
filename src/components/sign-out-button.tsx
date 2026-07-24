@@ -9,7 +9,12 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" variant="ghost" disabled={pending}>
+    <Button
+      type="submit"
+      variant="ghost"
+      disabled={pending}
+      className="whitespace-nowrap"
+    >
       {pending ? "Signing out…" : "Sign out"}
     </Button>
   );

@@ -159,6 +159,17 @@ enum ChildStatus {
   ARCHIVED
 }
 
+/// How a child leaves at the end of the day.
+///   HANDOVER  collected at the door — released only to an APPROVED PickupPerson.
+///   BUS       goes home on the nursery bus; no door pickup person is needed.
+/// Set by a parent (with password re-entry, §29) and shown on the staff door
+/// board. The bus is the nursery's own vehicle, so it needs no per-person
+/// approval — the choice itself is the record.
+enum PickupMethod {
+  HANDOVER
+  BUS
+}
+
 model Child {
   id          String      @id @default(cuid(2))
   firstName   String
@@ -170,6 +181,9 @@ model Child {
   /// When false, the child may not be tagged in new photos and is excluded from
   /// class-album distribution. Existing photos stay visible to their own guardians.
   photoConsent Boolean @default(true)
+
+  /// The end-of-day arrangement. HANDOVER unless the family rides the bus.
+  pickupMethod PickupMethod @default(HANDOVER)
 
   allergiesNote String?
   enrolledAt    DateTime  @default(now())

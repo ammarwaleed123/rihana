@@ -129,10 +129,17 @@ export default async function PortalHome() {
         </Card>
 
         <Card>
-          <h2 className="font-display text-xl font-semibold">
-            Pickup authorization
-          </h2>
-          <p className="mt-2 text-ink-soft">Arriving in Phase 6.</p>
+          <h2 className="font-display text-xl font-semibold">Pickup</h2>
+          <p className="mt-2 text-ink-soft">
+            <Link
+              href="/portal/pickup"
+              className="font-semibold text-leaf underline underline-offset-4"
+            >
+              Manage who can collect your{" "}
+              {names.length === 1 ? "child" : "children"}
+            </Link>{" "}
+            — or set the nursery bus.
+          </p>
         </Card>
       </div>
     </div>

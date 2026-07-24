@@ -151,6 +151,8 @@ async function main() {
     { first: "Maya", last: "Darwish", classId: olives.id, dob: "2021-06-19", guardians: [3] },
   ];
 
+  const childIdByName: Record<string, string> = {};
+
   for (const spec of childSpecs) {
     const existing = await prisma.child.findFirst({
       where: { firstName: spec.first, lastName: spec.last },
@@ -170,6 +172,8 @@ async function main() {
         },
       }));
 
+    childIdByName[spec.first] = child.id;
+
     for (const [index, parentIndex] of spec.guardians.entries()) {
       await prisma.guardianship.upsert({
         where: {
@@ -188,6 +192,88 @@ async function main() {
       });
     }
   }
+
+  // --- Pickup authorization (Phase 6) --------------------------------------
+  // Idempotent by (childId, fullName): re-running the seed does not duplicate.
+  async function ensurePickup(opts: {
+    childName: string;
+    fullName: string;
+    relationship: string;
+    phone: string;
+    addedByUserId: string;
+    status: "PENDING" | "APPROVED";
+    expiresAt?: Date | null;
+  }) {
+    const childId = childIdByName[opts.childName];
+    if (!childId) return;
+
+    const existing = await prisma.pickupPerson.findFirst({
+      where: { childId, fullName: opts.fullName, deletedAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    await prisma.pickupPerson.create({
+      data: {
+        childId,
+        fullName: opts.fullName,
+        relationship: opts.relationship,
+        phone: opts.phone,
+        status: opts.status,
+        addedByUserId: opts.addedByUserId,
+        reviewedByUserId: opts.status === "APPROVED" ? owner.id : null,
+        reviewedAt: opts.status === "APPROVED" ? new Date() : null,
+        expiresAt: opts.expiresAt ?? null,
+      },
+    });
+  }
+
+  // Omar rides the nursery bus — the pickup-method choice, seeded so the board
+  // shows both arrangements out of the box.
+  if (childIdByName["Omar"]) {
+    await prisma.child.update({
+      where: { id: childIdByName["Omar"] },
+      data: { pickupMethod: "BUS" },
+    });
+  }
+
+  // Laila (Amal): one approved grandmother, one aunt still awaiting review.
+  await ensurePickup({
+    childName: "Laila",
+    fullName: "Fatima Saeed",
+    relationship: "Grandmother",
+    phone: "01011122233",
+    addedByUserId: parents[0]!.id,
+    status: "APPROVED",
+  });
+  await ensurePickup({
+    childName: "Laila",
+    fullName: "Rana Saeed",
+    relationship: "Aunt",
+    phone: "01022233344",
+    addedByUserId: parents[0]!.id,
+    status: "PENDING",
+  });
+
+  // Zayn (Khalid): a family friend awaiting review.
+  await ensurePickup({
+    childName: "Zayn",
+    fullName: "Hoda Kamal",
+    relationship: "Family friend",
+    phone: "01233344455",
+    addedByUserId: parents[1]!.id,
+    status: "PENDING",
+  });
+
+  // Tariq (Sami): an approved uncle.
+  await ensurePickup({
+    childName: "Tariq",
+    fullName: "Sherif Darwish",
+    relationship: "Uncle",
+    phone: "01599988877",
+    addedByUserId: parents[3]!.id,
+    status: "APPROVED",
+  });
 
   console.log(`[seed] done.
 

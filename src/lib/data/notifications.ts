@@ -34,7 +34,12 @@ import { prisma } from "@/lib/db";
 
 type NotificationRow = {
   userId: string;
-  type: "NEW_PHOTOS" | "NEW_ANNOUNCEMENT";
+  type:
+    | "NEW_PHOTOS"
+    | "NEW_ANNOUNCEMENT"
+    | "PICKUP_APPROVED"
+    | "PICKUP_REJECTED"
+    | "PICKUP_PENDING_REVIEW";
   title: string;
   body: string;
   payload: Prisma.InputJsonValue;
@@ -365,6 +370,128 @@ export async function fanOutAlbumPublished(
       linkPath: `/portal/albums/${album.id}`,
       dedupeKey: `album:${album.id}`,
     })),
+    skipDuplicates: true,
+  });
+
+  return { created: result.count };
+}
+
+// ---------------------------------------------------------------------------
+// Fan-out: pickup authorization
+// ---------------------------------------------------------------------------
+
+/**
+ * Tell the owners a pickup person is waiting to be reviewed.
+ *
+ * Notifies every active owner — approval is an owner responsibility, and a
+ * nursery may have more than one. Deduped on the person *and* their `updatedAt`,
+ * so a worker retry no-ops while a genuine re-submission (the parent edited the
+ * person, which returns them to PENDING and bumps `updatedAt`) produces a fresh
+ * prompt. Guarded on the current status, so a request the owner has already
+ * handled between enqueue and execution raises nothing.
+ */
+export async function fanOutPickupPendingReview(
+  pickupPersonId: string,
+): Promise<{ created: number }> {
+  const person = await prisma.pickupPerson.findFirst({
+    where: { id: pickupPersonId, deletedAt: null, status: "PENDING" },
+    select: {
+      id: true,
+      fullName: true,
+      updatedAt: true,
+      child: { select: { firstName: true } },
+      addedBy: { select: { name: true } },
+    },
+  });
+  if (!person) return { created: 0 };
+
+  const owners = await prisma.user.findMany({
+    where: { role: "OWNER", status: "ACTIVE", deletedAt: null },
+    select: { id: true },
+  });
+  if (owners.length === 0) return { created: 0 };
+
+  const requestedBy = person.addedBy?.name ?? "A parent";
+  const childName = person.child.firstName;
+  const dedupeKey = `pickup-review:${person.id}:${person.updatedAt.getTime()}`;
+
+  const result = await prisma.notification.createMany({
+    data: owners.map((owner) => ({
+      userId: owner.id,
+      type: "PICKUP_PENDING_REVIEW" as const,
+      title: "Pickup approval needed",
+      body: `${requestedBy} asked to authorize ${person.fullName} to collect ${childName}.`,
+      payload: { pickupPersonId: person.id },
+      linkPath: `/admin/pickup/approvals`,
+      dedupeKey,
+    })),
+    skipDuplicates: true,
+  });
+
+  return { created: result.count };
+}
+
+/**
+ * Tell the parent who requested a pickup person how it was reviewed.
+ *
+ * Reaches the parent who added them (not every guardian — the requester is who
+ * is waiting on the answer). Approved and rejected are two different rows with
+ * two different links. Deduped on the person and their `reviewedAt`, so a
+ * re-approval after an edit notifies afresh while a retry does not. Reads the
+ * current status, so if the person has since been edited back to PENDING nothing
+ * is sent.
+ */
+export async function fanOutPickupReviewed(
+  pickupPersonId: string,
+): Promise<{ created: number }> {
+  const person = await prisma.pickupPerson.findFirst({
+    where: { id: pickupPersonId, deletedAt: null },
+    select: {
+      id: true,
+      fullName: true,
+      status: true,
+      reviewedAt: true,
+      rejectionReason: true,
+      addedByUserId: true,
+      child: { select: { firstName: true } },
+    },
+  });
+
+  if (
+    !person ||
+    !person.reviewedAt ||
+    (person.status !== "APPROVED" && person.status !== "REJECTED")
+  ) {
+    return { created: 0 };
+  }
+
+  const childName = person.child.firstName;
+  const approved = person.status === "APPROVED";
+
+  const row: NotificationRow = approved
+    ? {
+        userId: person.addedByUserId,
+        type: "PICKUP_APPROVED",
+        title: "Pickup authorized",
+        body: `${person.fullName} can now collect ${childName} from the nursery.`,
+        payload: { pickupPersonId: person.id },
+        linkPath: `/portal/pickup`,
+        dedupeKey: `pickup-approved:${person.id}:${person.reviewedAt.getTime()}`,
+      }
+    : {
+        userId: person.addedByUserId,
+        type: "PICKUP_REJECTED",
+        title: "Pickup not approved",
+        body: person.rejectionReason
+          ? `Your request to authorize ${person.fullName} for ${childName} was not approved: ${person.rejectionReason}`
+          : `Your request to authorize ${person.fullName} to collect ${childName} was not approved. Please contact the nursery.`,
+        payload: { pickupPersonId: person.id },
+        linkPath: `/portal/pickup`,
+        dedupeKey: `pickup-rejected:${person.id}:${person.reviewedAt.getTime()}`,
+      };
+
+  const result = await prisma.notification.createMany({
+    data: [row],
     skipDuplicates: true,
   });
 

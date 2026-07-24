@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "verify:auth": "tsx scripts/verify-auth.ts",
+    "verify:pickup": "tsx scripts/verify-pickup.ts",
     "db:reset-limits": "tsx scripts/reset-limits.ts",
     "db:inspect": "tsx scripts/inspect-db.ts",
     "db:generate": "prisma generate",

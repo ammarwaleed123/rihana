@@ -28,6 +28,10 @@ export const QUEUES = {
   notifyAnnouncement: "notify.announcement",
   /** Fan out notifications for a published album. */
   notifyAlbumPublished: "notify.album-published",
+  /** Tell the owners a pickup person is waiting to be reviewed. */
+  notifyPickupPending: "notify.pickup-pending",
+  /** Tell the parent how their pickup request was reviewed. */
+  notifyPickupReviewed: "notify.pickup-reviewed",
   /** Send one queued email. */
   emailSend: "email.send",
   /** Remove objects from storage after a deletion. */
@@ -40,6 +44,8 @@ export type PhotoProcessJob = { photoId: string };
 export type NotifyPhotosPublishedJob = { uploadSessionId: string };
 export type NotifyAnnouncementJob = { announcementId: string };
 export type NotifyAlbumPublishedJob = { albumId: string };
+export type NotifyPickupPendingJob = { pickupPersonId: string };
+export type NotifyPickupReviewedJob = { pickupPersonId: string };
 export type EmailSendJob = { outboundEmailId: string };
 export type StoragePurgeJob = { keys: string[] };
 
