@@ -19,6 +19,7 @@ export function AdminNav({ current, role }: { current: string; role: Role }) {
     { href: "/admin/classes", label: "Classes" },
     ...(role === "OWNER"
       ? [
+          { href: "/admin/inquiries", label: "Inquiries" },
           { href: "/admin/people", label: "Parents & staff" },
           { href: "/admin/activity", label: "Activity" },
         ]

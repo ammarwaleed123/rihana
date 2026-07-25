@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { LoadMore } from "@/components/portal/photo-grid";
+import { Pager } from "@/components/portal/pager";
 import { EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
-import { listAlbumsForParent } from "@/lib/data/albums";
+import { getAlbumsPageForParent } from "@/lib/data/albums";
+import { parsePageParam } from "@/lib/data/pagination";
 import { getMyChildren } from "@/lib/data/photos";
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
 export default async function AlbumsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string; childId?: string }>;
+  searchParams: Promise<{ page?: string; childId?: string }>;
 }) {
   const params = await searchParams;
   const session = await requireParent("/portal/albums");
@@ -30,15 +31,21 @@ export default async function AlbumsPage({
   // one child when a chip is chosen. An album of other children simply does not
   // exist here.
   const [page, children] = await Promise.all([
-    listAlbumsForParent(session, {
-      cursor: params.cursor ?? null,
+    getAlbumsPageForParent(session, {
+      page: parsePageParam(params.page),
       childId: params.childId,
     }),
     getMyChildren(session),
   ]);
 
-  const loadMoreQuery = new URLSearchParams();
-  if (params.childId) loadMoreQuery.set("childId", params.childId);
+  // Preserve the child filter when moving between pages.
+  const hrefFor = (n: number) => {
+    const query = new URLSearchParams();
+    if (params.childId) query.set("childId", params.childId);
+    if (n > 1) query.set("page", String(n));
+    const qs = query.toString();
+    return qs ? `/portal/albums?${qs}` : "/portal/albums";
+  };
 
   return (
     <div>
@@ -64,7 +71,7 @@ export default async function AlbumsPage({
         </nav>
       ) : null}
 
-      {page.items.length === 0 ? (
+      {page.total === 0 ? (
         <EmptyState
           title="No albums yet"
           description="When the nursery groups photos into an album, it will appear here."
@@ -115,16 +122,12 @@ export default async function AlbumsPage({
             ))}
           </ul>
 
-          {page.hasMore && page.nextCursor ? (
-            <LoadMore
-              href={(() => {
-                const query = new URLSearchParams(loadMoreQuery);
-                query.set("cursor", page.nextCursor);
-                return `/portal/albums?${query}`;
-              })()}
-              label="Load more albums"
-            />
-          ) : null}
+          <p className="mt-6 text-center text-sm text-ink-soft">
+            Page {page.page} of {page.pageCount} · {page.total} album
+            {page.total === 1 ? "" : "s"}
+          </p>
+
+          <Pager page={page.page} pageCount={page.pageCount} hrefFor={hrefFor} />
         </>
       )}
     </div>

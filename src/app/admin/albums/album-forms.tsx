@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Disclosure } from "@/components/ui/disclosure";
@@ -51,6 +51,24 @@ function AlbumFields({
 }) {
   const id = (field: string) => `${idPrefix}-${field}`;
 
+  // Controlled so a save doesn't wipe the fields. React 19 resets an
+  // uncontrolled form after a form action runs, which snapped the class selector
+  // back to "Whole nursery" even though the new class had saved fine (the photos
+  // updated, the dropdown did not). Holding the values in state fixes that and
+  // preserves what was typed on a validation error.
+  //
+  // The parent re-mounts this component (via `key`) only when the SAVED values
+  // change, i.e. right after a save persists — that is what re-seeds these from
+  // the stored album, so the dropdown ends on exactly what was saved.
+  const [title, setTitle] = useState(defaults?.title ?? "");
+  const [description, setDescription] = useState(defaults?.description ?? "");
+  const [eventDate, setEventDate] = useState(
+    defaults?.eventDate?.toISOString().slice(0, 10) ?? "",
+  );
+  const [classId, setClassId] = useState(
+    defaults?.classId ?? (canChooseClass ? "" : (classes[0]?.id ?? "")),
+  );
+
   return (
     <>
       <Field label="Album title" htmlFor={id("title")} error={errors?.title}>
@@ -60,7 +78,8 @@ function AlbumFields({
           required
           maxLength={80}
           placeholder="Graduation Day 2026"
-          defaultValue={defaults?.title}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           autoComplete="off"
         />
       </Field>
@@ -76,7 +95,8 @@ function AlbumFields({
           name="description"
           rows={2}
           maxLength={500}
-          defaultValue={defaults?.description ?? ""}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           className={selectClass}
         />
       </Field>
@@ -91,7 +111,8 @@ function AlbumFields({
           id={id("eventDate")}
           name="eventDate"
           type="date"
-          defaultValue={defaults?.eventDate?.toISOString().slice(0, 10) ?? ""}
+          value={eventDate}
+          onChange={(e) => setEventDate(e.target.value)}
         />
       </Field>
 
@@ -105,7 +126,8 @@ function AlbumFields({
           <select
             id={id("classId")}
             name="classId"
-            defaultValue={defaults?.classId ?? ""}
+            value={classId}
+            onChange={(e) => setClassId(e.target.value)}
             className={selectClass}
           >
             <option value="">Whole nursery</option>
@@ -126,7 +148,8 @@ function AlbumFields({
           <select
             id={id("classId")}
             name="classId"
-            defaultValue={defaults?.classId ?? classes[0]?.id ?? ""}
+            value={classId}
+            onChange={(e) => setClassId(e.target.value)}
             className={selectClass}
             required
           >
@@ -203,6 +226,11 @@ export function EditAlbumForm({
       {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
       <AlbumFields
+        // Re-mounts (re-seeding the controlled fields from the album) only when
+        // a saved value actually changes — i.e. after a successful save. While
+        // editing, the key is stable, so nothing resets and a validation error
+        // keeps what was typed.
+        key={`${album.classId ?? ""}|${album.title}|${album.description ?? ""}|${album.eventDate?.toISOString() ?? ""}`}
         classes={classes}
         errors={state.errors}
         idPrefix={`edit-album-${album.id}`}

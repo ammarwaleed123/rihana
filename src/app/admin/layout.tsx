@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { BrandLogo } from "@/components/brand-logo";
 import { NotificationBell } from "@/components/portal/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 import { requireStaff } from "@/lib/auth/scope";
@@ -25,13 +24,8 @@ export default async function AdminLayout({
     <div className="flex min-h-dvh flex-col bg-paper">
       <header className="border-b border-ink/10 bg-card">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4">
-          <div className="flex min-w-0 items-baseline gap-3">
-            <Link
-              href="/admin"
-              className="whitespace-nowrap font-display text-xl font-semibold"
-            >
-              Rihana Nursery
-            </Link>
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandLogo href="/admin" />
             <span className="whitespace-nowrap rounded-full bg-sun-soft px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-ink">
               {session.user.role === "OWNER" ? "Owner" : "Teacher"}
             </span>

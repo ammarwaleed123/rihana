@@ -1,4 +1,4 @@
-# Rihana Nursery — architecture
+# Rihana Montessori Academy — architecture
 
 The system stores photographs of young children. Every decision below is downstream
 of that fact: the default answer to "who can see this?" is *nobody*, and access is

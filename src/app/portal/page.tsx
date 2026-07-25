@@ -93,54 +93,48 @@ export default async function PortalHome() {
         </section>
       ) : null}
 
-      {announcements.items.length > 0 ? (
-        <section className="mb-8">
-          <SectionHeading title="Announcements" href="/portal/announcements" />
-          <div className="space-y-3">
-            {announcements.items.map((a) => (
-              <Link
-                key={a.id}
-                href="/portal/announcements"
-                className="block rounded-2xl border border-ink/10 bg-card p-4 shadow-pin transition-colors hover:border-leaf"
-              >
-                <p className="font-display text-lg font-semibold">{a.title}</p>
-                <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{a.body}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       <div className="grid gap-5 sm:grid-cols-2">
-        <Card>
-          <h2 className="font-display text-xl font-semibold">Announcements</h2>
-          <p className="mt-2 text-ink-soft">
-            {announcements.items.length > 0 ? (
-              <Link
-                href="/portal/announcements"
-                className="font-semibold text-leaf underline underline-offset-4"
-              >
-                See all announcements
-              </Link>
-            ) : (
-              "News and reminders from the nursery will appear here."
-            )}
-          </p>
-        </Card>
+        {/*
+          One card, not a growing stack: the portal home never lists every
+          announcement (that would be unusable after a term's worth). It shows a
+          hint of the latest and taps through to the full, paginated list.
+        */}
+        <Link
+          href="/portal/announcements"
+          className="group block rounded-2xl border border-ink/10 bg-card p-6 shadow-pin transition-colors hover:border-leaf"
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-xl font-semibold">Announcements</h2>
+            <span className="text-sm font-semibold text-leaf underline underline-offset-4">
+              See all
+            </span>
+          </div>
+          {announcements.items.length > 0 ? (
+            <p className="mt-2 line-clamp-1 text-ink-soft">
+              Latest: {announcements.items[0]!.title}
+            </p>
+          ) : (
+            <p className="mt-2 text-ink-soft">
+              News and reminders from the nursery will appear here.
+            </p>
+          )}
+        </Link>
 
-        <Card>
-          <h2 className="font-display text-xl font-semibold">Pickup</h2>
+        <Link
+          href="/portal/pickup"
+          className="group block rounded-2xl border border-ink/10 bg-card p-6 shadow-pin transition-colors hover:border-leaf"
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-xl font-semibold">Pickup</h2>
+            <span className="text-sm font-semibold text-leaf underline underline-offset-4">
+              Manage
+            </span>
+          </div>
           <p className="mt-2 text-ink-soft">
-            <Link
-              href="/portal/pickup"
-              className="font-semibold text-leaf underline underline-offset-4"
-            >
-              Manage who can collect your{" "}
-              {names.length === 1 ? "child" : "children"}
-            </Link>{" "}
-            — or set the nursery bus.
+            Choose who can collect your{" "}
+            {names.length === 1 ? "child" : "children"} — or set the nursery bus.
           </p>
-        </Card>
+        </Link>
       </div>
     </div>
   );

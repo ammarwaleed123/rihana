@@ -221,6 +221,99 @@ export async function listAlbumsForParent(
   );
 }
 
+export const PARENT_ALBUMS_PER_PAGE = 8;
+
+/**
+ * Albums visible to a parent, in numbered pages — the same interface the photo
+ * list uses, so a family can jump to "page 3 of 7" rather than tapping "load
+ * more" repeatedly. Offset is safe here for the same reason as the album detail:
+ * the set is one family's own albums, a handful, never the whole nursery's.
+ *
+ * The security story is identical to `listAlbumsForParent` — an album appears
+ * only if it holds a photo this family may already see, and the count and cover
+ * follow that same filter.
+ */
+export async function getAlbumsPageForParent(
+  session: Session,
+  options: { page?: number; pageSize?: number; childId?: string } = {},
+): Promise<NumberedPage<ParentAlbumSummary>> {
+  if (session.user.role !== "PARENT") throw new ForbiddenError();
+
+  const pageSize = options.pageSize ?? PARENT_ALBUMS_PER_PAGE;
+  const filter = await parentScopeForChild(session, options.childId);
+
+  const where = {
+    status: "PUBLISHED" as const,
+    publishedAt: { not: null },
+    deletedAt: null,
+    photos: { some: { photo: filter } },
+  };
+
+  const total = await prisma.album.count({ where });
+  const { page, pageCount, skip } = pageOffset(options.page ?? 1, total, pageSize);
+
+  const rows = await prisma.album.findMany({
+    where,
+    orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+    skip,
+    take: pageSize,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      eventDate: true,
+      publishedAt: true,
+      coverPhotoId: true,
+      class: { select: { name: true } },
+      _count: { select: { photos: { where: { photo: filter } } } },
+      photos: {
+        where: { photo: filter },
+        orderBy: [{ sortOrder: "asc" }, { photoId: "asc" }],
+        take: 1,
+        select: { photoId: true },
+      },
+    },
+  });
+
+  // Same cover resolution as the cursor list: the chosen cover may be a photo
+  // this family cannot see, so verify it and fall back to their first visible
+  // one — never leak an unseeable photo as a cover.
+  const coverIds = rows
+    .map((row) => row.coverPhotoId)
+    .filter((id): id is string => id !== null);
+
+  const visibleCoverIds = new Set(
+    coverIds.length === 0
+      ? []
+      : (
+          await prisma.photo.findMany({
+            where: { AND: [filter, { id: { in: coverIds } }] },
+            select: { id: true },
+          })
+        ).map((photo) => photo.id),
+  );
+
+  return {
+    items: rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      eventDate: row.eventDate,
+      publishedAt: row.publishedAt,
+      className: row.class?.name ?? null,
+      photoCount: row._count.photos,
+      coverPhotoId:
+        row.coverPhotoId && visibleCoverIds.has(row.coverPhotoId)
+          ? row.coverPhotoId
+          : (row.photos[0]?.photoId ?? null),
+    })),
+    page,
+    pageCount,
+    pageSize,
+    total,
+  };
+}
+
 export type ParentAlbumDetail = {
   album: {
     id: string;
@@ -444,16 +537,22 @@ export async function getPhotosAvailableForAlbum(
   albumId: string,
   options: { cursor?: string | null; limit?: number } = {},
 ): Promise<Page<{ id: string; caption: string | null; createdAt: Date }>> {
-  await assertCanManageAlbum(session, albumId);
+  const album = await assertCanManageAlbum(session, albumId);
 
   const limit = clampPageSize(options.limit ?? 24);
   const cursor = decodeCursor(options.cursor);
   const scope = await staffPhotoScope(session);
+  // The album's class scopes the picker: a Sunflowers album offers only
+  // Sunflowers photos — whether a child is tagged or it is a class photo, since
+  // both carry that class — so an Olives photo can't be added to it by mistake.
+  // A whole-nursery album (no class) offers every class's photos.
+  const classFilter = album.classId ? { classId: album.classId } : {};
 
   const rows = await prisma.photo.findMany({
     where: {
       AND: [
         scope,
+        classFilter,
         { albumPhotos: { none: { albumId } } },
         ...olderThan(cursor),
       ],
@@ -543,13 +642,17 @@ export async function addPhotosToAlbum(
   albumId: string,
   photoIds: string[],
 ): Promise<{ added: number; skipped: number }> {
-  await assertCanManageAlbum(session, albumId);
+  const album = await assertCanManageAlbum(session, albumId);
   if (photoIds.length === 0) return { added: 0, skipped: 0 };
 
   const scope = await staffPhotoScope(session);
+  // Enforce the album's class here too, not just in the picker: the ids arrive
+  // in a form post, so a tampered request could otherwise slip a wrong-class
+  // photo into a class album. A whole-nursery album (no class) accepts any.
+  const classFilter = album.classId ? { classId: album.classId } : {};
 
   const allowed = await prisma.photo.findMany({
-    where: { AND: [scope, { id: { in: photoIds } }] },
+    where: { AND: [scope, classFilter, { id: { in: photoIds } }] },
     select: { id: true },
   });
 

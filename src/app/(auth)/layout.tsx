@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 
 /**
  * Layout for the unauthenticated auth pages.
@@ -14,12 +14,7 @@ export default function AuthLayout({
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
       <header className="px-6 py-6">
-        <Link
-          href="/"
-          className="font-display text-2xl font-semibold text-ink transition-colors hover:text-leaf"
-        >
-          Rihana Nursery
-        </Link>
+        <BrandLogo href="/" imgClassName="h-16 w-auto" />
       </header>
 
       <main id="main" className="flex flex-1 items-start justify-center px-6 pb-16">

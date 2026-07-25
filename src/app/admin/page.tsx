@@ -7,6 +7,7 @@ import { requireStaff } from "@/lib/auth/scope";
 import { getOverviewStats } from "@/lib/data/activity";
 import { countChildren } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
+import { countNewInquiries } from "@/lib/data/inquiries";
 import { countPendingPickupApprovals } from "@/lib/data/pickup";
 
 export const metadata: Metadata = {
@@ -47,12 +48,14 @@ export default async function AdminHome() {
   const session = await requireStaff("/admin");
   const isOwner = session.user.role === "OWNER";
 
-  const [stats, classes, childCount, pendingPickups] = await Promise.all([
-    isOwner ? getOverviewStats(session) : Promise.resolve(null),
-    listClassesForSession(session),
-    countChildren(session),
-    countPendingPickupApprovals(session),
-  ]);
+  const [stats, classes, childCount, pendingPickups, newInquiries] =
+    await Promise.all([
+      isOwner ? getOverviewStats(session) : Promise.resolve(null),
+      listClassesForSession(session),
+      countChildren(session),
+      countPendingPickupApprovals(session),
+      countNewInquiries(session),
+    ]);
 
   return (
     <div>
@@ -96,6 +99,25 @@ export default async function AdminHome() {
                   className="font-semibold text-leaf underline underline-offset-4"
                 >
                   Review children
+                </Link>
+              </p>
+            </div>
+          ) : null}
+
+          {newInquiries > 0 ? (
+            <div className="mt-6 rounded-2xl border-2 border-leaf/40 bg-leaf-soft px-5 py-4">
+              <p className="font-bold">
+                {newInquiries} new{" "}
+                {newInquiries === 1 ? "enquiry" : "enquiries"} from the website
+              </p>
+              <p className="mt-1 text-sm text-ink-soft">
+                {newInquiries === 1 ? "A family is" : "Families are"} waiting to
+                hear back.{" "}
+                <Link
+                  href="/admin/inquiries"
+                  className="font-semibold text-leaf underline underline-offset-4"
+                >
+                  Open inquiries
                 </Link>
               </p>
             </div>

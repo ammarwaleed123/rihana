@@ -20,13 +20,26 @@ const nunito = Nunito({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://rihana.com";
+
 export const metadata: Metadata = {
+  // Absolute base for canonical + Open Graph URLs. Set NEXT_PUBLIC_SITE_URL to
+  // the real domain in production.
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Rihana Nursery",
-    template: "%s · Rihana Nursery",
+    default: "Rihana Montessori Academy",
+    template: "%s · Rihana Montessori Academy",
   },
   description:
     "A warm, playful nursery where young children learn through play, discovery and care.",
+  openGraph: {
+    type: "website",
+    siteName: "Rihana Montessori Academy",
+    title: "Rihana Montessori Academy",
+    description:
+      "A warm, playful nursery in Maadi, Cairo for children aged 1–5 — learning through play, in small, caring groups.",
+    images: ["/marketing/hero.jpg"],
+  },
   // Overridden to `noindex` on /portal, /admin and all image routes in next.config.ts.
   robots: { index: true, follow: true },
 };

@@ -499,6 +499,49 @@ export async function fanOutPickupReviewed(
 }
 
 // ---------------------------------------------------------------------------
+// Fan-out: new website enquiry
+// ---------------------------------------------------------------------------
+
+/**
+ * Tell the owners a family enquired through the public website.
+ *
+ * The public site's one write action, so this is how a lead reaches the owner's
+ * bell without them having to sit on the admin dashboard. One notification per
+ * active owner, deduped on the inquiry id so a worker retry no-ops.
+ */
+export async function fanOutNewInquiry(
+  inquiryId: string,
+): Promise<{ created: number }> {
+  const inquiry = await prisma.inquiry.findUnique({
+    where: { id: inquiryId },
+    select: { id: true, parentName: true, childFirstName: true },
+  });
+  if (!inquiry) return { created: 0 };
+
+  const owners = await prisma.user.findMany({
+    where: { role: "OWNER", status: "ACTIVE", deletedAt: null },
+    select: { id: true },
+  });
+  if (owners.length === 0) return { created: 0 };
+
+  const about = inquiry.childFirstName ? ` about ${inquiry.childFirstName}` : "";
+  const result = await prisma.notification.createMany({
+    data: owners.map((owner) => ({
+      userId: owner.id,
+      type: "NEW_INQUIRY" as const,
+      title: "New website enquiry",
+      body: `${inquiry.parentName} enquired about a place${about}.`,
+      payload: { inquiryId: inquiry.id },
+      linkPath: `/admin/inquiries/${inquiry.id}`,
+      dedupeKey: `inquiry:${inquiry.id}`,
+    })),
+    skipDuplicates: true,
+  });
+
+  return { created: result.count };
+}
+
+// ---------------------------------------------------------------------------
 // Reads and mark-as-read (the caller's own notifications only)
 // ---------------------------------------------------------------------------
 

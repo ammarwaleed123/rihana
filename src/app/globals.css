@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Rihana Nursery — design tokens
+   Rihana Montessori Academy — design tokens
    Construction-paper palette from the reference mockup. Warm, playful, clean.
    These are the only colours in the system; components never hardcode hex.
    --------------------------------------------------------------------------- */
@@ -94,6 +94,18 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+
+    /* Reveal targets are shown outright, not left hidden until scrolled into
+       view — a reduced-motion visitor should never wait on an animation. */
+    [data-reveal] {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+
+    /* The ambient falling background is pure decoration — remove it entirely. */
+    .falling-layer {
+      display: none !important;
+    }
   }
 }
 
@@ -109,5 +121,82 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border-width: 0;
+  }
+
+  /* -------------------------------------------------------------------------
+     Marketing motion — used on the public site only.
+     All of it is disabled automatically by the reduced-motion rule above,
+     so these are safe to sprinkle without a per-element guard.
+     ------------------------------------------------------------------------- */
+  @keyframes rihana-float {
+    0%, 100% { transform: translateY(0) rotate(var(--tw-rotate, 0)); }
+    50% { transform: translateY(-14px) rotate(var(--tw-rotate, 0)); }
+  }
+  @keyframes rihana-rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes rihana-pop {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .m-float { animation: rihana-float 6s ease-in-out infinite; }
+  .m-rise { animation: rihana-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .m-pop { animation: rihana-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+  /* Scroll reveal.
+     Hidden by default and un-hidden either by the observer (JS) or, when JS is
+     off, by a <noscript> style in the marketing layout — so crawlers and no-JS
+     visitors always see every section. Timing/easing follow the "Standard"
+     scroll-reveal preset: ~550ms, ease-out, a small upward slide. */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(22px);
+    transition:
+      opacity 0.55s ease-out,
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+  [data-reveal].is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Falling toys — the ambient background on the public site.
+     A fixed layer behind the content; opaque cards cover it, so toys drift
+     through the paper gaps. Decorative and aria-hidden; hidden outright for
+     anyone who asked for reduced motion (below). */
+  @keyframes rihana-fall {
+    0% {
+      transform: translate3d(0, -14vh, 0) rotate(0deg);
+      opacity: 0;
+    }
+    10% {
+      opacity: var(--toy-op, 0.35);
+    }
+    90% {
+      opacity: var(--toy-op, 0.35);
+    }
+    100% {
+      transform: translate3d(var(--toy-drift, 0), 114vh, 0)
+        rotate(var(--toy-spin, 360deg));
+      opacity: 0;
+    }
+  }
+  .falling-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .falling-toy {
+    position: absolute;
+    top: 0;
+    left: var(--toy-left);
+    color: var(--toy-color);
+    will-change: transform, opacity;
+    animation: rihana-fall var(--toy-dur, 18s) linear var(--toy-delay, 0s)
+      infinite;
   }
 }

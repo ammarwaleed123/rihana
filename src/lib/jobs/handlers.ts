@@ -7,6 +7,7 @@ import {
   type NotifyAlbumPublishedJob,
   type NotifyAnnouncementJob,
   type NotifyPhotosPublishedJob,
+  type NotifyNewInquiryJob,
   type NotifyPickupPendingJob,
   type NotifyPickupReviewedJob,
   type PhotoProcessJob,
@@ -18,6 +19,7 @@ import { prisma } from "@/lib/db";
 import {
   fanOutAlbumPublished,
   fanOutAnnouncement,
+  fanOutNewInquiry,
   fanOutPhotosPublished,
   fanOutPickupPendingReview,
   fanOutPickupReviewed,
@@ -232,6 +234,17 @@ export async function handleNotifyPickupReviewed(
   );
 }
 
+/** Tell the owners about a new website enquiry. Idempotent, as above. */
+export async function handleNotifyNewInquiry(
+  job: NotifyNewInquiryJob,
+): Promise<void> {
+  const { created } = await fanOutNewInquiry(job.inquiryId);
+  logger.info(
+    { inquiryId: job.inquiryId, created },
+    "new-inquiry notification fanned out",
+  );
+}
+
 /** Queue name to handler. Used by the worker entry point. */
 export const HANDLERS = {
   [QUEUES.photoProcess]: handlePhotoProcess,
@@ -240,6 +253,7 @@ export const HANDLERS = {
   [QUEUES.notifyAlbumPublished]: handleNotifyAlbumPublished,
   [QUEUES.notifyPickupPending]: handleNotifyPickupPending,
   [QUEUES.notifyPickupReviewed]: handleNotifyPickupReviewed,
+  [QUEUES.notifyNewInquiry]: handleNotifyNewInquiry,
   [QUEUES.storagePurge]: handleStoragePurge,
   [QUEUES.maintenance]: handleMaintenance,
 } as const;

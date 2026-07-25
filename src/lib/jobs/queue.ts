@@ -32,6 +32,8 @@ export const QUEUES = {
   notifyPickupPending: "notify.pickup-pending",
   /** Tell the parent how their pickup request was reviewed. */
   notifyPickupReviewed: "notify.pickup-reviewed",
+  /** Tell the owners a family enquired through the public website. */
+  notifyNewInquiry: "notify.new-inquiry",
   /** Send one queued email. */
   emailSend: "email.send",
   /** Remove objects from storage after a deletion. */
@@ -46,6 +48,7 @@ export type NotifyAnnouncementJob = { announcementId: string };
 export type NotifyAlbumPublishedJob = { albumId: string };
 export type NotifyPickupPendingJob = { pickupPersonId: string };
 export type NotifyPickupReviewedJob = { pickupPersonId: string };
+export type NotifyNewInquiryJob = { inquiryId: string };
 export type EmailSendJob = { outboundEmailId: string };
 export type StoragePurgeJob = { keys: string[] };
 

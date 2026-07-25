@@ -1,4 +1,4 @@
-// Rihana Nursery — data model
+// Rihana Montessori Academy — data model
 //
 // Design rules enforced here:
 //  - All primary keys are cuid2: non-sequential, non-guessable public IDs (no IDOR by counting).
@@ -436,6 +436,7 @@ enum NotificationType {
   PICKUP_APPROVED
   PICKUP_REJECTED
   PICKUP_PENDING_REVIEW
+  NEW_INQUIRY
 }
 
 model Notification {

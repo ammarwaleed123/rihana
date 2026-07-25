@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { BrandLogo } from "@/components/brand-logo";
 import { NotificationBell } from "@/components/portal/notification-bell";
 import { PortalNavDesktop, PortalNavMobile } from "@/components/portal/portal-nav";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -27,12 +26,7 @@ export default async function PortalLayout({
       <header className="border-b border-ink/10 bg-card">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-4">
           <div className="flex min-w-0 items-center gap-6">
-            <Link
-              href="/portal"
-              className="whitespace-nowrap font-display text-xl font-semibold"
-            >
-              Rihana Nursery
-            </Link>
+            <BrandLogo href="/portal" />
             <PortalNavDesktop />
           </div>
 

@@ -71,7 +71,7 @@ async function main() {
     update: {},
     create: {
       email: (process.env.SEED_OWNER_EMAIL || "owner@rihana.test").toLowerCase(),
-      name: "Rihana Owner",
+      name: "Walaa Fawzy",
       role: "OWNER",
       status: "ACTIVE",
       passwordHash,

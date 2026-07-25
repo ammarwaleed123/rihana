@@ -324,6 +324,75 @@ export const announcementInput = z
 export type AnnouncementInput = z.infer<typeof announcementInput>;
 
 // ---------------------------------------------------------------------------
+// Public admissions inquiry
+// ---------------------------------------------------------------------------
+
+/** A child's date of birth on a public form — optional, past, and not absurd. */
+const optionalChildDob = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v) => (v ? new Date(v) : null))
+  .refine((d) => d === null || !Number.isNaN(d.getTime()), "Enter a valid date")
+  .refine(
+    (d) => d === null || d.getTime() <= Date.now(),
+    "A date of birth can't be in the future",
+  )
+  .refine(
+    (d) => d === null || d.getTime() > Date.now() - 12 * 365 * 24 * 3600 * 1000,
+    "That date looks too far in the past — please check it",
+  );
+
+/** A preferred start date — optional; any valid date (families plan ahead). */
+const optionalStartDate = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v) => (v ? new Date(v) : null))
+  .refine((d) => d === null || !Number.isNaN(d.getTime()), "Enter a valid date");
+
+export const inquiryInput = z.object({
+  parentName: personName,
+  email,
+  // Required: staff want a number to call a prospective family back on.
+  phone: requiredPhone,
+  childFirstName: z
+    .string()
+    .trim()
+    .max(80, "Please keep the name under 80 characters")
+    .optional()
+    // Length is checked above; an empty field becomes a genuine "not given"
+    // (undefined) rather than an empty string, so it stores as null.
+    .transform((v) => (v ? v : undefined)),
+  childDateOfBirth: optionalChildDob,
+  preferredStartDate: optionalStartDate,
+  message: z
+    .string()
+    .trim()
+    .max(2000, "Please keep your message under 2000 characters")
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+});
+
+export type InquiryInput = z.infer<typeof inquiryInput>;
+
+export const INQUIRY_STATUSES = [
+  "NEW",
+  "CONTACTED",
+  "TOURED",
+  "ENROLLED",
+  "CLOSED",
+] as const;
+
+export const inquiryStatusLabels: Record<(typeof INQUIRY_STATUSES)[number], string> = {
+  NEW: "New",
+  CONTACTED: "Contacted",
+  TOURED: "Toured",
+  ENROLLED: "Enrolled",
+  CLOSED: "Closed",
+};
+
+// ---------------------------------------------------------------------------
 // Deletion
 // ---------------------------------------------------------------------------
 

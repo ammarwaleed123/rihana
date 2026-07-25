@@ -161,6 +161,11 @@ export default async function AlbumDetailPage({
           {canManage && available ? (
             <Card>
               <SectionTitle>Add photos</SectionTitle>
+              <p className="mb-4 text-sm text-ink-soft">
+                {album.class
+                  ? `Showing ${album.class.name} photos only — both tagged and class photos — so this album can't accidentally include another class's pictures.`
+                  : "This is a whole-nursery album, so photos from every class can be added."}
+              </p>
               <AddPhotosPicker
                 albumId={album.id}
                 photos={available.items}
