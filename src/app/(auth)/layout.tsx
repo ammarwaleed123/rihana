@@ -1,4 +1,4 @@
-import { BrandLogo } from "@/components/brand-logo";
+import { AuthLogo } from "./auth-logo";
 
 /**
  * Layout for the unauthenticated auth pages.
@@ -13,8 +13,13 @@ export default function AuthLayout({
 }) {
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
+      {/*
+        Browser visitors can head back to the website via the logo; the installed
+        app keeps it pointed at the portal so the app stays portal-only. See
+        AuthLogo.
+      */}
       <header className="px-6 py-6">
-        <BrandLogo href="/" imgClassName="h-16 w-auto" />
+        <AuthLogo />
       </header>
 
       <main id="main" className="flex flex-1 items-start justify-center px-6 pb-16">

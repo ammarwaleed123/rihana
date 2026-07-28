@@ -26,12 +26,15 @@ function baseOptions() {
   };
 }
 
-export async function setSessionCookie(
-  token: string,
-  expiresAt: Date,
-): Promise<void> {
+export async function setSessionCookie(token: string): Promise<void> {
   const store = await cookies();
-  store.set(SESSION_COOKIE_NAME, token, { ...baseOptions(), expires: expiresAt });
+  // A SESSION cookie — deliberately no `expires`/`maxAge`. The browser, and the
+  // installed app, drop it the moment they are fully closed, so reopening always
+  // lands on sign-in. That is the point: it proves the person opening the app is
+  // the parent, not whoever picked up an unlocked phone. The session's real
+  // lifetime is still capped server-side by the Session row's `expiresAt`; this
+  // only controls how long the browser is willing to hold the token.
+  store.set(SESSION_COOKIE_NAME, token, baseOptions());
 }
 
 export async function readSessionCookie(): Promise<string | null> {

@@ -57,6 +57,13 @@ const schema = z
     EMAIL_REPLY_TO: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
 
+    // Web push (VAPID). Optional — absent means push is disabled and the app
+    // falls back to the in-app bell. The public key is exposed to the browser as
+    // NEXT_PUBLIC_VAPID_PUBLIC_KEY and read from process.env directly, so it is
+    // deliberately not part of this server-only, never-NEXT_PUBLIC_ schema.
+    VAPID_PRIVATE_KEY: z.string().optional(),
+    VAPID_SUBJECT: z.string().default("mailto:hello@rihana.com"),
+
     JOBS_ENABLED: booleanish.default(true),
     JOBS_IN_PROCESS: booleanish.default(true),
     JOB_CONCURRENCY: positiveInt(4),

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { AdminNav } from "@/components/admin/admin-nav";
+import { InstallButton } from "@/components/pwa/install-button";
+import { PushToggle } from "@/components/pwa/push-toggle";
 import { Button } from "@/components/ui/form";
 import { EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
@@ -50,6 +52,17 @@ export default async function AdminNotificationsPage({
           ) : undefined
         }
       />
+
+      <div className="mb-6 space-y-5 rounded-2xl border border-ink/10 bg-card p-5">
+        <div>
+          <p className="mb-2 font-bold text-ink">Install the app</p>
+          <InstallButton />
+        </div>
+        <div className="border-t border-ink/10 pt-5">
+          <p className="mb-2 font-bold text-ink">Notifications on this device</p>
+          <PushToggle />
+        </div>
+      </div>
 
       {page.items.length === 0 ? (
         <EmptyState

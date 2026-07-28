@@ -68,6 +68,7 @@ model User {
   guardianships      Guardianship[]
   teacherAssignments TeacherAssignment[]
   notifications      Notification[]
+  pushSubscriptions  PushSubscription[]
   outboundEmails     OutboundEmail[]
   auditLogs          AuditLog[]          @relation("AuditActor")
 
@@ -462,6 +463,29 @@ model Notification {
   // HOT PATH (§73): unread badge + notification list.
   @@index([userId, readAt, createdAt(sort: Desc)])
   @@map("notifications")
+}
+
+/// A Web Push endpoint for one user on one device (Phase 8).
+///
+/// The endpoint is the natural key: a device re-subscribing (keys rotated, or a
+/// fresh permission grant) upserts on it rather than piling up duplicates. Keys
+/// are the standard p256dh/auth pair the browser hands back. Rows are disposable
+/// — a push that comes back 404/410 means the endpoint is dead and the row is
+/// pruned. Cascades on user deletion, so the erasure path needs no extra step.
+model PushSubscription {
+  id        String   @id @default(cuid(2))
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 enum EmailStatus {

@@ -1,7 +1,10 @@
 import { BrandLogo } from "@/components/brand-logo";
+import { AppBadgeSync } from "@/components/pwa/app-badge-sync";
+import { InstallHint } from "@/components/pwa/install-hint";
+import { SessionLock } from "@/components/pwa/session-lock";
+import { SessionLockBoot } from "@/components/pwa/session-lock-boot";
 import { NotificationBell } from "@/components/portal/notification-bell";
 import { PortalNavDesktop, PortalNavMobile } from "@/components/portal/portal-nav";
-import { SignOutButton } from "@/components/sign-out-button";
 import { requireParent } from "@/lib/auth/scope";
 import { unreadNotificationCount } from "@/lib/data/notifications";
 
@@ -12,6 +15,14 @@ import { unreadNotificationCount } from "@/lib/data/notifications";
  * future page forgets its own check. The proxy already bounced anonymous
  * requests; this is the check that actually validates the session, and it is
  * the one that matters.
+ *
+ * This layout is intentionally NOT wrapped in a Suspense boundary that flushes
+ * early. Doing so (an earlier attempt at an "instant" open) makes a page's
+ * `notFound()` return HTTP 200 instead of 404 — the shell has already committed
+ * the status — which quietly breaks the "guessing an id gets a 404, not a 403"
+ * privacy guarantee the detail pages rely on. The pre-paint <SessionLockBoot>
+ * still runs from the first bytes, so a cold reopen redirects to sign-in with no
+ * flash of the account.
  */
 export default async function PortalLayout({
   children,
@@ -23,19 +34,24 @@ export default async function PortalLayout({
 
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
-      <header className="border-b border-ink/10 bg-card">
+      {/* First child: decides the lock before the header (which prints the
+          parent's name) is parsed, so a cold reopen never flashes the account. */}
+      <SessionLockBoot />
+
+      <header className="border-b border-ink/10 bg-card pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-4">
           <div className="flex min-w-0 items-center gap-6">
             <BrandLogo href="/portal" />
             <PortalNavDesktop />
           </div>
 
+          {/* Sign out lives on the Account page now, so the header is just the
+              logo (left) and the bell (right). */}
           <div className="flex shrink-0 items-center gap-3">
             <span className="hidden max-w-[14ch] truncate text-sm text-ink-soft lg:inline">
               {session.user.name}
             </span>
             <NotificationBell unread={unread} />
-            <SignOutButton />
           </div>
         </div>
       </header>
@@ -49,10 +65,13 @@ export default async function PortalLayout({
         id="main"
         className="mx-auto w-full max-w-4xl flex-1 px-5 py-8 pb-28 sm:pb-8"
       >
+        <InstallHint userId={session.user.id} />
         {children}
       </main>
 
       <PortalNavMobile />
+      <AppBadgeSync count={unread} />
+      <SessionLock />
     </div>
   );
 }

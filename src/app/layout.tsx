@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
 
+import { NavProgress } from "@/components/nav-progress";
+import { AppleSplash } from "@/components/pwa/apple-splash";
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker";
+
 import "./globals.css";
 
 // Fredoka for display, Nunito for body — per the reference mockup.
@@ -42,12 +46,20 @@ export const metadata: Metadata = {
   },
   // Overridden to `noindex` on /portal, /admin and all image routes in next.config.ts.
   robots: { index: true, follow: true },
+  // Next auto-links the manifest from app/manifest.ts; this adds the iOS
+  // home-screen icon and the standalone status-bar treatment.
+  icons: { apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Rihana", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
   themeColor: "#FFF9EF",
   width: "device-width",
   initialScale: 1,
+  // Draw into the notch/rounded corners when installed, so the app fills the
+  // screen like a native one. This is also what makes env(safe-area-inset-*)
+  // report real values — the headers and bottom tab bar pad themselves off it.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -75,7 +87,10 @@ export default function RootLayout({
         >
           Skip to content
         </a>
+        <NavProgress />
         {children}
+        <AppleSplash />
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

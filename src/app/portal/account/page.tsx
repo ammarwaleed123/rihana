@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+import { InstallButton } from "@/components/pwa/install-button";
+import { PushToggle } from "@/components/pwa/push-toggle";
+import { SignOutButton } from "@/components/sign-out-button";
 import { Card, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password-constants";
 import { requireParent } from "@/lib/auth/scope";
@@ -123,12 +126,34 @@ export default async function AccountPage() {
 
         <Card>
           <SectionTitle>Notifications</SectionTitle>
-          <PreferencesForm defaults={prefs} />
+          <div className="space-y-5">
+            <div>
+              <p className="mb-2 font-bold text-ink">Install the app</p>
+              <InstallButton />
+            </div>
+            <div className="border-t border-ink/10 pt-5">
+              <p className="mb-2 font-bold text-ink">On this device</p>
+              <PushToggle />
+            </div>
+            <div className="border-t border-ink/10 pt-5">
+              <p className="mb-3 font-bold text-ink">Email</p>
+              <PreferencesForm defaults={prefs} />
+            </div>
+          </div>
         </Card>
 
         <Card>
           <SectionTitle>Password</SectionTitle>
           <ChangePasswordForm minLength={PASSWORD_MIN_LENGTH} />
+        </Card>
+
+        <Card>
+          <SectionTitle>Sign out</SectionTitle>
+          <p className="mb-4 text-ink-soft">
+            Sign out of your account on this device. You will need your email and
+            password to sign back in.
+          </p>
+          <SignOutButton prominent />
         </Card>
       </div>
     </div>

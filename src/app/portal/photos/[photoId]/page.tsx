@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { DownloadPhotoButton } from "@/components/portal/download-photo-button";
 import { photoAltText } from "@/components/portal/photo-grid";
 import { requireParent } from "@/lib/auth/scope";
 import { getPhotoDetailForParent } from "@/lib/data/photos";
@@ -93,19 +94,12 @@ export default async function PhotoPage({
 
       <div className="mt-6 flex flex-wrap gap-3">
         {/*
-          `download=1` makes the route serve the bytes with a
-          Content-Disposition header rather than redirecting to storage. The
-          `download` attribute alone is ignored by browsers when the link
-          resolves cross-origin, which is what our signed storage URLs are — so
-          this used to open the image full-screen instead of saving it, and did
-          nothing at all on a phone.
+          A client button, not an <a href>: on the installed app a link to the
+          image navigates the whole window to a file view with no way back. The
+          button fetches the bytes and hands them to the OS "Save to Photos"
+          flow (or a blob download on desktop), so the parent stays on this page.
         */}
-        <a
-          href={`/api/img/${photo.id}?v=original&download=1`}
-          className="inline-flex items-center rounded-full bg-leaf px-6 py-3 font-bold text-white hover:bg-leaf-dark"
-        >
-          Download photo
-        </a>
+        <DownloadPhotoButton photoId={photo.id} />
       </div>
     </div>
   );

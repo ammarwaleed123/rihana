@@ -279,11 +279,13 @@ test.describe("downloading", () => {
     await page.goto("/portal/photos");
     await visibleText(page, caption).click();
 
-    // A real download event. Previously the signed URL was cross-origin, so the
-    // browser ignored `download` and simply navigated to the image.
+    // A real download event, not a navigation to the image. The control is now a
+    // client button (not an <a>): on the installed app a link to the file
+    // stranded the window on a full-screen file view, so it fetches the bytes and
+    // saves them from a blob — which on desktop is a normal download.
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByRole("link", { name: "Download photo" }).click(),
+      page.getByRole("button", { name: "Download photo" }).click(),
     ]);
 
     expect(download.suggestedFilename()).toMatch(/\.jpg$/);

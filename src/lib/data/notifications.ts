@@ -9,6 +9,7 @@ import {
   olderThan,
   type Page,
 } from "@/lib/data/pagination";
+import { deliverPush } from "@/lib/data/push";
 import type { Session } from "@/lib/data/sessions";
 import { prisma } from "@/lib/db";
 
@@ -194,6 +195,7 @@ export async function fanOutPhotosPublished(
     skipDuplicates: true,
   });
 
+  await deliverPush(rows, result.count);
   return { created: result.count };
 }
 
@@ -252,19 +254,22 @@ export async function fanOutAnnouncement(
   const parentIds = [...new Set(guardianships.map((g) => g.parentUserId))];
   if (parentIds.length === 0) return { created: 0 };
 
+  const rows = parentIds.map((userId) => ({
+    userId,
+    type: "NEW_ANNOUNCEMENT" as const,
+    title: "New announcement",
+    body: announcement.title,
+    payload: { announcementId: announcement.id },
+    linkPath: `/portal/announcements`,
+    dedupeKey: `announcement:${announcement.id}`,
+  }));
+
   const result = await prisma.notification.createMany({
-    data: parentIds.map((userId) => ({
-      userId,
-      type: "NEW_ANNOUNCEMENT" as const,
-      title: "New announcement",
-      body: announcement.title,
-      payload: { announcementId: announcement.id },
-      linkPath: `/portal/announcements`,
-      dedupeKey: `announcement:${announcement.id}`,
-    })),
+    data: rows,
     skipDuplicates: true,
   });
 
+  await deliverPush(rows, result.count);
   return { created: result.count };
 }
 
@@ -360,19 +365,22 @@ export async function fanOutAlbumPublished(
   const parentIds = [...new Set(guardianships.map((g) => g.parentUserId))];
   if (parentIds.length === 0) return { created: 0 };
 
+  const rows = parentIds.map((userId) => ({
+    userId,
+    type: "NEW_PHOTOS" as const,
+    title: `New album: ${album.title}`,
+    body: `The nursery shared a new album, "${album.title}".`,
+    payload: { albumId: album.id },
+    linkPath: `/portal/albums/${album.id}`,
+    dedupeKey: `album:${album.id}`,
+  }));
+
   const result = await prisma.notification.createMany({
-    data: parentIds.map((userId) => ({
-      userId,
-      type: "NEW_PHOTOS" as const,
-      title: `New album: ${album.title}`,
-      body: `The nursery shared a new album, "${album.title}".`,
-      payload: { albumId: album.id },
-      linkPath: `/portal/albums/${album.id}`,
-      dedupeKey: `album:${album.id}`,
-    })),
+    data: rows,
     skipDuplicates: true,
   });
 
+  await deliverPush(rows, result.count);
   return { created: result.count };
 }
 
@@ -415,19 +423,22 @@ export async function fanOutPickupPendingReview(
   const childName = person.child.firstName;
   const dedupeKey = `pickup-review:${person.id}:${person.updatedAt.getTime()}`;
 
+  const rows = owners.map((owner) => ({
+    userId: owner.id,
+    type: "PICKUP_PENDING_REVIEW" as const,
+    title: "Pickup approval needed",
+    body: `${requestedBy} asked to authorize ${person.fullName} to collect ${childName}.`,
+    payload: { pickupPersonId: person.id },
+    linkPath: `/admin/pickup/approvals`,
+    dedupeKey,
+  }));
+
   const result = await prisma.notification.createMany({
-    data: owners.map((owner) => ({
-      userId: owner.id,
-      type: "PICKUP_PENDING_REVIEW" as const,
-      title: "Pickup approval needed",
-      body: `${requestedBy} asked to authorize ${person.fullName} to collect ${childName}.`,
-      payload: { pickupPersonId: person.id },
-      linkPath: `/admin/pickup/approvals`,
-      dedupeKey,
-    })),
+    data: rows,
     skipDuplicates: true,
   });
 
+  await deliverPush(rows, result.count);
   return { created: result.count };
 }
 
@@ -495,6 +506,7 @@ export async function fanOutPickupReviewed(
     skipDuplicates: true,
   });
 
+  await deliverPush([row], result.count);
   return { created: result.count };
 }
 
@@ -525,19 +537,22 @@ export async function fanOutNewInquiry(
   if (owners.length === 0) return { created: 0 };
 
   const about = inquiry.childFirstName ? ` about ${inquiry.childFirstName}` : "";
+  const rows = owners.map((owner) => ({
+    userId: owner.id,
+    type: "NEW_INQUIRY" as const,
+    title: "New website enquiry",
+    body: `${inquiry.parentName} enquired about a place${about}.`,
+    payload: { inquiryId: inquiry.id },
+    linkPath: `/admin/inquiries/${inquiry.id}`,
+    dedupeKey: `inquiry:${inquiry.id}`,
+  }));
+
   const result = await prisma.notification.createMany({
-    data: owners.map((owner) => ({
-      userId: owner.id,
-      type: "NEW_INQUIRY" as const,
-      title: "New website enquiry",
-      body: `${inquiry.parentName} enquired about a place${about}.`,
-      payload: { inquiryId: inquiry.id },
-      linkPath: `/admin/inquiries/${inquiry.id}`,
-      dedupeKey: `inquiry:${inquiry.id}`,
-    })),
+    data: rows,
     skipDuplicates: true,
   });
 
+  await deliverPush(rows, result.count);
   return { created: result.count };
 }
 

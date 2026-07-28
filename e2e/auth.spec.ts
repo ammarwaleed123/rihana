@@ -178,6 +178,8 @@ test.describe("sign out", () => {
     await signIn(page, PARENT.email);
     await expect(page).toHaveURL("/portal");
 
+    // Sign out lives on the account page now (the header is just logo + bell).
+    await page.goto("/portal/account");
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL("/signin");
 

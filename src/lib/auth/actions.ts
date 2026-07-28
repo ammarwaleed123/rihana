@@ -152,11 +152,11 @@ export async function signInAction(
     resetRateLimit("signin:email", email),
   ]);
 
-  const { token, expiresAt } = await createSession(outcome.userId, {
+  const { token } = await createSession(outcome.userId, {
     ipHash: ctx.ipHash,
     userAgent: ctx.userAgent,
   });
-  await setSessionCookie(token, expiresAt);
+  await setSessionCookie(token);
 
   await recordAudit({
     action: "auth.signed_in",

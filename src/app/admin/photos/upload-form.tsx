@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Alert, Button, Field } from "@/components/ui/form";
 import {
@@ -9,6 +9,19 @@ import {
   startUploadAction,
   uploadBatchAction,
 } from "@/lib/admin/photo-actions";
+import { beginBusy, endBusy } from "@/lib/pwa/portal-lock";
+
+/**
+ * While an upload is running, hold off the admin auto-lock so a long batch is
+ * never interrupted by the idle timer.
+ */
+function useHoldLockWhileBusy(busy: boolean) {
+  useEffect(() => {
+    if (!busy) return;
+    beginBusy();
+    return endBusy;
+  }, [busy]);
+}
 
 const selectClass =
   "w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base text-ink focus:border-leaf focus:outline-none";
@@ -88,6 +101,7 @@ export function UploadForm({
   const [uploaded, setUploaded] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [rejected, setRejected] = useState<Rejection[]>([]);
+  useHoldLockWhileBusy(busy);
 
   if (classes.length === 0) {
     return (
@@ -260,6 +274,7 @@ export function AddPhotosForm({ uploadSessionId }: { uploadSessionId: string }) 
   const [error, setError] = useState<string | null>(null);
   const [rejected, setRejected] = useState<Rejection[]>([]);
   const [success, setSuccess] = useState<string | null>(null);
+  useHoldLockWhileBusy(busy);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

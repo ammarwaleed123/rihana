@@ -275,6 +275,20 @@ async function main() {
     status: "APPROVED",
   });
 
+  // Sample photos — opt-in, for the owner's populated click-through demo. Kept
+  // out of the default path so the e2e reset stays roster-only and never loads
+  // the server-only storage/sharp modules. Imported dynamically for the same
+  // reason. Enabled via prisma/seed-demo.ts (`npm run db:seed:demo`).
+  if (process.env.SEED_PHOTOS === "1") {
+    const { seedPhotos } = await import("./seed-photos.js");
+    await seedPhotos(prisma, {
+      classIds: { sunflowers: sunflowers.id, olives: olives.id },
+      uploaderIds: { sunflowers: teacherSun.id, olives: teacherOlive.id },
+      ownerId: owner.id,
+      childIdByName,
+    });
+  }
+
   console.log(`[seed] done.
 
   Sign in at /signin with password: ${DEMO_PASSWORD}

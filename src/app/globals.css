@@ -56,6 +56,10 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    /* The launch/first-paint canvas colour. Without it the installed app shows
+       a black frame while it starts (the OS webview defaults to black in dark
+       mode); paper keeps the open sequence on-brand. */
+    background-color: var(--color-paper);
   }
 
   body {
@@ -139,6 +143,11 @@
   @keyframes rihana-pop {
     from { opacity: 0; transform: scale(0.9); }
     to { opacity: 1; transform: scale(1); }
+  }
+  /* Indeterminate sweep for the top navigation progress bar (NavProgress). */
+  @keyframes rihana-progress {
+    0% { transform: translateX(-105%); }
+    100% { transform: translateX(320%); }
   }
   .m-float { animation: rihana-float 6s ease-in-out infinite; }
   .m-rise { animation: rihana-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }

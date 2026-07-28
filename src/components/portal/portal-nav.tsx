@@ -92,7 +92,7 @@ export function PortalNavMobile() {
                 className={cn(
                   // 56px tall: comfortably above the 44px minimum touch target.
                   "flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs font-bold transition-colors",
-                  current ? "text-leaf" : "text-ink-faint",
+                  current ? "text-leaf" : "text-ink-soft",
                 )}
               >
                 <Icon />

@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
 
+// Set TUNNEL_TEST=1 to allow tunnel origins for server actions when testing a
+// production build on a phone through a tunnel. Off by default, so real
+// production stays strictly same-origin.
+const allowTunnelOrigins = isDev || process.env.TUNNEL_TEST === "1";
+
 /**
  * Content-Security-Policy.
  *
@@ -91,11 +96,40 @@ const nextConfig: NextConfig = {
        * this value is the ceiling for one batch, not for one upload.
        */
       bodySizeLimit: "24mb",
+
+      // Dev only: let a mobile-testing tunnel (Cloudflare / ngrok / localtunnel)
+      // POST server actions — sign-in and the rest — from its own origin.
+      // Never enabled in production, which stays same-origin only.
+      ...(allowTunnelOrigins
+        ? {
+            allowedOrigins: [
+              "*.trycloudflare.com",
+              "*.loca.lt",
+              "*.ngrok-free.app",
+              "*.ngrok.io",
+            ],
+          }
+        : {}),
     },
   },
 
+  // Dev only: let the Turbopack dev runtime (HMR, overlay) work when the dev
+  // server is reached through a tunnel on a phone. Without this the page loads
+  // but never hydrates cross-origin. No effect on production.
+  ...(isDev
+    ? {
+        allowedDevOrigins: [
+          "trycloudflare.com",
+          "loca.lt",
+          "ngrok-free.app",
+          "ngrok.io",
+        ],
+      }
+    : {}),
+
   // sharp is a native module; it must not be bundled into the server build.
-  serverExternalPackages: ["sharp", "pg-boss", "@node-rs/argon2"],
+  // web-push pulls in Node crypto/https internals and is only used server-side.
+  serverExternalPackages: ["sharp", "pg-boss", "@node-rs/argon2", "web-push"],
 
   // Photos are served exclusively through our authorized signed-URL route, so
   // the built-in image optimizer must never be pointed at a remote host.
@@ -113,6 +147,15 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Robots-Tag", value: "noindex, nofollow, noimageindex" },
           { key: "Cache-Control", value: "private, no-store" },
+        ],
+      },
+      {
+        // The service worker must never be cached, so an updated worker reaches
+        // devices on the next visit rather than being pinned to an old copy.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
         ],
       },
       {

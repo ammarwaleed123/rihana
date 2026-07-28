@@ -142,7 +142,7 @@ export async function changePasswordAction(
     ipHash: ctx.ipHash,
     userAgent: ctx.userAgent,
   });
-  await setSessionCookie(fresh.token, fresh.expiresAt);
+  await setSessionCookie(fresh.token);
 
   await recordAudit({
     action: "auth.password_changed",

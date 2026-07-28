@@ -10,7 +10,8 @@ import { inquiryInput } from "@/lib/validation";
 const base = {
   parentName: "Amira Hassan",
   email: "amira@example.com",
-  phone: "",
+  // Phone is required (the owner wanted a number staff can call a lead back on).
+  phone: "01001234567",
   childFirstName: "",
   childDateOfBirth: "",
   preferredStartDate: "",
@@ -18,12 +19,12 @@ const base = {
 };
 
 describe("inquiryInput", () => {
-  it("accepts a minimal enquiry (just name + email)", () => {
+  it("accepts a minimal enquiry (name + email + phone)", () => {
     const result = inquiryInput.safeParse(base);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.parentName).toBe("Amira Hassan");
-      expect(result.data.phone).toBeUndefined();
+      expect(result.data.phone).toBe("01001234567");
       expect(result.data.childDateOfBirth).toBeNull();
       expect(result.data.message).toBeUndefined();
     }
@@ -31,6 +32,10 @@ describe("inquiryInput", () => {
 
   it("rejects a missing name", () => {
     expect(inquiryInput.safeParse({ ...base, parentName: "" }).success).toBe(false);
+  });
+
+  it("rejects a missing phone (it is required)", () => {
+    expect(inquiryInput.safeParse({ ...base, phone: "" }).success).toBe(false);
   });
 
   it("rejects an invalid email", () => {
