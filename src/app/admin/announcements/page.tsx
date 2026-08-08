@@ -69,7 +69,7 @@ export default async function AnnouncementsPage({
               {t.needClass}
             </p>
           ) : (
-            <CreateAnnouncementForm classes={classes} canPostNursery={isOwner} />
+            <CreateAnnouncementForm t={dict.admin.announcementForm} classes={classes} canPostNursery={isOwner} />
           )}
         </Card>
 

@@ -197,7 +197,7 @@ export default async function AlbumDetailPage({
 
             <Card>
               <SectionTitle>Album details</SectionTitle>
-              <EditAlbumForm
+              <EditAlbumForm t={dict.admin.albumForm}
                 album={album}
                 classes={classes}
                 canChooseClass={isOwner}

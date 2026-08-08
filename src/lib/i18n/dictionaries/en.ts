@@ -529,6 +529,48 @@ const en = {
       noChildrenLinked: "No children linked",
     },
 
+    announcementForm: {
+      titleLabel: "Title",
+      titlePlaceholder: "Closed for the holiday on Monday",
+      audience: "Who is this for?",
+      wholeNursery: "The whole nursery",
+      oneClass: "One class",
+      classLabel: "Class",
+      teacherScopeNote: "Sent to the families of a class you teach.",
+      body: "Announcement",
+      bodyHint:
+        "Plain text works. **bold**, *italic*, - bullet lists and [links](https://…) are supported.",
+      bodyPlaceholder:
+        "The nursery will be closed on Monday for the public holiday. See you Tuesday!",
+      newAnnouncement: "New announcement",
+      createDraft: "Create draft",
+      creating: "Creating…",
+      saveChanges: "Save changes",
+      saving: "Saving…",
+      draftNote: "Nothing is sent until you publish it on the next screen.",
+    },
+
+    albumForm: {
+      titleLabel: "Album title",
+      titlePlaceholder: "Graduation Day 2026",
+      description: "Description",
+      descriptionHint: "Optional. Shown to families above the photos.",
+      eventDate: "Event date",
+      eventDateHint: "Optional. The day the photos were taken.",
+      classLabel: "Class",
+      classHint:
+        "Teachers of this class can edit the album. Whole nursery albums are yours alone.",
+      teacherScopeNote: "You can create albums for the classes you teach.",
+      newAlbum: "New album",
+      createAlbum: "Create album",
+      creating: "Creating…",
+      saveDetails: "Save details",
+      saving: "Saving…",
+      wholeNursery: "Whole nursery",
+      nextStepNote:
+        "You will choose the photos next. Nothing is shared until you publish.",
+    },
+
     inquiryStatus: {
       NEW: "New", CONTACTED: "Contacted", TOURED: "Toured",
       ENROLLED: "Enrolled", CLOSED: "Closed",

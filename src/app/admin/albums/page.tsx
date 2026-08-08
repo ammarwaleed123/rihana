@@ -73,7 +73,7 @@ export default async function AlbumsPage({
               {t.needClass}
             </p>
           ) : (
-            <CreateAlbumForm classes={classes} canChooseClass={isOwner} />
+            <CreateAlbumForm t={dict.admin.albumForm} classes={classes} canChooseClass={isOwner} />
           )}
         </Card>
 

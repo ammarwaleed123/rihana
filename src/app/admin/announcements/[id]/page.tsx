@@ -100,7 +100,7 @@ export default async function AnnouncementDetailPage({
 
           <Card>
             <SectionTitle>Edit</SectionTitle>
-            <EditAnnouncementForm
+            <EditAnnouncementForm t={dict.admin.announcementForm}
               announcement={announcement}
               classes={classes}
               canPostNursery={isOwner}

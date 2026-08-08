@@ -10,6 +10,7 @@ import {
   updateAlbumAction,
   type AlbumFormState,
 } from "@/lib/admin/album-actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 type ClassOption = { id: string; name: string };
 
@@ -32,12 +33,14 @@ function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }
  * edit the album, so the hint says that rather than leaving it to be inferred.
  */
 function AlbumFields({
+  t,
   classes,
   errors,
   defaults,
   idPrefix,
   canChooseClass,
 }: {
+  t: AlbumStrings;
   classes: ClassOption[];
   errors?: Record<string, string>;
   defaults?: {
@@ -71,13 +74,13 @@ function AlbumFields({
 
   return (
     <>
-      <Field label="Album title" htmlFor={id("title")} error={errors?.title}>
+      <Field label={t.titleLabel} htmlFor={id("title")} error={errors?.title}>
         <Input
           id={id("title")}
           name="title"
           required
           maxLength={80}
-          placeholder="Graduation Day 2026"
+          placeholder={t.titlePlaceholder}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           autoComplete="off"
@@ -85,9 +88,9 @@ function AlbumFields({
       </Field>
 
       <Field
-        label="Description"
+        label={t.description}
         htmlFor={id("description")}
-        hint="Optional. Shown to families above the photos."
+        hint={t.descriptionHint}
         error={errors?.description}
       >
         <textarea
@@ -102,9 +105,9 @@ function AlbumFields({
       </Field>
 
       <Field
-        label="Event date"
+        label={t.eventDate}
         htmlFor={id("eventDate")}
-        hint="Optional. The day the photos were taken."
+        hint={t.eventDateHint}
         error={errors?.eventDate}
       >
         <Input
@@ -118,9 +121,9 @@ function AlbumFields({
 
       {canChooseClass ? (
         <Field
-          label="Class"
+          label={t.classLabel}
           htmlFor={id("classId")}
-          hint="Teachers of this class can edit the album. Whole nursery albums are yours alone."
+          hint={t.classHint}
           error={errors?.classId}
         >
           <select
@@ -130,7 +133,7 @@ function AlbumFields({
             onChange={(e) => setClassId(e.target.value)}
             className={selectClass}
           >
-            <option value="">Whole nursery</option>
+            <option value="">{t.wholeNursery}</option>
             {classes.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
@@ -140,9 +143,9 @@ function AlbumFields({
         </Field>
       ) : (
         <Field
-          label="Class"
+          label={t.classLabel}
           htmlFor={id("classId")}
-          hint="You can create albums for the classes you teach."
+          hint="{t.teacherScopeNote}"
           error={errors?.classId}
         >
           <select
@@ -165,10 +168,14 @@ function AlbumFields({
   );
 }
 
+type AlbumStrings = Dictionary["admin"]["albumForm"];
+
 export function CreateAlbumForm({
+  t,
   classes,
   canChooseClass,
 }: {
+  t: AlbumStrings;
   classes: ClassOption[];
   canChooseClass: boolean;
 }) {
@@ -178,20 +185,20 @@ export function CreateAlbumForm({
   );
 
   return (
-    <Disclosure label="New album">
+    <Disclosure label={t.newAlbum}>
       <form action={action} className="space-y-4">
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
-        <AlbumFields
+        <AlbumFields t={t}
           classes={classes}
           errors={state.errors}
           idPrefix="new-album"
           canChooseClass={canChooseClass}
         />
 
-        <Submit label="Create album" pendingLabel="Creating…" />
+        <Submit label={t.createAlbum} pendingLabel={t.creating} />
         <p className="text-sm text-ink-soft">
-          You will choose the photos next. Nothing is shared until you publish.
+          {t.nextStepNote}
         </p>
       </form>
     </Disclosure>
@@ -199,10 +206,12 @@ export function CreateAlbumForm({
 }
 
 export function EditAlbumForm({
+  t,
   album,
   classes,
   canChooseClass,
 }: {
+  t: AlbumStrings;
   album: {
     id: string;
     title: string;
@@ -225,7 +234,7 @@ export function EditAlbumForm({
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
-      <AlbumFields
+      <AlbumFields t={t}
         // Re-mounts (re-seeding the controlled fields from the album) only when
         // a saved value actually changes — i.e. after a successful save. While
         // editing, the key is stable, so nothing resets and a validation error
@@ -243,7 +252,7 @@ export function EditAlbumForm({
         }}
       />
 
-      <Submit label="Save details" pendingLabel="Saving…" />
+      <Submit label={t.saveDetails} pendingLabel={t.saving} />
     </form>
   );
 }

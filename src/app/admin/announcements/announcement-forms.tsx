@@ -10,6 +10,7 @@ import {
   updateAnnouncementAction,
   type AnnouncementState,
 } from "@/lib/admin/announcement-actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 type ClassOption = { id: string; name: string };
 
@@ -31,12 +32,14 @@ function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }
  * a teacher never sees "Whole nursery", and the server refuses it regardless.
  */
 function AnnouncementFields({
+  t,
   classes,
   canPostNursery,
   errors,
   defaults,
   idPrefix,
 }: {
+  t: AnnStrings;
   classes: ClassOption[];
   canPostNursery: boolean;
   errors?: Record<string, string>;
@@ -57,20 +60,20 @@ function AnnouncementFields({
     <>
       <input type="hidden" name="audience" value={audience} />
 
-      <Field label="Title" htmlFor={id("title")} error={errors?.title}>
+      <Field label={t.titleLabel} htmlFor={id("title")} error={errors?.title}>
         <Input
           id={id("title")}
           name="title"
           required
           maxLength={120}
           defaultValue={defaults?.title}
-          placeholder="Closed for the holiday on Monday"
+          placeholder={t.titlePlaceholder}
           autoComplete="off"
         />
       </Field>
 
       <Field
-        label="Who is this for?"
+        label={t.audience}
         htmlFor={id("audience")}
         error={errors?.classId}
       >
@@ -83,18 +86,18 @@ function AnnouncementFields({
             }
             className={controlClass}
           >
-            <option value="ALL_NURSERY">The whole nursery</option>
-            <option value="CLASS">One class</option>
+            <option value="ALL_NURSERY">{t.wholeNursery}</option>
+            <option value="CLASS">{t.oneClass}</option>
           </select>
         ) : (
           <p className="text-sm text-ink-soft">
-            Sent to the families of a class you teach.
+            {t.teacherScopeNote}
           </p>
         )}
       </Field>
 
       {audience === "CLASS" ? (
-        <Field label="Class" htmlFor={id("classId")} error={errors?.classId}>
+        <Field label={t.classLabel} htmlFor={id("classId")} error={errors?.classId}>
           <select
             id={id("classId")}
             name="classId"
@@ -112,9 +115,9 @@ function AnnouncementFields({
       ) : null}
 
       <Field
-        label="Announcement"
+        label={t.body}
         htmlFor={id("body")}
-        hint="Plain text works. **bold**, *italic*, - bullet lists and [links](https://…) are supported."
+        hint={t.bodyHint}
         error={errors?.body}
       >
         <textarea
@@ -125,17 +128,21 @@ function AnnouncementFields({
           maxLength={5000}
           defaultValue={defaults?.body}
           className={controlClass}
-          placeholder={"The nursery will be closed on Monday for the public holiday.\n\nSee you Tuesday!"}
+          placeholder={t.bodyPlaceholder}
         />
       </Field>
     </>
   );
 }
 
+type AnnStrings = Dictionary["admin"]["announcementForm"];
+
 export function CreateAnnouncementForm({
+  t,
   classes,
   canPostNursery,
 }: {
+  t: AnnStrings;
   classes: ClassOption[];
   canPostNursery: boolean;
 }) {
@@ -145,18 +152,18 @@ export function CreateAnnouncementForm({
   );
 
   return (
-    <Disclosure label="New announcement">
+    <Disclosure label={t.newAnnouncement}>
       <form action={action} className="space-y-4">
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-        <AnnouncementFields
+        <AnnouncementFields t={t}
           classes={classes}
           canPostNursery={canPostNursery}
           errors={state.errors}
           idPrefix="new-ann"
         />
-        <Submit label="Create draft" pendingLabel="Creating…" />
+        <Submit label={t.createDraft} pendingLabel={t.creating} />
         <p className="text-sm text-ink-soft">
-          Nothing is sent until you publish it on the next screen.
+          {t.draftNote}
         </p>
       </form>
     </Disclosure>
@@ -164,10 +171,12 @@ export function CreateAnnouncementForm({
 }
 
 export function EditAnnouncementForm({
+  t,
   announcement,
   classes,
   canPostNursery,
 }: {
+  t: AnnStrings;
   announcement: {
     id: string;
     title: string;
@@ -189,7 +198,7 @@ export function EditAnnouncementForm({
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
-      <AnnouncementFields
+      <AnnouncementFields t={t}
         classes={classes}
         canPostNursery={canPostNursery}
         errors={state.errors}
@@ -202,7 +211,7 @@ export function EditAnnouncementForm({
         }}
       />
 
-      <Submit label="Save changes" pendingLabel="Saving…" />
+      <Submit label={t.saveChanges} pendingLabel={t.saving} />
     </form>
   );
 }

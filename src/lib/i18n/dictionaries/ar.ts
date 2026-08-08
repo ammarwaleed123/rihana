@@ -524,6 +524,47 @@ const ar: Dictionary = {
       noChildrenLinked: "لا يوجد أطفال مرتبطون",
     },
 
+    announcementForm: {
+      titleLabel: "العنوان",
+      titlePlaceholder: "إجازة يوم الاثنين",
+      audience: "لمن هذا الإعلان؟",
+      wholeNursery: "الحضانة كلها",
+      oneClass: "فصل واحد",
+      classLabel: "الفصل",
+      teacherScopeNote: "يُرسَل إلى عائلات فصل تدرّس فيه.",
+      body: "نص الإعلان",
+      bodyHint:
+        "النص العادي يعمل. ويمكن استخدام **عريض** و*مائل* و- القوائم النقطية و[الروابط](https://…).",
+      bodyPlaceholder:
+        "ستكون الحضانة مغلقة يوم الاثنين بمناسبة العطلة الرسمية. نراكم الثلاثاء!",
+      newAnnouncement: "إعلان جديد",
+      createDraft: "إنشاء مسودة",
+      creating: "جارٍ الإنشاء…",
+      saveChanges: "حفظ التغييرات",
+      saving: "جارٍ الحفظ…",
+      draftNote: "لا يُرسَل شيء حتى تنشره في الشاشة التالية.",
+    },
+
+    albumForm: {
+      titleLabel: "عنوان الألبوم",
+      titlePlaceholder: "حفل التخرّج 2026",
+      description: "الوصف",
+      descriptionHint: "اختياري. يظهر للعائلات أعلى الصور.",
+      eventDate: "تاريخ المناسبة",
+      eventDateHint: "اختياري. اليوم الذي التُقطت فيه الصور.",
+      classLabel: "الفصل",
+      classHint:
+        "معلّمو هذا الفصل يمكنهم تعديل الألبوم. أما ألبومات الحضانة كلها فهي لك وحدك.",
+      teacherScopeNote: "يمكنك إنشاء ألبومات للفصول التي تدرّس فيها.",
+      newAlbum: "ألبوم جديد",
+      createAlbum: "إنشاء الألبوم",
+      creating: "جارٍ الإنشاء…",
+      saveDetails: "حفظ البيانات",
+      saving: "جارٍ الحفظ…",
+      wholeNursery: "الحضانة كلها",
+      nextStepNote: "ستختار الصور في الخطوة التالية. لا يُشارَك شيء حتى تنشره.",
+    },
+
     inquiryStatus: {
       NEW: "جديد", CONTACTED: "تم التواصل", TOURED: "زار الحضانة",
       ENROLLED: "تم التسجيل", CLOSED: "مغلق",
