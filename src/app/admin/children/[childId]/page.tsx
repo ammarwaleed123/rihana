@@ -94,7 +94,7 @@ export default async function ChildDetailPage({
           <Badge tone="green">Enrolled</Badge>
         )}
         {child.photoConsent ? (
-          <Badge tone="green">Photo consent given</Badge>
+          <Badge tone="green">{dict.admin.children.photoConsentGiven}</Badge>
         ) : (
           <Badge tone="coral">Photo consent withdrawn</Badge>
         )}
@@ -171,6 +171,7 @@ export default async function ChildDetailPage({
           <Card>
             <SectionTitle>Details</SectionTitle>
             <EditChildForm
+              t={dict.admin.children}
               child={{
                 id: child.id,
                 firstName: child.firstName,

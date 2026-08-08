@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 /**
  * Filters that apply as you type.
@@ -22,9 +23,11 @@ import { useEffect, useRef, useState, useTransition } from "react";
  */
 export function LiveFilters({
   classes,
+  t,
   basePath = "/admin/children",
 }: {
   classes: Array<{ id: string; name: string }>;
+  t: Dictionary["admin"]["children"];
   basePath?: string;
 }) {
   const router = useRouter();
@@ -78,7 +81,7 @@ export function LiveFilters({
     >
       <div className="min-w-48 flex-1">
         <label htmlFor="q" className="mb-1.5 block text-sm font-bold">
-          Search by name
+          {t.searchByName}
         </label>
         <input
           id="q"
@@ -86,7 +89,7 @@ export function LiveFilters({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Laila"
+          placeholder={t.searchPlaceholder}
           autoComplete="off"
           className={field}
         />
@@ -94,7 +97,7 @@ export function LiveFilters({
 
       <div className="min-w-44">
         <label htmlFor="classId" className="mb-1.5 block text-sm font-bold">
-          Class
+          {t.colClass}
         </label>
         <select
           id="classId"
@@ -103,7 +106,7 @@ export function LiveFilters({
           onChange={(event) => setClassId(event.target.value)}
           className={field}
         >
-          <option value="">All classes</option>
+          <option value="">{t.allClasses}</option>
           {classes.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -135,12 +138,12 @@ export function LiveFilters({
           isPending ? "opacity-100" : "opacity-0"
         }`}
       >
-        Filtering…
+        {t.filtering}
       </p>
 
       <noscript>
         <button type="submit" className={`${field} font-bold`}>
-          Filter
+          {t.filter}
         </button>
       </noscript>
     </form>

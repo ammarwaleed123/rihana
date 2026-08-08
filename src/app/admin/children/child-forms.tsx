@@ -12,6 +12,7 @@ import {
   updateChildAction,
   type FormState,
 } from "@/lib/admin/actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 type ClassOption = { id: string; name: string };
 
@@ -34,12 +35,16 @@ const selectClass =
  * label: the owner is recording a legal permission about a child's image, and
  * the consequence of unchecking it should not have to be inferred.
  */
+type ChildStrings = Dictionary["admin"]["children"];
+
 function ChildFields({
   classes,
   errors,
   defaults,
   idPrefix,
+  t,
 }: {
+  t: ChildStrings;
   classes: ClassOption[];
   errors?: Record<string, string>;
   defaults?: {
@@ -147,12 +152,9 @@ function ChildFields({
             className="mt-1 size-5 shrink-0 accent-[color:var(--color-leaf)]"
           />
           <span>
-            <span className="font-bold">Photo consent given</span>
+            <span className="font-bold">{t.photoConsentGiven}</span>
             <span className="mt-0.5 block text-sm text-ink-soft">
-              Turning this off removes the child from every photo they are
-              already tagged in, and stops them being tagged in new ones. Photos
-              that showed only this child stop being visible to anyone,
-              including their own family.
+              {t.consentWarning}
             </span>
           </span>
         </label>
@@ -161,7 +163,13 @@ function ChildFields({
   );
 }
 
-export function CreateChildForm({ classes }: { classes: ClassOption[] }) {
+export function CreateChildForm({
+  classes,
+  t,
+}: {
+  classes: ClassOption[];
+  t: ChildStrings;
+}) {
   const [state, action] = useActionState<FormState, FormData>(
     createChildAction,
     {},
@@ -173,7 +181,7 @@ export function CreateChildForm({ classes }: { classes: ClassOption[] }) {
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
         {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
-        <ChildFields classes={classes} errors={state.errors} idPrefix="new" />
+        <ChildFields classes={classes} errors={state.errors} idPrefix="new" t={t} />
         <Submit label="Add child" pendingLabel="Adding…" />
       </form>
     </Disclosure>
@@ -183,7 +191,9 @@ export function CreateChildForm({ classes }: { classes: ClassOption[] }) {
 export function EditChildForm({
   child,
   classes,
+  t,
 }: {
+  t: ChildStrings;
   child: {
     id: string;
     firstName: string;
@@ -208,6 +218,7 @@ export function EditChildForm({
       {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
       <ChildFields
+        t={t}
         classes={classes}
         errors={state.errors}
         idPrefix={`edit-${child.id}`}

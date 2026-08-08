@@ -17,6 +17,7 @@ import {
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill } from "@/lib/i18n/plural";
 import { listChildren } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -27,12 +28,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function ageFrom(dateOfBirth: Date): string {
+function ageFrom(
+  dateOfBirth: Date,
+  t: { ageMonths: string; ageYears: string },
+): string {
   const months = Math.floor(
     (Date.now() - dateOfBirth.getTime()) / (30.44 * 24 * 3600 * 1000),
   );
-  if (months < 24) return `${months} mo`;
-  return `${Math.floor(months / 12)} yr`;
+  if (months < 24) return fill(t.ageMonths, { n: months });
+  return fill(t.ageYears, { n: Math.floor(months / 12) });
 }
 
 export default async function ChildrenPage({
@@ -49,6 +53,7 @@ export default async function ChildrenPage({
   const params = await searchParams;
   const session = await requireStaff("/admin/children");
   const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.children;
   const isOwner = session.user.role === "OWNER";
 
   // Both reads are scoped: a teacher sees only their assigned classes and only
@@ -72,13 +77,9 @@ export default async function ChildrenPage({
       <AdminNav current="/admin/children" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Children"
-        description={
-          isOwner
-            ? "Everyone enrolled at the nursery."
-            : "Children in the classes you are assigned to."
-        }
-        action={isOwner ? <CreateChildForm classes={classes} /> : undefined}
+        title={t.title}
+        description={isOwner ? t.descOwner : t.descTeacher}
+        action={isOwner ? <CreateChildForm classes={classes} t={t} /> : undefined}
       />
 
       {params.deleted ? (
@@ -86,31 +87,31 @@ export default async function ChildrenPage({
         // stops existing the moment the deletion succeeds.
         <div className="mb-6">
           <Alert tone="success">
-            {params.deleted}&rsquo;s record was permanently deleted.
+            {fill(t.deleted, { name: params.deleted })}
           </Alert>
         </div>
       ) : null}
 
-      <LiveFilters classes={classes} />
+      <LiveFilters classes={classes} t={t} />
 
       {activeFilter ? (
         <p className="mb-4 text-sm text-ink-soft">
-          Showing <span className="font-bold">{activeFilter.name}</span> ·{" "}
+          {t.showing} <span className="font-bold">{activeFilter.name}</span> ·{" "}
           <Link href="/admin/children" className="text-leaf underline underline-offset-2">
-            clear filter
+            {t.clearFilter}
           </Link>
         </p>
       ) : null}
 
       {page.items.length === 0 ? (
         <EmptyState
-          title="No children found"
+          title={t.emptyTitle}
           description={
             params.q || params.classId
-              ? "Nothing matches those filters. Try clearing them."
+              ? t.emptyFiltered
               : isOwner
-                ? "Add your first child to get started."
-                : "No children are enrolled in your classes yet."
+                ? t.emptyOwner
+                : t.emptyTeacher
           }
         />
       ) : (
@@ -118,11 +119,11 @@ export default async function ChildrenPage({
           <Table>
             <thead>
               <tr>
-                <Th>Name</Th>
+                <Th>{t.colName}</Th>
                 <Th>Age</Th>
-                <Th>Class</Th>
-                <Th>Guardians</Th>
-                <Th>Photos</Th>
+                <Th>{t.colClass}</Th>
+                <Th>{t.colGuardians}</Th>
+                <Th>{t.colPhotos}</Th>
                 {isOwner ? <Th>{""}</Th> : null}
               </tr>
             </thead>
@@ -139,19 +140,19 @@ export default async function ChildrenPage({
                       </span>
                     ) : null}
                   </Td>
-                  <Td className="text-ink-soft">{ageFrom(child.dateOfBirth)}</Td>
+                  <Td className="text-ink-soft">{ageFrom(child.dateOfBirth, t)}</Td>
                   <Td>
                     {child.class ? (
                       child.class.name
                     ) : (
-                      <span className="text-ink-faint">Unassigned</span>
+                      <span className="text-ink-faint">{t.unassigned}</span>
                     )}
                   </Td>
                   <Td>
                     {child.guardians.length === 0 ? (
                       // Worth flagging: a child with no guardian has photos that
                       // reach nobody.
-                      <Badge tone="yellow">None linked</Badge>
+                      <Badge tone="yellow">{t.noneLinked}</Badge>
                     ) : (
                       <span className="text-sm text-ink-soft">
                         {child.guardians.map((g) => g.name).join(", ")}
@@ -171,7 +172,9 @@ export default async function ChildrenPage({
                         href={`/admin/children/${child.id}`}
                         // A column of identical "Manage" links is unusable with
                         // a screen reader, which lists links out of context.
-                        aria-label={`Manage ${child.firstName} ${child.lastName}`}
+                        aria-label={fill(t.manageAria, {
+                        name: `${child.firstName} ${child.lastName}`,
+                      })}
                         className="font-semibold text-leaf underline underline-offset-4"
                       >
                         Manage
@@ -194,25 +197,25 @@ export default async function ChildrenPage({
                       <Badge tone="neutral">Left</Badge>
                     ) : null}
                     {child.photoConsent ? (
-                      <Badge tone="green">Consent</Badge>
+                      <Badge tone="green">{t.consent}</Badge>
                     ) : (
                       <Badge tone="coral">No consent</Badge>
                     )}
                   </div>
                 }
                 fields={[
-                  { label: "Age", value: ageFrom(child.dateOfBirth) },
+                  { label: t.age, value: ageFrom(child.dateOfBirth, t) },
                   {
-                    label: "Class",
+                    label: t.colClass,
                     value: child.class?.name ?? (
-                      <span className="text-ink-faint">Unassigned</span>
+                      <span className="text-ink-faint">{t.unassigned}</span>
                     ),
                   },
                   {
-                    label: "Guardians",
+                    label: t.colGuardians,
                     value:
                       child.guardians.length === 0 ? (
-                        <Badge tone="yellow">None linked</Badge>
+                        <Badge tone="yellow">{t.noneLinked}</Badge>
                       ) : (
                         child.guardians.map((g) => g.name).join(", ")
                       ),
@@ -223,7 +226,9 @@ export default async function ChildrenPage({
                     <Link
                       href={`/admin/children/${child.id}`}
                       // Matches the table variant's accessible name.
-                      aria-label={`Manage ${child.firstName} ${child.lastName}`}
+                      aria-label={fill(t.manageAria, {
+                        name: `${child.firstName} ${child.lastName}`,
+                      })}
                       className="inline-block rounded-full border-2 border-ink/15 px-5 py-2 font-bold text-leaf transition-colors hover:border-leaf"
                     >
                       Manage {child.firstName}
@@ -243,7 +248,7 @@ export default async function ChildrenPage({
                 }}
                 className="inline-block rounded-full border-2 border-ink/15 bg-card px-6 py-3 font-bold transition-colors hover:border-leaf hover:text-leaf"
               >
-                Load more
+                {t.loadMore}
               </Link>
             </div>
           ) : null}

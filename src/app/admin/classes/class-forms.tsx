@@ -13,6 +13,8 @@ import {
   type FormState,
 } from "@/lib/admin/actions";
 import { AGE_GROUPS, ageGroupLabels } from "@/lib/validation";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
 
 function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
@@ -46,23 +48,25 @@ function Select({
   );
 }
 
-export function CreateClassForm() {
+type ClassStrings = Dictionary["admin"]["classes"];
+
+export function CreateClassForm({ t }: { t: ClassStrings }) {
   const [state, action] = useActionState<FormState, FormData>(
     createClassAction,
     {},
   );
 
   return (
-    <Disclosure label="Add a class">
+    <Disclosure label={t.addClass}>
       <form action={action} className="space-y-4">
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
         {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
-        <Field label="Class name" htmlFor="name" error={state.errors?.name}>
-          <Input id="name" name="name" required placeholder="Sunflowers" />
+        <Field label={t.className} htmlFor="name" error={state.errors?.name}>
+          <Input id="name" name="name" required placeholder={t.classNamePlaceholder} />
         </Field>
 
-        <Field label="Age group" htmlFor="ageGroupKey" error={state.errors?.ageGroupKey}>
+        <Field label={t.ageGroup} htmlFor="ageGroupKey" error={state.errors?.ageGroupKey}>
           <Select id="ageGroupKey" name="ageGroupKey">
             {AGE_GROUPS.map((key) => (
               <option key={key} value={key}>
@@ -73,7 +77,7 @@ export function CreateClassForm() {
         </Field>
 
         <Field
-          label="Academic year"
+          label={t.academicYear}
           htmlFor="academicYear"
           error={state.errors?.academicYear}
         >
@@ -85,18 +89,20 @@ export function CreateClassForm() {
           />
         </Field>
 
-        <Submit label="Create class" pendingLabel="Creating…" />
+        <Submit label={t.createClass} pendingLabel={t.creating} />
       </form>
     </Disclosure>
   );
 }
 
 export function ArchiveClassButton({
+  t,
   classId,
   className,
 }: {
   classId: string;
   className: string;
+  t: ClassStrings;
 }) {
   const [state, action] = useActionState<FormState, FormData>(
     archiveClassAction,
@@ -113,20 +119,22 @@ export function ArchiveClassButton({
         type="submit"
         variant="ghost"
         className="px-3 py-1.5 text-sm text-danger"
-        aria-label={`Archive ${className}`}
+        aria-label={fill(t.archiveAria, { name: className })}
       >
-        Archive
+        {t.archive}
       </Button>
     </form>
   );
 }
 
 export function AssignTeacherForm({
+  t,
   classId,
   teachers,
 }: {
   classId: string;
   teachers: Array<{ id: string; name: string; email: string }>;
+  t: ClassStrings;
 }) {
   const [state, action] = useActionState<FormState, FormData>(
     assignTeacherAction,
@@ -136,7 +144,7 @@ export function AssignTeacherForm({
   if (teachers.length === 0) {
     return (
       <p className="text-sm text-ink-faint">
-        Every teacher is already assigned to this class.
+        {t.allTeachersAssigned}
       </p>
     );
   }
@@ -150,7 +158,7 @@ export function AssignTeacherForm({
           htmlFor={`teacher-${classId}`}
           className="mb-1.5 block text-sm font-bold"
         >
-          Add a teacher
+          {t.addTeacher}
         </label>
         <Select id={`teacher-${classId}`} name="userId">
           {teachers.map((t) => (
@@ -161,7 +169,7 @@ export function AssignTeacherForm({
         </Select>
       </div>
 
-      <Submit label="Assign" pendingLabel="Assigning…" />
+      <Submit label={t.assign} pendingLabel={t.assigning} />
 
       {state.error ? (
         <p className="w-full text-sm font-semibold text-danger">{state.error}</p>
@@ -176,6 +184,7 @@ export function AssignTeacherForm({
 }
 
 export function UnassignTeacherButton({
+  t,
   classId,
   userId,
   teacherName,
@@ -183,6 +192,7 @@ export function UnassignTeacherButton({
   classId: string;
   userId: string;
   teacherName: string;
+  t: ClassStrings;
 }) {
   const [, action] = useActionState<FormState, FormData>(
     unassignTeacherAction,
@@ -196,9 +206,9 @@ export function UnassignTeacherButton({
       <button
         type="submit"
         className="text-sm font-semibold text-danger underline underline-offset-2 hover:text-coral-dark"
-        aria-label={`Remove ${teacherName} from this class`}
+        aria-label={fill(t.removeAria, { name: teacherName })}
       >
-        Remove
+        {t.remove}
       </button>
     </form>
   );

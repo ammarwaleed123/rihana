@@ -12,6 +12,7 @@ import {
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill, plural } from "@/lib/i18n/plural";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listPeople } from "@/lib/data/people";
 import { ageGroupLabels, type AGE_GROUPS } from "@/lib/validation";
@@ -30,7 +31,9 @@ export const metadata: Metadata = {
 
 export default async function ClassesPage() {
   const session = await requireStaff("/admin/classes");
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.admin.classes;
   const isOwner = session.user.role === "OWNER";
 
   const classes = await listClassesForSession(session);
@@ -46,13 +49,11 @@ export default async function ClassesPage() {
       <AdminNav current="/admin/classes" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Classes"
+        title={t.title}
         description={
-          isOwner
-            ? "Each class groups children and the teachers who may see them."
-            : "The classes you are assigned to."
+          isOwner ? t.descOwner : t.descTeacher
         }
-        action={isOwner ? <CreateClassForm /> : undefined}
+        action={isOwner ? <CreateClassForm t={t} /> : undefined}
       />
 
       {classes.length === 0 ? (
@@ -91,7 +92,7 @@ export default async function ClassesPage() {
                     </p>
                   </div>
                   {isOwner ? (
-                    <ArchiveClassButton
+                    <ArchiveClassButton t={t}
                       classId={klass.id}
                       className={klass.name}
                     />
@@ -104,8 +105,7 @@ export default async function ClassesPage() {
                     {klass._count.children === 1 ? "child" : "children"}
                   </Badge>
                   <Badge tone="sky">
-                    {klass._count.teachers}{" "}
-                    {klass._count.teachers === 1 ? "teacher" : "teachers"}
+                    {plural(t.teacherCount, klass._count.teachers, locale)}
                   </Badge>
                 </div>
 
@@ -114,41 +114,41 @@ export default async function ClassesPage() {
                     href={`/admin/children?classId=${klass.id}`}
                     className="font-semibold text-leaf underline underline-offset-4"
                   >
-                    View children in {klass.name}
+                    {fill(t.viewChildrenIn, { name: klass.name })}
                   </Link>
                 </p>
 
                 {isOwner ? (
                   <div className="mt-6 border-t border-ink/10 pt-5">
-                    <SectionTitle>Teachers</SectionTitle>
+                    <SectionTitle>{t.teachers}</SectionTitle>
 
                     {assigned.length > 0 ? (
                       <ul className="mb-4 space-y-2">
-                        {assigned.map((t) => (
+                        {assigned.map((teacher) => (
                           <li
-                            key={t.id}
+                            key={teacher.id}
                             className="flex items-center justify-between gap-3 text-sm"
                           >
                             <span>
-                              <span className="font-semibold">{t.name}</span>{" "}
-                              <span className="text-ink-faint">{t.email}</span>
+                              <span className="font-semibold">{teacher.name}</span>{" "}
+                              <span className="text-ink-faint">{teacher.email}</span>
                             </span>
                             <UnassignTeacherButton
+                              t={t}
                               classId={klass.id}
-                              userId={t.id}
-                              teacherName={t.name}
+                              userId={teacher.id}
+                              teacherName={teacher.name}
                             />
                           </li>
                         ))}
                       </ul>
                     ) : (
                       <p className="mb-4 text-sm text-ink-faint">
-                        No teacher assigned yet — nobody can upload photos for
-                        this class.
+                        {t.noTeacherAssigned}
                       </p>
                     )}
 
-                    <AssignTeacherForm classId={klass.id} teachers={unassigned} />
+                    <AssignTeacherForm t={t} classId={klass.id} teachers={unassigned} />
                   </div>
                 ) : null}
               </Card>
