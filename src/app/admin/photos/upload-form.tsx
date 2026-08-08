@@ -10,6 +10,9 @@ import {
   uploadBatchAction,
 } from "@/lib/admin/photo-actions";
 import { beginBusy, endBusy } from "@/lib/pwa/portal-lock";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { plural } from "@/lib/i18n/plural";
 
 /**
  * While an upload is running, hold off the admin auto-lock so a long batch is
@@ -88,9 +91,15 @@ function RejectedList({ rejected }: { rejected: Rejection[] }) {
   );
 }
 
+type UploadStrings = Dictionary["admin"]["uploadForm"];
+
 export function UploadForm({
+  t,
+  locale,
   classes,
 }: {
+  t: UploadStrings;
+  locale: Locale;
   classes: Array<{ id: string; name: string }>;
 }) {
   const router = useRouter();
@@ -106,7 +115,7 @@ export function UploadForm({
   if (classes.length === 0) {
     return (
       <Alert tone="info">
-        You are not assigned to a class yet, so there is nowhere to upload to.
+        {t.noClass}
       </Alert>
     );
   }
@@ -127,7 +136,7 @@ export function UploadForm({
     const started = await startUploadAction(classId);
 
     if (started.error || !started.uploadSessionId) {
-      setError(started.error ?? "Could not start the upload.");
+      setError(started.error ?? t.couldNotStart);
       setBusy(false);
       return;
     }
@@ -163,7 +172,7 @@ export function UploadForm({
       // Nothing usable: clean up the empty session rather than leaving a ghost
       // entry in the uploads list.
       await discardUploadAction(sessionId);
-      setError("None of those files could be used.");
+      setError(t.noneUsable);
       setRejected(allRejected);
       setBusy(false);
       return;
@@ -177,7 +186,7 @@ export function UploadForm({
       {error ? <Alert tone="error">{error}</Alert> : null}
       {rejected.length > 0 ? <RejectedList rejected={rejected} /> : null}
 
-      <Field label="Class" htmlFor="classId">
+      <Field label={t.classLabel} htmlFor="classId">
         <select
           id="classId"
           value={classId}
@@ -195,9 +204,9 @@ export function UploadForm({
       </Field>
 
       <Field
-        label="Photos"
+        label={t.photos}
         htmlFor="photos"
-        hint="JPEG, PNG, HEIC or WebP. Choose as many as you like. Location data is removed from every photo before it is stored."
+        hint={t.filesHint}
       >
         <input
           id="photos"
@@ -240,7 +249,7 @@ export function UploadForm({
             aria-valuenow={uploaded}
             aria-valuemin={0}
             aria-valuemax={files.length}
-            aria-label="Upload progress"
+            aria-label={t.progress}
           >
             <div
               className="h-full rounded-full bg-leaf transition-[width]"
@@ -255,17 +264,25 @@ export function UploadForm({
 
       <Button type="submit" disabled={busy || files.length === 0}>
         {busy
-          ? "Uploading…"
+          ? t.uploading
           : files.length === 0
-            ? "Choose photos first"
-            : `Upload ${files.length} photo${files.length === 1 ? "" : "s"}`}
+            ? t.choosePhotosFirst
+            : plural(t.uploadN, files.length, locale)}
       </Button>
     </form>
   );
 }
 
 /** Add more photos to an upload that has not been published yet. */
-export function AddPhotosForm({ uploadSessionId }: { uploadSessionId: string }) {
+export function AddPhotosForm({
+  uploadSessionId,
+  t,
+  locale,
+}: {
+  uploadSessionId: string;
+  t: UploadStrings;
+  locale: Locale;
+}) {
   const router = useRouter();
 
   const [files, setFiles] = useState<File[]>([]);
@@ -313,8 +330,8 @@ export function AddPhotosForm({ uploadSessionId }: { uploadSessionId: string }) 
     setRejected(allRejected);
     setSuccess(
       accepted > 0
-        ? `Added ${accepted} photo${accepted === 1 ? "" : "s"}.`
-        : "No photos were added.",
+        ? plural(t.addedN, accepted, locale)
+        : t.noneAdded,
     );
     router.refresh();
   }
@@ -346,10 +363,10 @@ export function AddPhotosForm({ uploadSessionId }: { uploadSessionId: string }) 
 
       <Button type="submit" disabled={busy || files.length === 0}>
         {busy
-          ? "Uploading…"
+          ? t.uploading
           : files.length === 0
-            ? "Choose photos first"
-            : `Upload ${files.length} photo${files.length === 1 ? "" : "s"}`}
+            ? t.choosePhotosFirst
+            : plural(t.uploadN, files.length, locale)}
       </Button>
     </form>
   );

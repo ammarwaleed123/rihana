@@ -30,7 +30,8 @@ export default async function PhotosPage({
 }) {
   const query = await searchParams;
   const session = await requireStaff("/admin/photos");
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
   const t = dict.admin.photos;
 
   // Both scoped: a teacher uploads into, and sees uploads for, their own
@@ -62,7 +63,7 @@ export default async function PhotosPage({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <Card>
           <SectionTitle>{t.newUpload}</SectionTitle>
-          <UploadForm classes={classes} />
+          <UploadForm t={dict.admin.uploadForm} locale={locale} classes={classes} />
         </Card>
 
         <div>

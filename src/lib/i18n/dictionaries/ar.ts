@@ -586,6 +586,37 @@ const ar: Dictionary = {
       toggleAria: "{action} {name}",
     },
 
+    uploadForm: {
+      classLabel: "الفصل",
+      photos: "الصور",
+      filesHint:
+        "JPEG أو PNG أو HEIC أو WebP. اختر ما شئت من الصور. تُزال بيانات الموقع من كل صورة قبل حفظها.",
+      progress: "تقدّم الرفع",
+      noClass: "لم يُسنَد إليك فصل بعد، لذا لا يوجد مكان للرفع إليه.",
+      addMorePhotos: "إضافة المزيد من الصور",
+      noneUsable: "تعذّر استخدام أي من هذه الملفات.",
+      couldNotStart: "تعذّر بدء الرفع.",
+      uploading: "جارٍ الرفع…",
+      choosePhotosFirst: "اختر الصور أولًا",
+      uploadN: {
+        zero: "لا توجد صور للرفع",
+        one: "رفع صورة واحدة",
+        two: "رفع صورتين",
+        few: "رفع {n} صور",
+        many: "رفع {n} صورة",
+        other: "رفع {n} صورة",
+      },
+      addedN: {
+        zero: "لم تُضَف صور.",
+        one: "تمت إضافة صورة واحدة.",
+        two: "تمت إضافة صورتين.",
+        few: "تمت إضافة {n} صور.",
+        many: "تمت إضافة {n} صورة.",
+        other: "تمت إضافة {n} صورة.",
+      },
+      noneAdded: "لم تُضَف أي صور.",
+    },
+
     inquiryStatus: {
       NEW: "جديد", CONTACTED: "تم التواصل", TOURED: "زار الحضانة",
       ENROLLED: "تم التسجيل", CLOSED: "مغلق",

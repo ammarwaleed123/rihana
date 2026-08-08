@@ -34,7 +34,8 @@ export default async function TagPhotosPage({
   const { uploadSessionId } = await params;
   const query = await searchParams;
   const session = await requireStaff(`/admin/photos/${uploadSessionId}`);
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
 
   let photos;
   let upload;
@@ -163,7 +164,7 @@ export default async function TagPhotosPage({
           </div>
 
           <Card className="mt-6 max-w-md">
-            <AddPhotosForm uploadSessionId={uploadSessionId} />
+            <AddPhotosForm t={dict.admin.uploadForm} locale={locale} uploadSessionId={uploadSessionId} />
           </Card>
         </>
       )}

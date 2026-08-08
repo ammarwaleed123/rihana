@@ -593,6 +593,24 @@ const en = {
       toggleAria: "{action} {name}",
     },
 
+    uploadForm: {
+      classLabel: "Class",
+      photos: "Photos",
+      filesHint:
+        "JPEG, PNG, HEIC or WebP. Choose as many as you like. Location data is removed from every photo before it is stored.",
+      progress: "Upload progress",
+      noClass:
+        "You are not assigned to a class yet, so there is nowhere to upload to.",
+      addMorePhotos: "Add more photos",
+      noneUsable: "None of those files could be used.",
+      couldNotStart: "Could not start the upload.",
+      uploading: "Uploading…",
+      choosePhotosFirst: "Choose photos first",
+      uploadN: { one: "Upload {n} photo", other: "Upload {n} photos" } as Plural,
+      addedN: { one: "Added {n} photo.", other: "Added {n} photos." } as Plural,
+      noneAdded: "No photos were added.",
+    },
+
     inquiryStatus: {
       NEW: "New", CONTACTED: "Contacted", TOURED: "Toured",
       ENROLLED: "Enrolled", CLOSED: "Closed",
