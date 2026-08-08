@@ -24,25 +24,53 @@ function visibleText(page: Page, text: string) {
   return page.getByText(text).filter({ visible: true });
 }
 
+/*
+ * These nine assertions all need the same signed-in person, so they share one
+ * session instead of signing in nine times per project.
+ *
+ * That is not a tidiness preference. Sign-in is rate limited per IP, and every
+ * Playwright worker is 127.0.0.1 — so with a bucket of 8, nine sign-ins racing
+ * the rest of the suite would trip the limiter and fail these tests inside
+ * `signIn()`, long before the navigation assertion they exist to make. The
+ * failure looked like a nav bug and was not one. A successful sign-in resets
+ * the *per-email* bucket, which is why this only bites under concurrency.
+ *
+ * Serial mode is required: the shared page is stateful, so these must not run
+ * against each other.
+ */
 test.describe("navigation: exactly one tab is current", () => {
+  test.describe.configure({ mode: "serial" });
+
   // Was: every page also lit up "Overview", because "/admin/classes" starts
   // with "/admin/". The longest matching href now wins.
-  for (const [path, label] of [
+  test.describe("admin", () => {
+    let page: Page;
+
+    test.beforeAll(async ({ browser }) => {
+      page = await browser.newPage();
+      await signIn(page, OWNER);
+    });
+
+    test.afterAll(async () => {
+      await page.close();
+    });
+
+    for (const [path, label] of [
     ["/admin", "Overview"],
     ["/admin/children", "Children"],
     ["/admin/classes", "Classes"],
     ["/admin/people", "Parents & staff"],
-    ["/admin/activity", "Activity"],
-  ] as const) {
-    test(`${path} marks only "${label}"`, async ({ page }) => {
-      await signIn(page, OWNER);
-      await page.goto(path);
+      ["/admin/activity", "Activity"],
+    ] as const) {
+      test(`${path} marks only "${label}"`, async () => {
+        await page.goto(path);
 
-      const current = page.locator('nav a[aria-current="page"]');
-      await expect(current).toHaveCount(1);
-      await expect(current).toHaveText(label);
-    });
-  }
+        const current = page.locator('nav a[aria-current="page"]');
+        await expect(current).toHaveCount(1);
+        await expect(current).toHaveText(label);
+      });
+    }
+  });
 
   /*
    * The portal has the same shape of bug available to it, and one extra trap:
@@ -50,15 +78,32 @@ test.describe("navigation: exactly one tab is current", () => {
    * breakpoint with CSS. Both are in the DOM, so `:visible` is what makes this
    * assertion mean "one tab is lit" rather than "one nav exists".
    */
-  for (const [path, label] of [
-    ["/portal", "Home"],
-    ["/portal/photos", "Photos"],
-    ["/portal/albums", "Albums"],
-    ["/portal/account", "Account"],
-  ] as const) {
-    test(`${path} marks only "${label}" in the portal`, async ({ page }) => {
+  test.describe("portal", () => {
+    let page: Page;
+
+    /*
+     * Amal specifically: she has two children, and the bug this guards against
+     * only reproduced for a parent whose photo page carries per-child filter
+     * chips. Swapping her for a quieter account would keep the test passing
+     * while removing what it tests.
+     */
+    test.beforeAll(async ({ browser }) => {
+      page = await browser.newPage();
       await signIn(page, "amal@rihana.test");
-      await page.goto(path);
+    });
+
+    test.afterAll(async () => {
+      await page.close();
+    });
+
+    for (const [path, label] of [
+      ["/portal", "Home"],
+      ["/portal/photos", "Photos"],
+      ["/portal/albums", "Albums"],
+      ["/portal/account", "Account"],
+    ] as const) {
+      test(`${path} marks only "${label}" in the portal`, async () => {
+        await page.goto(path);
 
       /*
        * Scoped to the section nav.
@@ -69,13 +114,14 @@ test.describe("navigation: exactly one tab is current", () => {
        * with "one thing on the page is current", and only failed for the
        * parent who happens to have two children.
        */
-      const current = page.locator(
-        'nav[aria-label="Portal sections"] a[aria-current="page"]:visible',
-      );
-      await expect(current).toHaveCount(1);
-      await expect(current).toContainText(label);
-    });
-  }
+        const current = page.locator(
+          'nav[aria-label="Portal sections"] a[aria-current="page"]:visible',
+        );
+        await expect(current).toHaveCount(1);
+        await expect(current).toContainText(label);
+      });
+    }
+  });
 });
 
 test.describe("permanent deletion actually erases", () => {
