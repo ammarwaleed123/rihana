@@ -477,6 +477,53 @@ const ar: Dictionary = {
       notPublished: "غير منشور",
     },
 
+    announcements: {
+      title: "الإعلانات",
+      description:
+        "انشر رسالة للعائلات. النشر يرسل تنبيهًا إلى كل من يخصّهم الإعلان.",
+      emptyTitle: "لا توجد إعلانات بعد",
+      emptyBody:
+        "إجازات، تذكيرات، مناسبات — أي شيء يجب أن تعرفه الحضانة كلها أو فصل بعينه.",
+      writeOne: "اكتب إعلانًا",
+      needClass: "تحتاج إلى فصل مُسنَد إليك قبل أن تتمكّن من نشر إعلان.",
+      allAnnouncements: "كل الإعلانات",
+      published: "منشور",
+      draft: "مسودة",
+    },
+
+    activity: {
+      title: "السجل",
+      description:
+        "كل تغيير في الحسابات والأطفال والصلاحيات. هذا السجل لا يمكن تعديله أو حذفه.",
+      emptyTitle: "لا يوجد شيء مسجَّل بعد",
+      emptyBody: "ستظهر هنا الإجراءات التي تتم في لوحة الإدارة.",
+      colWhen: "الوقت",
+      colWhat: "الإجراء",
+      system: "النظام",
+      loadOlder: "عرض الأقدم",
+    },
+
+    people: {
+      title: "الأهالي والعاملون",
+      description: "تُنشأ الحسابات من هنا. لا يمكن لأحد تسجيل نفسه.",
+      searchPlaceholder: "الاسم أو البريد الإلكتروني",
+      noStaffTitle: "لا توجد حسابات عاملين",
+      noStaffBody: "ادعُ معلّمة لتتمكّن من رفع الصور وتحديد الأطفال في فصلها.",
+      noParentsTitle: "لا توجد حسابات أهالي",
+      noParentsBody: "ادعُ وليّ أمر واربطه بطفله ليتمكّن من رؤية الصور.",
+      active: "نشط",
+      invitePending: "دعوة معلّقة",
+      disabled: "معطّل",
+      colName: "الاسم",
+      colRole: "الدور",
+      colClasses: "الفصول",
+      colStatus: "الحالة",
+      colLastSignedIn: "آخر تسجيل دخول",
+      thisIsYou: "هذا أنت",
+      children: "الأطفال",
+      noChildrenLinked: "لا يوجد أطفال مرتبطون",
+    },
+
     inquiryStatus: {
       NEW: "جديد", CONTACTED: "تم التواصل", TOURED: "زار الحضانة",
       ENROLLED: "تم التسجيل", CLOSED: "مغلق",

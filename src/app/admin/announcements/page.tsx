@@ -37,6 +37,7 @@ export default async function AnnouncementsPage({
   const query = await searchParams;
   const session = await requireStaff("/admin/announcements");
   const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.announcements;
 
   const [announcements, classes] = await Promise.all([
     listAnnouncementsForStaff(session),
@@ -50,8 +51,8 @@ export default async function AnnouncementsPage({
       <AdminNav current="/admin/announcements" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Announcements"
-        description="Post a note to families. Publishing it sends a notification to everyone it is for."
+        title={t.title}
+        description={t.description}
       />
 
       {query.deleted ? (
@@ -62,10 +63,10 @@ export default async function AnnouncementsPage({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
         <Card className="h-fit">
-          <SectionTitle>Write one</SectionTitle>
+          <SectionTitle>{t.writeOne}</SectionTitle>
           {classes.length === 0 && !isOwner ? (
             <p className="text-sm text-ink-soft">
-              You need a class assigned before you can post an announcement.
+              {t.needClass}
             </p>
           ) : (
             <CreateAnnouncementForm classes={classes} canPostNursery={isOwner} />
@@ -73,7 +74,7 @@ export default async function AnnouncementsPage({
         </Card>
 
         <div>
-          <SectionTitle>All announcements</SectionTitle>
+          <SectionTitle>{t.allAnnouncements}</SectionTitle>
 
           {announcements.length === 0 ? (
             <EmptyState
@@ -94,9 +95,9 @@ export default async function AnnouncementsPage({
                           {a.title}
                         </p>
                         {a.status === "PUBLISHED" ? (
-                          <Badge tone="green">Published</Badge>
+                          <Badge tone="green">{t.published}</Badge>
                         ) : (
-                          <Badge tone="yellow">Draft</Badge>
+                          <Badge tone="yellow">{t.draft}</Badge>
                         )}
                       </div>
                       <p className="mt-0.5 text-sm text-ink-soft">

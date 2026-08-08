@@ -47,6 +47,7 @@ export default async function ActivityPage({
   const params = await searchParams;
   const session = await requireStaff("/admin/activity");
   const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.activity;
   if (session.user.role !== "OWNER") redirect("/admin");
 
   const page = await listActivity(session, { cursor: params.cursor ?? null });
@@ -56,23 +57,23 @@ export default async function ActivityPage({
       <AdminNav current="/admin/activity" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Activity"
-        description="Every change to accounts, children and access. This record cannot be edited or deleted."
+        title={t.title}
+        description={t.description}
       />
 
       {page.items.length === 0 ? (
         <EmptyState
-          title="Nothing recorded yet"
-          description="Actions taken in the admin panel will appear here."
+          title={t.emptyTitle}
+          description={t.emptyBody}
         />
       ) : (
         <>
           <Table>
             <thead>
               <tr>
-                <Th>When</Th>
+                <Th>{t.colWhen}</Th>
                 <Th>Who</Th>
-                <Th>What</Th>
+                <Th>{t.colWhat}</Th>
               </tr>
             </thead>
             <tbody>
@@ -83,7 +84,7 @@ export default async function ActivityPage({
                   </Td>
                   <Td className="text-sm">
                     {item.actorName ?? (
-                      <span className="text-ink-faint">System</span>
+                      <span className="text-ink-faint">{t.system}</span>
                     )}
                     {item.actorRole ? (
                       <span className="block text-xs text-ink-faint">
@@ -124,7 +125,7 @@ export default async function ActivityPage({
                   },
                   {
                     label: "Who",
-                    value: item.actorName ?? "System",
+                    value: item.actorName ?? t.system,
                   },
                 ]}
               />

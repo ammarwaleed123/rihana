@@ -47,6 +47,7 @@ export default async function PeoplePage({
   const params = await searchParams;
   const session = await requireStaff("/admin/people");
   const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.people;
 
   // Account management is owner-only. A teacher who navigates here directly is
   // sent back rather than shown a page they cannot use.
@@ -66,8 +67,8 @@ export default async function PeoplePage({
       <AdminNav current="/admin/people" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Parents & staff"
-        description="Accounts are created here. Nobody can sign themselves up."
+        title={t.title}
+        description={t.description}
       />
 
       <div className="mb-8 flex flex-wrap gap-3">
@@ -75,25 +76,25 @@ export default async function PeoplePage({
         <InviteTeacherForm classes={classes} />
       </div>
 
-      <LiveSearch basePath="/admin/people" placeholder="Name or email" />
+      <LiveSearch basePath="/admin/people" placeholder={t.searchPlaceholder} />
 
       <section className="mb-10">
         <SectionTitle>Staff ({staff.length})</SectionTitle>
 
         {staff.length === 0 ? (
           <EmptyState
-            title="No staff accounts"
-            description="Invite a teacher to let them upload and tag photos for their class."
+            title={t.noStaffTitle}
+            description={t.noStaffBody}
           />
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Name</Th>
-                <Th>Role</Th>
-                <Th>Classes</Th>
-                <Th>Status</Th>
-                <Th>Last signed in</Th>
+                <Th>{t.colName}</Th>
+                <Th>{t.colRole}</Th>
+                <Th>{t.colClasses}</Th>
+                <Th>{t.colStatus}</Th>
+                <Th>{t.colLastSignedIn}</Th>
                 <Th>{""}</Th>
               </tr>
             </thead>
@@ -170,7 +171,7 @@ export default async function PeoplePage({
               ]}
               action={
                 person.id === session.user.id ? (
-                  <span className="text-sm text-ink-faint">This is you</span>
+                  <span className="text-sm text-ink-faint">{t.thisIsYou}</span>
                 ) : (
                   <div className="space-y-2">
                     {person.status === "INVITED" ? (
@@ -194,17 +195,17 @@ export default async function PeoplePage({
 
         {parents.length === 0 ? (
           <EmptyState
-            title="No parent accounts"
-            description="Invite a parent and link them to their child so they can see photos."
+            title={t.noParentsTitle}
+            description={t.noParentsBody}
           />
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Name</Th>
-                <Th>Children</Th>
-                <Th>Status</Th>
-                <Th>Last signed in</Th>
+                <Th>{t.colName}</Th>
+                <Th>{t.children}</Th>
+                <Th>{t.colStatus}</Th>
+                <Th>{t.colLastSignedIn}</Th>
                 <Th>{""}</Th>
               </tr>
             </thead>
@@ -224,7 +225,7 @@ export default async function PeoplePage({
                         .join(", ")
                     ) : (
                       // A parent with no linked child sees an empty portal.
-                      <Badge tone="yellow">No children linked</Badge>
+                      <Badge tone="yellow">{t.noChildrenLinked}</Badge>
                     )}
                   </Td>
                   <Td>{statusBadge(person.status)}</Td>
@@ -267,7 +268,7 @@ export default async function PeoplePage({
                         .map((c) => `${c.firstName} ${c.lastName}`)
                         .join(", ")
                     ) : (
-                      <Badge tone="yellow">No children linked</Badge>
+                      <Badge tone="yellow">{t.noChildrenLinked}</Badge>
                     ),
                 },
               ]}

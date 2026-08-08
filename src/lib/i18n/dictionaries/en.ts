@@ -480,6 +480,55 @@ const en = {
       notPublished: "Not published",
     },
 
+    announcements: {
+      title: "Announcements",
+      description:
+        "Post a note to families. Publishing it sends a notification to everyone it is for.",
+      emptyTitle: "No announcements yet",
+      emptyBody:
+        "Closures, reminders, events — anything the whole nursery or a class should know.",
+      writeOne: "Write one",
+      needClass: "You need a class assigned before you can post an announcement.",
+      allAnnouncements: "All announcements",
+      published: "Published",
+      draft: "Draft",
+    },
+
+    activity: {
+      title: "Activity",
+      description:
+        "Every change to accounts, children and access. This record cannot be edited or deleted.",
+      emptyTitle: "Nothing recorded yet",
+      emptyBody: "Actions taken in the admin panel will appear here.",
+      colWhen: "When",
+      colWhat: "What",
+      system: "System",
+      loadOlder: "Load older",
+    },
+
+    people: {
+      title: "Parents & staff",
+      description: "Accounts are created here. Nobody can sign themselves up.",
+      searchPlaceholder: "Name or email",
+      noStaffTitle: "No staff accounts",
+      noStaffBody:
+        "Invite a teacher to let them upload and tag photos for their class.",
+      noParentsTitle: "No parent accounts",
+      noParentsBody:
+        "Invite a parent and link them to their child so they can see photos.",
+      active: "Active",
+      invitePending: "Invite pending",
+      disabled: "Disabled",
+      colName: "Name",
+      colRole: "Role",
+      colClasses: "Classes",
+      colStatus: "Status",
+      colLastSignedIn: "Last signed in",
+      thisIsYou: "This is you",
+      children: "Children",
+      noChildrenLinked: "No children linked",
+    },
+
     inquiryStatus: {
       NEW: "New", CONTACTED: "Contacted", TOURED: "Toured",
       ENROLLED: "Enrolled", CLOSED: "Closed",
