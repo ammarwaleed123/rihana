@@ -22,6 +22,7 @@ export async function getMyAccount(session: Session) {
       name: true,
       email: true,
       phone: true,
+      locale: true,
       createdAt: true,
       lastLoginAt: true,
     },
@@ -29,6 +30,35 @@ export async function getMyAccount(session: Session) {
 
   if (!user) throw new ForbiddenError();
   return user;
+}
+
+/**
+ * The stored language for a user id.
+ *
+ * Takes a raw id rather than a Session because it is called during sign-in, at
+ * the one moment a Session does not exist yet. The id comes from the just-
+ * verified credentials, never from user input.
+ */
+export async function getUserLocale(userId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { locale: true },
+  });
+  return user?.locale ?? "en";
+}
+
+/**
+ * Save the caller's interface language.
+ *
+ * Scoped to `session.user.id` like everything else here — the locale is never
+ * taken from a user id in the form, only from the session.
+ */
+export async function setMyLocale(session: Session, locale: string) {
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { locale },
+    select: { id: true },
+  });
 }
 
 /** The caller's children, with class and guardianship details for display. */

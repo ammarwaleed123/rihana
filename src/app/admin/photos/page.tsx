@@ -11,6 +11,8 @@ import {
   SectionTitle,
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listUploadSessions } from "@/lib/data/photos";
 
@@ -28,6 +30,7 @@ export default async function PhotosPage({
 }) {
   const query = await searchParams;
   const session = await requireStaff("/admin/photos");
+  const dict = await getDictionary(await getAppLocale());
 
   // Both scoped: a teacher uploads into, and sees uploads for, their own
   // classes only.
@@ -38,7 +41,7 @@ export default async function PhotosPage({
 
   return (
     <div>
-      <AdminNav current="/admin/photos" role={session.user.role} />
+      <AdminNav current="/admin/photos" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
         title="Photos"

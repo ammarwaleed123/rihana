@@ -8,17 +8,15 @@ import { PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
 import { getAlbumForParent } from "@/lib/data/albums";
 import { parsePageParam } from "@/lib/data/pagination";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { LOCALE_INTL } from "@/lib/i18n/config";
+import { fill, plural } from "@/lib/i18n/plural";
 
 export const metadata: Metadata = {
   title: "Album",
   robots: { index: false, follow: false },
 };
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
 
 export default async function AlbumPage({
   params,
@@ -30,6 +28,15 @@ export default async function AlbumPage({
   const { albumId } = await params;
   const query = await searchParams;
   const session = await requireParent(`/portal/albums/${albumId}`);
+
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.portal.albums;
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   // Null covers "no such album", "not published" and "nothing in it for you"
   // alike. All three are a 404 — telling them apart would confirm the album
@@ -53,7 +60,10 @@ export default async function AlbumPage({
           href="/portal/albums"
           className="text-sm font-semibold text-leaf underline underline-offset-4"
         >
-          ← All albums
+          <span aria-hidden className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {t.allAlbums}
         </Link>
       </p>
 
@@ -61,7 +71,7 @@ export default async function AlbumPage({
         title={album.title}
         description={[
           album.eventDate ? dateFormat.format(album.eventDate) : null,
-          `${album.photoCount} photo${album.photoCount === 1 ? "" : "s"}`,
+          plural(dict.portal.common.photoCount, album.photoCount, locale),
         ]
           .filter(Boolean)
           .join(" · ")}
@@ -78,15 +88,25 @@ export default async function AlbumPage({
         hrefFor={(photo) =>
           `/portal/photos/${photo.id}?from=${encodeURIComponent(hrefFor(photos.page))}`
         }
+        t={dict.portal.photo}
+        locale={locale}
       />
 
       {photos.pageCount > 1 ? (
         <p className="mt-6 text-center text-sm text-ink-soft">
-          Page {photos.page} of {photos.pageCount}
+          {fill(t.pageOf, {
+            page: photos.page,
+            pageCount: photos.pageCount,
+          })}
         </p>
       ) : null}
 
-      <Pager page={photos.page} pageCount={photos.pageCount} hrefFor={hrefFor} />
+      <Pager
+        page={photos.page}
+        pageCount={photos.pageCount}
+        hrefFor={hrefFor}
+        t={dict.portal.pager}
+      />
     </div>
   );
 }

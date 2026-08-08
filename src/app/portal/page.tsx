@@ -7,6 +7,9 @@ import { requireParent } from "@/lib/auth/scope";
 import { listAlbumsForParent } from "@/lib/data/albums";
 import { listAnnouncementsForParent } from "@/lib/data/announcements";
 import { getMyChildren, getPhotosForParent } from "@/lib/data/photos";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill, joinList, plural } from "@/lib/i18n/plural";
 
 export const metadata: Metadata = {
   title: "Your dashboard",
@@ -16,6 +19,11 @@ export const metadata: Metadata = {
 export default async function PortalHome() {
   const session = await requireParent("/portal");
 
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.portal.home;
+  const c = dict.portal.common;
+
   const [children, recent, albums, announcements] = await Promise.all([
     getMyChildren(session),
     getPhotosForParent(session, { limit: 8 }),
@@ -24,40 +32,48 @@ export default async function PortalHome() {
   ]);
 
   const names = children.map((child) => child.firstName);
+  // Intl.ListFormat, so Arabic joins with و rather than a translated "and".
+  const nameList = joinList(names, locale);
 
   return (
     <div>
       <PageHeader
-        title={`Hello, ${session.user.name}`}
+        title={fill(t.greeting, { name: session.user.name })}
         description={
           names.length > 0
-            ? `Photos and updates for ${names.join(" and ")}.`
-            : "Your child's photos and updates will appear here."
+            ? fill(t.subtitleWithChildren, { children: nameList })
+            : t.subtitleNoChildren
         }
       />
 
       {recent.items.length > 0 ? (
         <section className="mb-8">
-          <SectionHeading title="Latest photos" href="/portal/photos" />
+          <SectionHeading
+            title={t.latestPhotos}
+            href="/portal/photos"
+            seeAll={c.seeAll}
+          />
           <PhotoGrid
             photos={recent.items}
             hrefFor={(photo) => `/portal/photos/${photo.id}?from=/portal`}
+            t={dict.portal.photo}
+            locale={locale}
           />
         </section>
       ) : (
         <Card className="mb-8">
-          <h2 className="font-display text-xl font-semibold">No photos yet</h2>
+          <h2 className="font-display text-xl font-semibold">{t.noPhotosTitle}</h2>
           <p className="mt-2 text-ink-soft">
-            When the nursery shares photos of{" "}
-            {names.length > 0 ? names.join(" or ") : "your child"}, they will
-            appear here.
+            {names.length > 0
+              ? fill(t.noPhotosBody, { children: nameList })
+              : t.noPhotosBodyFallback}
           </p>
         </Card>
       )}
 
       {albums.items.length > 0 ? (
         <section className="mb-8">
-          <SectionHeading title="Albums" href="/portal/albums" />
+          <SectionHeading title={t.albums} href="/portal/albums" seeAll={c.seeAll} />
 
           <ul className="grid gap-4 sm:grid-cols-2">
             {albums.items.map((album) => (
@@ -82,8 +98,7 @@ export default async function PortalHome() {
                       {album.title}
                     </p>
                     <p className="mt-0.5 text-sm text-ink-soft">
-                      {album.photoCount} photo
-                      {album.photoCount === 1 ? "" : "s"}
+                      {plural(c.photoCount, album.photoCount, locale)}
                     </p>
                   </div>
                 </Link>
@@ -104,19 +119,17 @@ export default async function PortalHome() {
           className="group block rounded-2xl border border-ink/10 bg-card p-6 shadow-pin transition-colors hover:border-leaf"
         >
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-xl font-semibold">Announcements</h2>
+            <h2 className="font-display text-xl font-semibold">{t.announcements}</h2>
             <span className="text-sm font-semibold text-leaf underline underline-offset-4">
-              See all
+              {c.seeAll}
             </span>
           </div>
           {announcements.items.length > 0 ? (
             <p className="mt-2 line-clamp-1 text-ink-soft">
-              Latest: {announcements.items[0]!.title}
+              {fill(t.latestPrefix, { title: announcements.items[0]!.title })}
             </p>
           ) : (
-            <p className="mt-2 text-ink-soft">
-              News and reminders from the nursery will appear here.
-            </p>
+            <p className="mt-2 text-ink-soft">{t.noAnnouncements}</p>
           )}
         </Link>
 
@@ -125,14 +138,13 @@ export default async function PortalHome() {
           className="group block rounded-2xl border border-ink/10 bg-card p-6 shadow-pin transition-colors hover:border-leaf"
         >
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-xl font-semibold">Pickup</h2>
+            <h2 className="font-display text-xl font-semibold">{t.pickup}</h2>
             <span className="text-sm font-semibold text-leaf underline underline-offset-4">
-              Manage
+              {c.manage}
             </span>
           </div>
           <p className="mt-2 text-ink-soft">
-            Choose who can collect your{" "}
-            {names.length === 1 ? "child" : "children"} — or set the nursery bus.
+            {names.length === 1 ? t.pickupBodyOne : t.pickupBodyMany}
           </p>
         </Link>
       </div>
@@ -140,7 +152,15 @@ export default async function PortalHome() {
   );
 }
 
-function SectionHeading({ title, href }: { title: string; href: string }) {
+function SectionHeading({
+  title,
+  href,
+  seeAll,
+}: {
+  title: string;
+  href: string;
+  seeAll: string;
+}) {
   return (
     <div className="mb-3 flex items-baseline justify-between gap-3">
       <h2 className="font-display text-xl font-semibold">{title}</h2>
@@ -148,7 +168,7 @@ function SectionHeading({ title, href }: { title: string; href: string }) {
         href={href}
         className="text-sm font-semibold text-leaf underline underline-offset-4"
       >
-        See all
+        {seeAll}
       </Link>
     </div>
   );

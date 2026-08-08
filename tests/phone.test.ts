@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { phone } from "@/lib/validation";
+import { phone, requiredPhone } from "@/lib/validation";
 
 /**
  * Egyptian mobile validation.
@@ -15,6 +15,49 @@ import { phone } from "@/lib/validation";
 function parse(input: string) {
   return phone.safeParse(input);
 }
+
+/**
+ * Arabic-Indic digits.
+ *
+ * A parent using the Arabic site types on an Arabic keyboard, which produces
+ * ٠١٢٣٤٥٦٧٨٩ rather than ASCII. `\d` is ASCII-only, so before normalisation
+ * those characters were stripped as punctuation and the number was rejected.
+ */
+describe("phone — Arabic-Indic digits", () => {
+  it("accepts a number typed in Arabic-Indic digits and stores it in ASCII", () => {
+    const result = parse("٠١٠١٢٣٤٥٦٧٨");
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toBe("01012345678");
+  });
+
+  it("accepts Persian/Urdu digits too", () => {
+    const result = parse("۰۱۰۱۲۳۴۵۶۷۸");
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toBe("01012345678");
+  });
+
+  it("normalises a mixed Arabic/ASCII number with formatting", () => {
+    const result = parse("٠١٠ ١٢٣٤ 5678");
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toBe("01012345678");
+  });
+
+  it("folds an Arabic-Indic +20 international form to the local one", () => {
+    const result = parse("+٢٠ ١٠١٢٣٤٥٦٧٨");
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toBe("01012345678");
+  });
+
+  it("still rejects an invalid number written in Arabic-Indic digits", () => {
+    expect(parse("٠٠٠٠٠٠٠٠٠٠٠").success).toBe(false);
+  });
+
+  it("applies the same normalisation to a required phone", () => {
+    const result = requiredPhone.safeParse("٠١٠١٢٣٤٥٦٧٨");
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toBe("01012345678");
+  });
+});
 
 describe("phone", () => {
   it("accepts every real carrier prefix and stores 11 local digits", () => {

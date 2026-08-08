@@ -13,11 +13,14 @@ import {
   Th,
 } from "@/components/ui/shell";
 import { requireOwner } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import {
   listInquiries,
+  type InquiryKindValue,
   type InquiryStatusValue,
 } from "@/lib/data/inquiries";
-import { INQUIRY_STATUSES, inquiryStatusLabels } from "@/lib/validation";
+import { INQUIRY_STATUSES } from "@/lib/validation";
 
 export const metadata: Metadata = {
   title: "Inquiries",
@@ -38,8 +41,28 @@ const statusTone: Record<InquiryStatusValue, Parameters<typeof Badge>[0]["tone"]
   CLOSED: "neutral",
 };
 
-function StatusBadge({ status }: { status: InquiryStatusValue }) {
-  return <Badge tone={statusTone[status]}>{inquiryStatusLabels[status]}</Badge>;
+function StatusBadge({
+  status,
+  labels,
+}: {
+  status: InquiryStatusValue;
+  labels: Record<InquiryStatusValue, string>;
+}) {
+  return <Badge tone={statusTone[status]}>{labels[status]}</Badge>;
+}
+
+function KindBadge({
+  kind,
+  t,
+}: {
+  kind: InquiryKindValue;
+  t: { kindVisit: string; kindQuestion: string };
+}) {
+  return kind === "VISIT" ? (
+    <Badge tone="green">{t.kindVisit}</Badge>
+  ) : (
+    <Badge tone="sky">{t.kindQuestion}</Badge>
+  );
 }
 
 export default async function InquiriesPage({
@@ -48,6 +71,8 @@ export default async function InquiriesPage({
   searchParams: Promise<{ status?: string; cursor?: string }>;
 }) {
   const session = await requireOwner("/admin/inquiries");
+  const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.inquiries;
   const params = await searchParams;
   const activeStatus = params.status ?? null;
 
@@ -58,20 +83,20 @@ export default async function InquiriesPage({
 
   return (
     <div>
-      <AdminNav current="/admin/inquiries" role={session.user.role} />
+      <AdminNav current="/admin/inquiries" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Inquiries"
-        description="Families who enquired through the website. Work each one along the pipeline as you follow up."
+        title={t.title}
+        description={t.description}
       />
 
       {/* Status filter */}
       <div className="mb-6 flex flex-wrap gap-2">
-        <FilterChip label="All" href="/admin/inquiries" active={!activeStatus} />
+        <FilterChip label={t.all} href="/admin/inquiries" active={!activeStatus} />
         {INQUIRY_STATUSES.map((s) => (
           <FilterChip
             key={s}
-            label={inquiryStatusLabels[s]}
+            label={dict.admin.inquiryStatus[s]}
             href={`/admin/inquiries?status=${s}`}
             active={activeStatus === s}
           />
@@ -80,26 +105,31 @@ export default async function InquiriesPage({
 
       {page.items.length === 0 ? (
         <EmptyState
-          title="No inquiries here"
-          description="When a family sends an enquiry from the website, it appears here for you to follow up."
+          title={t.emptyTitle}
+          description={t.emptyBody}
         />
       ) : (
         <>
           <Table>
             <thead>
               <tr>
-                <Th>Family</Th>
-                <Th>Child</Th>
-                <Th>Contact</Th>
-                <Th>Status</Th>
-                <Th>Received</Th>
+                <Th>{t.colFamily}</Th>
+                <Th>{t.colChild}</Th>
+                <Th>{t.colContact}</Th>
+                <Th>{t.colStatus}</Th>
+                <Th>{t.colReceived}</Th>
                 <Th>{""}</Th>
               </tr>
             </thead>
             <tbody>
               {page.items.map((i) => (
                 <tr key={i.id}>
-                  <Td className="font-semibold">{i.parentName}</Td>
+                  <Td className="font-semibold">
+                    {i.parentName}
+                    <div className="mt-1">
+                      <KindBadge kind={i.kind} t={t} />
+                    </div>
+                  </Td>
                   <Td>{i.childFirstName ?? "—"}</Td>
                   <Td className="text-sm text-ink-soft">
                     {i.email}
@@ -107,7 +137,7 @@ export default async function InquiriesPage({
                     {i.phone}
                   </Td>
                   <Td>
-                    <StatusBadge status={i.status} />
+                    <StatusBadge status={i.status} labels={dict.admin.inquiryStatus} />
                   </Td>
                   <Td className="text-sm text-ink-soft">{when.format(i.createdAt)}</Td>
                   <Td>
@@ -115,7 +145,7 @@ export default async function InquiriesPage({
                       href={`/admin/inquiries/${i.id}`}
                       className="font-semibold text-leaf underline underline-offset-4"
                     >
-                      Open
+                      {t.open}
                     </Link>
                   </Td>
                 </tr>
@@ -128,7 +158,12 @@ export default async function InquiriesPage({
               <CardListItem
                 key={i.id}
                 title={i.parentName}
-                badges={<StatusBadge status={i.status} />}
+                badges={
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    <KindBadge kind={i.kind} t={t} />
+                    <StatusBadge status={i.status} labels={dict.admin.inquiryStatus} />
+                  </div>
+                }
                 fields={[
                   { label: "Child", value: i.childFirstName ?? "—" },
                   { label: "Email", value: i.email },
@@ -140,7 +175,7 @@ export default async function InquiriesPage({
                     href={`/admin/inquiries/${i.id}`}
                     className="font-semibold text-leaf underline underline-offset-4"
                   >
-                    Open inquiry
+                    {t.openInquiry}
                   </Link>
                 }
               />
@@ -153,7 +188,7 @@ export default async function InquiriesPage({
                 href={`/admin/inquiries?${activeStatus ? `status=${activeStatus}&` : ""}cursor=${encodeURIComponent(page.nextCursor)}`}
                 className="font-semibold text-leaf underline underline-offset-4"
               >
-                Load older
+                {t.loadOlder}
               </Link>
             </div>
           ) : null}

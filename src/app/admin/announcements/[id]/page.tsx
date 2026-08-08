@@ -8,6 +8,8 @@ import { Alert } from "@/components/ui/form";
 import { Badge, Card, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { getAnnouncementForStaff } from "@/lib/data/announcements";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -33,6 +35,7 @@ export default async function AnnouncementDetailPage({
   const { id } = await params;
   const query = await searchParams;
   const session = await requireStaff(`/admin/announcements/${id}`);
+  const dict = await getDictionary(await getAppLocale());
 
   let announcement;
   try {
@@ -52,7 +55,7 @@ export default async function AnnouncementDetailPage({
 
   return (
     <div>
-      <AdminNav current="/admin/announcements" role={session.user.role} />
+      <AdminNav current="/admin/announcements" role={session.user.role} t={dict.admin.nav} />
 
       <p className="mb-4">
         <Link

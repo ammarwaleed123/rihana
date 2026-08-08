@@ -15,6 +15,8 @@ import {
   Th,
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listChildren } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listPeople } from "@/lib/data/people";
@@ -44,6 +46,7 @@ export default async function PeoplePage({
 }) {
   const params = await searchParams;
   const session = await requireStaff("/admin/people");
+  const dict = await getDictionary(await getAppLocale());
 
   // Account management is owner-only. A teacher who navigates here directly is
   // sent back rather than shown a page they cannot use.
@@ -60,7 +63,7 @@ export default async function PeoplePage({
 
   return (
     <div>
-      <AdminNav current="/admin/people" role={session.user.role} />
+      <AdminNav current="/admin/people" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
         title="Parents & staff"

@@ -15,6 +15,8 @@ import {
   Th,
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listChildren } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -46,6 +48,7 @@ export default async function ChildrenPage({
 }) {
   const params = await searchParams;
   const session = await requireStaff("/admin/children");
+  const dict = await getDictionary(await getAppLocale());
   const isOwner = session.user.role === "OWNER";
 
   // Both reads are scoped: a teacher sees only their assigned classes and only
@@ -66,7 +69,7 @@ export default async function ChildrenPage({
 
   return (
     <div>
-      <AdminNav current="/admin/children" role={session.user.role} />
+      <AdminNav current="/admin/children" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
         title="Children"

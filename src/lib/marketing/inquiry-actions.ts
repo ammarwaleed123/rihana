@@ -54,12 +54,17 @@ export async function submitInquiryAction(
   }
 
   const parsed = inquiryInput.safeParse({
+    // `?? undefined`: an absent field is `null` from FormData, but the schema's
+    // default/optional only kick in on `undefined`. `preferredVisit` is only in
+    // the DOM for a visit request, and `kind` should fall back to the default.
+    kind: formData.get("kind") ?? undefined,
     parentName: formData.get("parentName"),
     email: formData.get("email"),
     phone: formData.get("phone"),
     childFirstName: formData.get("childFirstName"),
     childDateOfBirth: formData.get("childDateOfBirth"),
     preferredStartDate: formData.get("preferredStartDate"),
+    preferredVisit: formData.get("preferredVisit") ?? undefined,
     message: formData.get("message"),
   });
 

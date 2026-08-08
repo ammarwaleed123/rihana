@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { fill } from "@/lib/i18n/plural";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+
 /**
  * Numbered pager — "‹ Prev  1 2 … 5 6 …  Next ›".
  *
@@ -16,10 +19,12 @@ export function Pager({
   page,
   pageCount,
   hrefFor,
+  t,
 }: {
   page: number;
   pageCount: number;
   hrefFor: (page: number) => string;
+  t: Dictionary["portal"]["pager"];
 }) {
   if (pageCount <= 1) return null;
 
@@ -27,15 +32,15 @@ export function Pager({
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t.ariaLabel}
       className="mt-8 flex flex-wrap items-center justify-center gap-2"
     >
-      <Step
-        href={hrefFor(page - 1)}
-        disabled={page <= 1}
-        label="Previous page"
-      >
-        ‹ Prev
+      {/* The chevrons point "back" and "forward"; those swap under RTL. */}
+      <Step href={hrefFor(page - 1)} disabled={page <= 1} label={t.previous}>
+        <span aria-hidden className="rtl:-scale-x-100">
+          ‹
+        </span>{" "}
+        {t.prevShort}
       </Step>
 
       <ul className="flex items-center gap-1">
@@ -52,7 +57,7 @@ export function Pager({
             <li key={n}>
               <Link
                 href={hrefFor(n)}
-                aria-label={`Page ${n}`}
+                aria-label={fill(t.pageN, { n })}
                 aria-current={n === page ? "page" : undefined}
                 className={
                   n === page
@@ -67,8 +72,11 @@ export function Pager({
         )}
       </ul>
 
-      <Step href={hrefFor(page + 1)} disabled={page >= pageCount} label="Next page">
-        Next ›
+      <Step href={hrefFor(page + 1)} disabled={page >= pageCount} label={t.next}>
+        {t.nextShort}{" "}
+        <span aria-hidden className="rtl:-scale-x-100">
+          ›
+        </span>
       </Step>
     </nav>
   );

@@ -9,6 +9,11 @@ import { requireParent } from "@/lib/auth/scope";
 import { NotFoundError } from "@/lib/auth/errors";
 import { getChildPickupDetail, type PickupPersonItem } from "@/lib/data/pickup";
 import { revokePickupPersonAction } from "@/lib/portal/pickup-actions";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { LOCALE_INTL, type Locale } from "@/lib/i18n/config";
+import { fill, plural } from "@/lib/i18n/plural";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 import { AddPickupPersonForm, PickupMethodForm } from "../pickup-forms";
 
@@ -16,12 +21,6 @@ export const metadata: Metadata = {
   title: "Pickup",
   robots: { index: false, follow: false },
 };
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
 
 export default async function ChildPickupPage({
   params,
@@ -33,6 +32,10 @@ export default async function ChildPickupPage({
   const { childId } = await params;
   const query = await searchParams;
   const session = await requireParent(`/portal/pickup/${childId}`);
+
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.portal.pickupChild;
 
   let detail;
   try {
@@ -52,50 +55,54 @@ export default async function ChildPickupPage({
           href="/portal/pickup"
           className="text-sm font-semibold text-leaf underline underline-offset-4"
         >
-          ← All children
+          <span aria-hidden className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {t.allChildren}
         </Link>
       </div>
 
       <PageHeader
         title={`${child.firstName} ${child.lastName}`}
-        description={child.className ? `${child.className} · pickup` : "Pickup"}
+        description={
+          child.className
+            ? `${child.className} · ${t.pickupLabel}`
+            : t.pickupLabel
+        }
       />
 
       {query.added ? (
         <div className="mb-4">
-          <Alert tone="success">
-            Sent to the nursery for approval. You&rsquo;ll be notified when
-            it&rsquo;s reviewed.
-          </Alert>
+          <Alert tone="success">{t.addedAlert}</Alert>
         </div>
       ) : null}
       {query.updated ? (
         <div className="mb-4">
-          <Alert tone="success">
-            Saved and sent back to the nursery for approval.
-          </Alert>
+          <Alert tone="success">{t.updatedAlert}</Alert>
         </div>
       ) : null}
 
       <div className="space-y-6">
         <Card>
-          <SectionTitle>Going home</SectionTitle>
-          <PickupMethodForm childId={child.id} method={child.method} />
+          <SectionTitle>{t.goingHome}</SectionTitle>
+          <PickupMethodForm
+            childId={child.id}
+            method={child.method}
+            t={dict.portal.pickupForm}
+          />
         </Card>
 
         {isBus ? (
           <Card>
-            <SectionTitle>Nursery bus</SectionTitle>
+            <SectionTitle>{t.busTitle}</SectionTitle>
             <p className="text-ink-soft">
-              {child.firstName} goes home on the nursery bus, so no door pickup
-              people are needed. Switch to &ldquo;collected at the door&rdquo;
-              above if that changes.
+              {fill(t.busBody, { name: child.firstName })}
             </p>
             {people.length > 0 ? (
               <p className="mt-3 text-sm text-ink-faint">
-                You have {people.length} saved pickup{" "}
-                {people.length === 1 ? "person" : "people"}. They&rsquo;ll apply
-                again if you switch back to door collection.
+                {fill(t.busSavedNote, {
+                  count: plural(t.savedPeopleCount, people.length, locale),
+                })}
               </p>
             ) : null}
           </Card>
@@ -103,13 +110,14 @@ export default async function ChildPickupPage({
           <>
             <Card>
               <div className="mb-4 flex items-center justify-between gap-4">
-                <SectionTitle>Who can collect {child.firstName}</SectionTitle>
+                <SectionTitle>
+                  {fill(t.whoCanCollect, { name: child.firstName })}
+                </SectionTitle>
               </div>
 
               {people.length === 0 ? (
                 <p className="text-ink-soft">
-                  No one has been added yet. Add the people allowed to collect{" "}
-                  {child.firstName} below.
+                  {fill(t.noneAdded, { name: child.firstName })}
                 </p>
               ) : (
                 <ul className="space-y-3">
@@ -118,6 +126,9 @@ export default async function ChildPickupPage({
                       key={person.id}
                       person={person}
                       childId={child.id}
+                      t={t}
+                      locale={locale}
+                      statusStrings={dict.portal.pickupStatus}
                     />
                   ))}
                 </ul>
@@ -125,8 +136,8 @@ export default async function ChildPickupPage({
             </Card>
 
             <Card>
-              <SectionTitle>Add someone</SectionTitle>
-              <AddPickupPersonForm childId={child.id} />
+              <SectionTitle>{t.addSomeone}</SectionTitle>
+              <AddPickupPersonForm childId={child.id} t={dict.portal.pickupForm} />
             </Card>
           </>
         )}
@@ -138,10 +149,22 @@ export default async function ChildPickupPage({
 function PersonRow({
   person,
   childId,
+  t,
+  locale,
+  statusStrings,
 }: {
   person: PickupPersonItem;
   childId: string;
+  t: Dictionary["portal"]["pickupChild"];
+  locale: Locale;
+  statusStrings: Dictionary["portal"]["pickupStatus"];
 }) {
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
   return (
     <li className="rounded-xl border border-ink/10 bg-paper p-4">
       <div className="flex items-start gap-3">
@@ -166,19 +189,23 @@ function PersonRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <p className="font-semibold">{person.fullName}</p>
-            <PickupStatusBadge status={person.status} isExpired={person.isExpired} />
+            <PickupStatusBadge
+              status={person.status}
+              isExpired={person.isExpired}
+              t={statusStrings}
+            />
           </div>
           <p className="text-sm text-ink-soft">{person.relationship}</p>
           <p className="text-sm text-ink-soft">{person.phone}</p>
           {person.expiresAt ? (
             <p className="mt-0.5 text-sm text-ink-faint">
-              {person.isExpired ? "Was allowed until " : "Allowed until "}
+              {person.isExpired ? t.wasAllowedUntil : t.allowedUntil}{" "}
               {dateFormat.format(person.expiresAt)}
             </p>
           ) : null}
           {person.status === "REJECTED" && person.rejectionReason ? (
             <p className="mt-1 text-sm font-semibold text-danger">
-              Reason: {person.rejectionReason}
+              {fill(t.reason, { reason: person.rejectionReason })}
             </p>
           ) : null}
 
@@ -187,7 +214,7 @@ function PersonRow({
               href={`/portal/pickup/${childId}/${person.id}/edit`}
               className="text-sm font-semibold text-leaf underline underline-offset-4"
             >
-              Edit
+              {t.edit}
             </Link>
             <form action={revokePickupPersonAction}>
               <input type="hidden" name="pickupPersonId" value={person.id} />
@@ -196,7 +223,7 @@ function PersonRow({
                 type="submit"
                 className="text-sm font-semibold text-danger underline underline-offset-4"
               >
-                Remove
+                {t.remove}
               </button>
             </form>
           </div>

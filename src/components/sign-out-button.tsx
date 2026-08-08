@@ -5,9 +5,11 @@ import { useFormStatus } from "react-dom";
 import { cn } from "@/lib/cn";
 import { signOutAction } from "@/lib/auth/actions";
 
-function SubmitButton({ prominent }: { prominent: boolean }) {
+type Labels = { label: string; pending: string };
+
+function SubmitButton({ prominent, t }: { prominent: boolean; t: Labels }) {
   const { pending } = useFormStatus();
-  const label = pending ? "Signing out…" : "Sign out";
+  const label = pending ? t.pending : t.label;
 
   if (prominent) {
     // Account-page treatment: a proper bordered pill in the danger tone, full
@@ -19,6 +21,7 @@ function SubmitButton({ prominent }: { prominent: boolean }) {
         disabled={pending}
         className="inline-flex w-full items-center justify-center gap-2 rounded-full border-2 border-danger/30 bg-card px-6 py-3 font-bold text-danger transition-colors hover:border-danger hover:bg-coral-soft disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
       >
+        {/* The door/arrow points "out", which mirrors under RTL. */}
         <SignOutIcon />
         {label}
       </button>
@@ -47,10 +50,16 @@ function SubmitButton({ prominent }: { prominent: boolean }) {
  * `prominent` gives the account-page card a full, bordered button; the default
  * is the quiet header control.
  */
-export function SignOutButton({ prominent = false }: { prominent?: boolean }) {
+export function SignOutButton({
+  prominent = false,
+  t,
+}: {
+  prominent?: boolean;
+  t: Labels;
+}) {
   return (
     <form action={signOutAction} className={cn(prominent && "sm:inline-block")}>
-      <SubmitButton prominent={prominent} />
+      <SubmitButton prominent={prominent} t={t} />
     </form>
   );
 }
@@ -67,6 +76,7 @@ function SignOutIcon() {
       strokeWidth={2.2}
       strokeLinecap="round"
       strokeLinejoin="round"
+      className="rtl:-scale-x-100"
     >
       <path d="M15 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3" />
       <path d="M10 17 5 12l5-5" />

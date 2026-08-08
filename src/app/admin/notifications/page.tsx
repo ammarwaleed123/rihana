@@ -6,6 +6,8 @@ import { PushToggle } from "@/components/pwa/push-toggle";
 import { Button } from "@/components/ui/form";
 import { EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listNotifications } from "@/lib/data/notifications";
 import {
   markAllReadAction,
@@ -31,13 +33,14 @@ export default async function AdminNotificationsPage({
 }) {
   const params = await searchParams;
   const session = await requireStaff("/admin/notifications");
+  const dict = await getDictionary(await getAppLocale());
 
   const page = await listNotifications(session, { cursor: params.cursor ?? null });
   const hasUnread = page.items.some((n) => !n.readAt);
 
   return (
     <div>
-      <AdminNav current="/admin/notifications" role={session.user.role} />
+      <AdminNav current="/admin/notifications" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
         title="Notifications"
@@ -56,11 +59,11 @@ export default async function AdminNotificationsPage({
       <div className="mb-6 space-y-5 rounded-2xl border border-ink/10 bg-card p-5">
         <div>
           <p className="mb-2 font-bold text-ink">Install the app</p>
-          <InstallButton />
+          <InstallButton t={dict.portal.install} />
         </div>
         <div className="border-t border-ink/10 pt-5">
           <p className="mb-2 font-bold text-ink">Notifications on this device</p>
-          <PushToggle />
+          <PushToggle t={dict.portal.push} />
         </div>
       </div>
 

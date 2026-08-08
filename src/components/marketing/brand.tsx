@@ -48,12 +48,25 @@ export function SproutMark({ className }: { className?: string }) {
   );
 }
 
-/** The header logo — the real Rihana Montessori Academy badge. */
-export function Wordmark({ className }: { className?: string }) {
+/**
+ * The header logo — the real Rihana Montessori Academy badge.
+ *
+ * `href` is a prop rather than a hardcoded "/" so the Arabic site's logo returns
+ * to the Arabic home page.
+ */
+export function Wordmark({
+  className,
+  href = "/",
+  label = "Rihana Montessori Academy — home",
+}: {
+  className?: string;
+  href?: string;
+  label?: string;
+}) {
   return (
     <Link
-      href="/"
-      aria-label="Rihana Montessori Academy — home"
+      href={href}
+      aria-label={label}
       className={cn("inline-flex items-center", className)}
     >
       <Image
@@ -126,7 +139,11 @@ export function Eyebrow({
   return (
     <span
       className={cn(
-        "font-display text-xs font-bold uppercase tracking-[0.16em]",
+        // `u-eyebrow` neutralises the uppercase + letter-spacing under RTL:
+        // Arabic is cursive, so tracking severs the joins between letters, and
+        // the script has no uppercase for `text-transform` to apply. See
+        // globals.css.
+        "u-eyebrow font-display text-xs font-bold uppercase tracking-[0.16em]",
         tones[tone],
       )}
     >

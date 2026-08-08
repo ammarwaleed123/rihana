@@ -35,12 +35,14 @@ export async function createInquiry(
 ): Promise<{ id: string }> {
   return prisma.inquiry.create({
     data: {
+      kind: input.kind,
       parentName: input.parentName,
       email: input.email,
       phone: input.phone ?? null,
       childFirstName: input.childFirstName ?? null,
       childDateOfBirth: input.childDateOfBirth ?? null,
       preferredStartDate: input.preferredStartDate ?? null,
+      preferredVisit: input.preferredVisit ?? null,
       message: input.message ?? null,
       ipHash: meta.ipHash,
       status: "NEW",
@@ -49,12 +51,15 @@ export async function createInquiry(
   });
 }
 
+export type InquiryKindValue = "VISIT" | "QUESTION";
+
 export type InquiryListItem = {
   id: string;
   parentName: string;
   email: string;
   phone: string | null;
   childFirstName: string | null;
+  kind: InquiryKindValue;
   status: InquiryStatusValue;
   createdAt: Date;
   handledByName: string | null;
@@ -84,6 +89,7 @@ export async function listInquiries(
       email: true,
       phone: true,
       childFirstName: true,
+      kind: true,
       status: true,
       createdAt: true,
       handledBy: { select: { name: true } },
@@ -97,6 +103,7 @@ export async function listInquiries(
       email: r.email,
       phone: r.phone,
       childFirstName: r.childFirstName,
+      kind: r.kind as InquiryKindValue,
       status: r.status as InquiryStatusValue,
       createdAt: r.createdAt,
       handledByName: r.handledBy?.name ?? null,
@@ -113,12 +120,14 @@ export async function getInquiryDetail(session: Session, id: string) {
     where: { id },
     select: {
       id: true,
+      kind: true,
       parentName: true,
       email: true,
       phone: true,
       childFirstName: true,
       childDateOfBirth: true,
       preferredStartDate: true,
+      preferredVisit: true,
       message: true,
       status: true,
       internalNotes: true,

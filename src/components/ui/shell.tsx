@@ -187,9 +187,11 @@ export function Td({
 export function NavTabs({
   items,
   current,
+  ariaLabel,
 }: {
   items: Array<{ href: string; label: string }>;
   current: string;
+  ariaLabel: string;
 }) {
   /*
    * The longest matching href wins.
@@ -206,7 +208,7 @@ export function NavTabs({
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
-    <nav aria-label="Admin sections" className="mb-8 border-b border-ink/10">
+    <nav aria-label={ariaLabel} className="mb-8 border-b border-ink/10">
       <ul className="flex flex-wrap gap-1">
         {items.map((item) => {
           const active = item.href === activeHref;

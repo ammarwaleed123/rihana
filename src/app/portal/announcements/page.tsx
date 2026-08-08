@@ -5,17 +5,14 @@ import { LoadMore } from "@/components/portal/photo-grid";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
 import { listAnnouncementsForParent } from "@/lib/data/announcements";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { LOCALE_INTL } from "@/lib/i18n/config";
 
 export const metadata: Metadata = {
   title: "Announcements",
   robots: { index: false, follow: false },
 };
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-});
 
 export default async function AnnouncementsPage({
   searchParams,
@@ -25,6 +22,15 @@ export default async function AnnouncementsPage({
   const params = await searchParams;
   const session = await requireParent("/portal/announcements");
 
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.portal.announcements;
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
   const page = await listAnnouncementsForParent(session, {
     cursor: params.cursor ?? null,
   });
@@ -32,15 +38,12 @@ export default async function AnnouncementsPage({
   return (
     <div>
       <PageHeader
-        title="Announcements"
-        description="News and reminders from the nursery."
+        title={t.title}
+        description={t.description}
       />
 
       {page.items.length === 0 ? (
-        <EmptyState
-          title="Nothing right now"
-          description="When the nursery posts news for you, it will appear here."
-        />
+        <EmptyState title={t.emptyTitle} description={t.emptyBody} />
       ) : (
         <>
           <div className="space-y-4">
@@ -69,7 +72,7 @@ export default async function AnnouncementsPage({
           {page.hasMore && page.nextCursor ? (
             <LoadMore
               href={`/portal/announcements?cursor=${encodeURIComponent(page.nextCursor)}`}
-              label="Load older"
+              label={dict.portal.common.loadOlder}
             />
           ) : null}
         </>

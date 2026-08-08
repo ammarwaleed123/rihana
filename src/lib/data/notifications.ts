@@ -526,7 +526,7 @@ export async function fanOutNewInquiry(
 ): Promise<{ created: number }> {
   const inquiry = await prisma.inquiry.findUnique({
     where: { id: inquiryId },
-    select: { id: true, parentName: true, childFirstName: true },
+    select: { id: true, parentName: true, childFirstName: true, kind: true },
   });
   if (!inquiry) return { created: 0 };
 
@@ -537,11 +537,16 @@ export async function fanOutNewInquiry(
   if (owners.length === 0) return { created: 0 };
 
   const about = inquiry.childFirstName ? ` about ${inquiry.childFirstName}` : "";
+  const isVisit = inquiry.kind === "VISIT";
+  const title = isVisit ? "New visit request" : "New website enquiry";
+  const body = isVisit
+    ? `${inquiry.parentName} asked to book a visit${about}.`
+    : `${inquiry.parentName} enquired about a place${about}.`;
   const rows = owners.map((owner) => ({
     userId: owner.id,
     type: "NEW_INQUIRY" as const,
-    title: "New website enquiry",
-    body: `${inquiry.parentName} enquired about a place${about}.`,
+    title,
+    body,
     payload: { inquiryId: inquiry.id },
     linkPath: `/admin/inquiries/${inquiry.id}`,
     dedupeKey: `inquiry:${inquiry.id}`,

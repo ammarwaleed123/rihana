@@ -4,11 +4,14 @@ import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Card, PageHeader } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { getOverviewStats } from "@/lib/data/activity";
 import { countChildren } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
 import { countNewInquiries } from "@/lib/data/inquiries";
 import { countPendingPickupApprovals } from "@/lib/data/pickup";
+import { fill, plural } from "@/lib/i18n/plural";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -46,6 +49,9 @@ function Stat({
 
 export default async function AdminHome() {
   const session = await requireStaff("/admin");
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.admin.home;
   const isOwner = session.user.role === "OWNER";
 
   const [stats, classes, childCount, pendingPickups, newInquiries] =
@@ -59,25 +65,21 @@ export default async function AdminHome() {
 
   return (
     <div>
-      <AdminNav current="/admin" role={session.user.role} />
+      <AdminNav current="/admin" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title={`Hello, ${session.user.name}`}
-        description={
-          isOwner
-            ? "You have access to the whole nursery."
-            : "You have access to the classes you are assigned to."
-        }
+        title={fill(t.greeting, { name: session.user.name })}
+        description={isOwner ? t.ownerScope : t.teacherScope}
       />
 
       {isOwner && stats ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Children enrolled" value={stats.children} href="/admin/children" />
-            <Stat label="Classes" value={stats.classes} href="/admin/classes" />
-            <Stat label="Parent accounts" value={stats.parents} href="/admin/people" />
+            <Stat label={t.statChildren} value={stats.children} href="/admin/children" />
+            <Stat label={t.statClasses} value={stats.classes} href="/admin/classes" />
+            <Stat label={t.statParents} value={stats.parents} href="/admin/people" />
             <Stat
-              label="Invitations pending"
+              label={t.statInvites}
               value={stats.pendingInvites}
               href="/admin/people"
             />
@@ -88,17 +90,15 @@ export default async function AdminHome() {
             // reach nobody, and it fails silently otherwise.
             <div className="mt-6 rounded-2xl border-2 border-sun/60 bg-sun-soft px-5 py-4">
               <p className="font-bold">
-                {stats.unlinkedChildren}{" "}
-                {stats.unlinkedChildren === 1 ? "child has" : "children have"} no
-                guardian linked
+                {plural(t.unlinkedTitle, stats.unlinkedChildren, locale)}
               </p>
               <p className="mt-1 text-sm text-ink-soft">
-                Nobody receives their photos.{" "}
+                {t.unlinkedBody}{" "}
                 <Link
                   href="/admin/children"
                   className="font-semibold text-leaf underline underline-offset-4"
                 >
-                  Review children
+                  {t.reviewChildren}
                 </Link>
               </p>
             </div>
@@ -107,17 +107,15 @@ export default async function AdminHome() {
           {newInquiries > 0 ? (
             <div className="mt-6 rounded-2xl border-2 border-leaf/40 bg-leaf-soft px-5 py-4">
               <p className="font-bold">
-                {newInquiries} new{" "}
-                {newInquiries === 1 ? "enquiry" : "enquiries"} from the website
+                {plural(t.newInquiriesTitle, newInquiries, locale)}
               </p>
               <p className="mt-1 text-sm text-ink-soft">
-                {newInquiries === 1 ? "A family is" : "Families are"} waiting to
-                hear back.{" "}
+                {plural(t.newInquiriesBody, newInquiries, locale)}{" "}
                 <Link
                   href="/admin/inquiries"
                   className="font-semibold text-leaf underline underline-offset-4"
                 >
-                  Open inquiries
+                  {t.openInquiries}
                 </Link>
               </p>
             </div>
@@ -125,59 +123,61 @@ export default async function AdminHome() {
         </>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Stat label="Your classes" value={classes.length} href="/admin/classes" />
-          <Stat label="Children in your classes" value={childCount} href="/admin/children" />
+          <Stat label={t.statYourClasses} value={classes.length} href="/admin/classes" />
+          <Stat
+            label={t.statChildrenInYourClasses}
+            value={childCount}
+            href="/admin/children"
+          />
         </div>
       )}
 
       <div className="mt-8 grid gap-5 md:grid-cols-2">
         <Card>
-          <h2 className="font-display text-xl font-semibold">Photos</h2>
-          <p className="mt-2 text-ink-soft">
-            Upload, tag and publish photos for families.
-          </p>
+          <h2 className="font-display text-xl font-semibold">{t.photosTitle}</h2>
+          <p className="mt-2 text-ink-soft">{t.photosBody}</p>
           <Link
             href="/admin/photos"
             className="mt-3 inline-block font-semibold text-leaf underline underline-offset-4"
           >
-            Go to photos
+            {t.goToPhotos}
           </Link>
         </Card>
 
         <Card>
-          <h2 className="font-display text-xl font-semibold">Pickup</h2>
+          <h2 className="font-display text-xl font-semibold">{t.pickupTitle}</h2>
           {isOwner ? (
             <>
               <p className="mt-2 text-ink-soft">
                 {pendingPickups > 0
-                  ? `${pendingPickups} pickup ${pendingPickups === 1 ? "request is" : "requests are"} waiting for your approval.`
-                  : "Nothing waiting for approval right now."}
+                  ? plural(t.pickupWaiting, pendingPickups, locale)
+                  : t.pickupNothing}
               </p>
               <div className="mt-3 flex flex-wrap gap-4">
                 <Link
                   href="/admin/pickup/approvals"
                   className="font-semibold text-leaf underline underline-offset-4"
                 >
-                  Review approvals
+                  {t.reviewApprovals}
                 </Link>
                 <Link
                   href="/admin/pickup"
                   className="font-semibold text-leaf underline underline-offset-4"
                 >
-                  Pickup board
+                  {t.pickupBoard}
                 </Link>
               </div>
             </>
           ) : (
             <>
               <p className="mt-2 text-ink-soft">
-                See who may collect each child in your classes today.
+                {t.teacherPickupBody}
               </p>
               <Link
                 href="/admin/pickup"
                 className="mt-3 inline-block font-semibold text-leaf underline underline-offset-4"
               >
-                Open the pickup board
+                {t.openPickupBoard}
               </Link>
             </>
           )}

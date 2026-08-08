@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 /**
  * Save a photo to the phone's gallery — without leaving the page.
@@ -45,7 +46,13 @@ function saveBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function DownloadPhotoButton({ photoId }: { photoId: string }) {
+export function DownloadPhotoButton({
+  photoId,
+  t,
+}: {
+  photoId: string;
+  t: Dictionary["portal"]["photo"];
+}) {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ tone: Tone; text: string } | null>(null);
   const timer = useRef<number | undefined>(undefined);
@@ -85,7 +92,7 @@ export function DownloadPhotoButton({ photoId }: { photoId: string }) {
         if (canShareFile) {
           try {
             await navigator.share({ files: [file] });
-            flash("success", "Choose “Save Image” to add it to your Photos.");
+            flash("success", t.chooseSaveImage);
             return;
           } catch (err) {
             if (err instanceof DOMException && err.name === "AbortError") return;
@@ -93,13 +100,13 @@ export function DownloadPhotoButton({ photoId }: { photoId: string }) {
           }
         }
         saveBlob(blob, filename);
-        flash("success", "Saved to your device.");
+        flash("success", t.savedDevice);
         return;
       }
 
       // Android / desktop: save to the gallery automatically…
       saveBlob(blob, filename);
-      flash("success", "Saved to your gallery.");
+      flash("success", t.savedGallery);
 
       // …then still offer the share sheet (Android), so it can be sent on. The
       // save already happened, so a dismissed or unsupported share is harmless.
@@ -111,7 +118,7 @@ export function DownloadPhotoButton({ photoId }: { photoId: string }) {
         }
       }
     } catch {
-      flash("error", "Couldn't save the photo. Please try again.");
+      flash("error", t.saveFailed);
     } finally {
       setBusy(false);
     }
@@ -126,7 +133,7 @@ export function DownloadPhotoButton({ photoId }: { photoId: string }) {
         className="inline-flex items-center gap-2 rounded-full bg-leaf px-6 py-3 font-bold text-white transition-colors hover:bg-leaf-dark disabled:opacity-70"
       >
         <DownloadIcon />
-        {busy ? "Saving…" : "Download photo"}
+        {busy ? t.downloading : t.download}
       </button>
 
       {toast ? (

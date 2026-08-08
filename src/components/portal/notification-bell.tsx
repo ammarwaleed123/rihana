@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
 
 /**
  * The notification bell.
@@ -13,16 +15,16 @@ import Link from "next/link";
  */
 export function NotificationBell({
   unread,
+  t,
   href = "/portal/notifications",
 }: {
   unread: number;
+  t: Dictionary["portal"]["bell"];
   /** Where the bell links — the parent list by default, the staff list on admin. */
   href?: string;
 }) {
   const label =
-    unread > 0
-      ? `Notifications, ${unread} unread`
-      : "Notifications";
+    unread > 0 ? fill(t.labelUnread, { n: unread }) : t.label;
 
   return (
     <Link

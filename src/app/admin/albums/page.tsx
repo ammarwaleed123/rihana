@@ -11,6 +11,8 @@ import {
   SectionTitle,
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listAlbumsForStaff } from "@/lib/data/albums";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -34,6 +36,7 @@ export default async function AlbumsPage({
 }) {
   const query = await searchParams;
   const session = await requireStaff("/admin/albums");
+  const dict = await getDictionary(await getAppLocale());
 
   // Both scoped: a teacher sees, and can create albums for, their own classes.
   const [albums, classes] = await Promise.all([
@@ -45,7 +48,7 @@ export default async function AlbumsPage({
 
   return (
     <div>
-      <AdminNav current="/admin/albums" role={session.user.role} />
+      <AdminNav current="/admin/albums" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
         title="Albums"

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listClassesForSession } from "@/lib/data/classes";
 import { countPendingPickupApprovals, getDoorBoard } from "@/lib/data/pickup";
 
@@ -23,6 +25,8 @@ export default async function PickupBoardPage({
   searchParams: Promise<{ classId?: string }>;
 }) {
   const session = await requireStaff("/admin/pickup");
+  const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.pickupBoard;
   const { classId } = await searchParams;
   const isOwner = session.user.role === "OWNER";
 
@@ -37,18 +41,18 @@ export default async function PickupBoardPage({
 
   return (
     <div>
-      <AdminNav current="/admin/pickup" role={session.user.role} />
+      <AdminNav current="/admin/pickup" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Pickup board"
-        description="Who may collect each child today. Only approved people appear — anyone still awaiting approval is not shown."
+        title={t.title}
+        description={t.description}
         action={
           isOwner ? (
             <Link
               href="/admin/pickup/approvals"
               className="inline-flex items-center gap-2 rounded-full bg-leaf px-5 py-2.5 font-bold text-white transition-colors hover:bg-leaf-dark"
             >
-              Approvals
+              {t.approvalsButton}
               {pending > 0 ? (
                 <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-white/25 px-2 py-0.5 text-sm">
                   {pending}
@@ -62,7 +66,7 @@ export default async function PickupBoardPage({
       {classes.length > 1 ? (
         <form method="get" className="mb-6">
           <label htmlFor="class-filter" className="mr-2 text-sm font-bold">
-            Class
+            {t.classLabel}
           </label>
           <select
             id="class-filter"
@@ -70,7 +74,7 @@ export default async function PickupBoardPage({
             defaultValue={classId ?? ""}
             className="rounded-xl border-2 border-ink/15 bg-card px-3 py-2 text-sm"
           >
-            <option value="">All classes</option>
+            <option value="">{t.allClasses}</option>
             {classes.map((klass) => (
               <option key={klass.id} value={klass.id}>
                 {klass.name}
@@ -81,22 +85,22 @@ export default async function PickupBoardPage({
             type="submit"
             className="ml-2 rounded-full border-2 border-ink/15 bg-card px-4 py-2 text-sm font-bold hover:border-leaf"
           >
-            Show
+            {t.show}
           </button>
         </form>
       ) : null}
 
       {board.length === 0 ? (
         <EmptyState
-          title="No children to show"
-          description="There are no active children in view. Once children are enrolled, their pickup arrangements appear here."
+          title={t.emptyTitle}
+          description={t.emptyBody}
         />
       ) : (
         <div className="space-y-8">
           {groups.map((group) => (
             <section key={group.className ?? "none"}>
               <h2 className="mb-3 font-display text-xl font-semibold">
-                {group.className ?? "No class"}
+                {group.className ?? t.noClass}
               </h2>
               <ul className="grid gap-4 md:grid-cols-2">
                 {group.children.map((child) => (
@@ -107,20 +111,19 @@ export default async function PickupBoardPage({
                           {child.firstName} {child.lastName}
                         </p>
                         {child.method === "BUS" ? (
-                          <Badge tone="sky">🚌 Nursery bus</Badge>
+                          <Badge tone="sky">🚌 {t.busBadge}</Badge>
                         ) : (
-                          <Badge tone="green">Door collection</Badge>
+                          <Badge tone="green">{t.doorCollection}</Badge>
                         )}
                       </div>
 
                       {child.method === "BUS" ? (
                         <p className="mt-3 text-sm text-ink-soft">
-                          Goes home on the nursery bus.
+                          {t.busNote}
                         </p>
                       ) : child.people.length === 0 ? (
                         <p className="mt-3 rounded-lg bg-coral-soft px-3 py-2 text-sm font-semibold text-danger">
-                          No approved pickup person yet — check with the office
-                          before releasing this child.
+                          {t.noApprovedPerson}
                         </p>
                       ) : (
                         <ul className="mt-3 space-y-2">

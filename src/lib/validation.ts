@@ -109,6 +109,35 @@ export const email = z
  */
 const EGYPT_MOBILE = /^01[0125]\d{8}$/;
 
+/**
+ * Fold Arabic-Indic digits to ASCII.
+ *
+ * An Arabic keyboard produces ٠١٢٣٤٥٦٧٨٩ (U+0660–U+0669), and Persian/Urdu
+ * layouts produce ۰۱۲۳۴۵۶۷۸۹ (U+06F0–U+06F9). JavaScript's `\d` matches ASCII
+ * digits only, so without this step every one of those characters is stripped
+ * as punctuation and a perfectly valid number typed in Arabic is rejected —
+ * exactly the parent the Arabic site is for.
+ */
+function toAsciiDigits(input: string): string {
+  return input.replace(/[٠-٩۰-۹]/g, (ch) => {
+    const code = ch.charCodeAt(0);
+    const base = code >= 0x06f0 ? 0x06f0 : 0x0660;
+    return String(code - base);
+  });
+}
+
+/** Shared normalisation: Arabic digits → ASCII, strip formatting, fold +20/0020. */
+function normalizeEgyptianMobile(raw: string): string {
+  let digits = toAsciiDigits(raw).replace(/\D/g, "");
+  // 0020… (international access code) -> 20…
+  if (digits.startsWith("0020")) digits = digits.slice(2);
+  // 20 1x xxxx xxxx (country code, leading 0 dropped) -> 01x xxxx xxxx
+  if (digits.startsWith("20") && digits.length === 12) {
+    digits = `0${digits.slice(2)}`;
+  }
+  return digits;
+}
+
 export const phone = z
   .string()
   .trim()
@@ -118,14 +147,7 @@ export const phone = z
     // dropped — so absence is `null` here and garbage stays a non-null string.
     if (raw === "") return null;
 
-    let digits = raw.replace(/\D/g, "");
-    // 0020… (international access code) -> 20…
-    if (digits.startsWith("0020")) digits = digits.slice(2);
-    // 20 1x xxxx xxxx (country code, leading 0 dropped) -> 01x xxxx xxxx
-    if (digits.startsWith("20") && digits.length === 12) {
-      digits = `0${digits.slice(2)}`;
-    }
-    return digits;
+    return normalizeEgyptianMobile(raw);
   })
   .refine(
     (value) => value === null || EGYPT_MOBILE.test(value),
@@ -144,14 +166,7 @@ export const requiredPhone = z
   .string()
   .trim()
   .min(1, "A phone number is required")
-  .transform((raw) => {
-    let digits = raw.replace(/\D/g, "");
-    if (digits.startsWith("0020")) digits = digits.slice(2);
-    if (digits.startsWith("20") && digits.length === 12) {
-      digits = `0${digits.slice(2)}`;
-    }
-    return digits;
-  })
+  .transform(normalizeEgyptianMobile)
   .refine(
     (value) => EGYPT_MOBILE.test(value),
     "Enter a valid Egyptian mobile number, e.g. 01012345678",
@@ -351,28 +366,44 @@ const optionalStartDate = z
   .transform((v) => (v ? new Date(v) : null))
   .refine((d) => d === null || !Number.isNaN(d.getTime()), "Enter a valid date");
 
-export const inquiryInput = z.object({
-  parentName: personName,
-  email,
-  // Required: staff want a number to call a prospective family back on.
-  phone: requiredPhone,
-  childFirstName: z
-    .string()
-    .trim()
-    .max(80, "Please keep the name under 80 characters")
-    .optional()
-    // Length is checked above; an empty field becomes a genuine "not given"
-    // (undefined) rather than an empty string, so it stores as null.
-    .transform((v) => (v ? v : undefined)),
-  childDateOfBirth: optionalChildDob,
-  preferredStartDate: optionalStartDate,
-  message: z
-    .string()
-    .trim()
-    .max(2000, "Please keep your message under 2000 characters")
-    .optional()
-    .transform((v) => (v ? v : undefined)),
-});
+export const inquiryInput = z
+  .object({
+    // Why they got in touch. Defaults to a question so an old/edge submission
+    // without the field is still valid.
+    kind: z.enum(["VISIT", "QUESTION"]).default("QUESTION"),
+    parentName: personName,
+    email,
+    // Required: staff want a number to call a prospective family back on.
+    phone: requiredPhone,
+    childFirstName: z
+      .string()
+      .trim()
+      .max(80, "Please keep the name under 80 characters")
+      .optional()
+      // Length is checked above; an empty field becomes a genuine "not given"
+      // (undefined) rather than an empty string, so it stores as null.
+      .transform((v) => (v ? v : undefined)),
+    childDateOfBirth: optionalChildDob,
+    preferredStartDate: optionalStartDate,
+    // Free text for a visit request — "weekday mornings", "Tuesday after 2pm".
+    preferredVisit: z
+      .string()
+      .trim()
+      .max(200, "Please keep this under 200 characters")
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+    message: z
+      .string()
+      .trim()
+      .max(2000, "Please keep your message under 2000 characters")
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+  })
+  // A question needs a question; a visit request can be booked with no message.
+  .refine((val) => val.kind !== "QUESTION" || Boolean(val.message), {
+    path: ["message"],
+    message: "Please tell us how we can help.",
+  });
 
 export type InquiryInput = z.infer<typeof inquiryInput>;
 

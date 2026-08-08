@@ -10,7 +10,7 @@ import {
   updatePickupPersonAction,
   type PickupState,
 } from "@/lib/portal/pickup-actions";
-import { pickupMethodLabels } from "@/lib/validation";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
@@ -21,17 +21,11 @@ function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }
   );
 }
 
-/** Suggestions only — the field accepts anything a parent types. */
-const RELATIONSHIP_SUGGESTIONS = [
-  "Grandmother",
-  "Grandfather",
-  "Aunt",
-  "Uncle",
-  "Sibling",
-  "Family friend",
-  "Nanny",
-  "Neighbour",
-];
+/**
+ * Suggestions only — the field accepts anything a parent types.
+ * Translated, because "Grandmother" in a datalist is no use to an Arabic reader.
+ */
+type PickupStrings = Dictionary["portal"]["pickupForm"];
 
 type PersonDefaults = {
   fullName?: string;
@@ -45,29 +39,31 @@ function PersonFields({
   defaults,
   hasPhoto,
   personId,
+  t,
 }: {
   errors?: Record<string, string>;
   defaults?: PersonDefaults;
   hasPhoto?: boolean;
   personId?: string;
+  t: PickupStrings;
 }) {
   return (
     <>
-      <Field label="Full name" htmlFor="pickup-name" error={errors?.fullName}>
+      <Field label={t.fullName} htmlFor="pickup-name" error={errors?.fullName}>
         <Input
           id="pickup-name"
           name="fullName"
           required
           autoComplete="off"
           defaultValue={defaults?.fullName}
-          placeholder="e.g. Fatima Saeed"
+          placeholder={t.fullNamePlaceholder}
         />
       </Field>
 
       <Field
-        label="Relationship to the child"
+        label={t.relationship}
         htmlFor="pickup-relationship"
-        hint="How they know the child — grandmother, family friend, and so on."
+        hint={t.relationshipHint}
         error={errors?.relationship}
       >
         <Input
@@ -79,16 +75,16 @@ function PersonFields({
           defaultValue={defaults?.relationship}
         />
         <datalist id="relationship-suggestions">
-          {RELATIONSHIP_SUGGESTIONS.map((r) => (
+          {t.relationshipSuggestions.map((r) => (
             <option key={r} value={r} />
           ))}
         </datalist>
       </Field>
 
       <Field
-        label="Phone number"
+        label={t.phone}
         htmlFor="pickup-phone"
-        hint="Egyptian mobile, e.g. 01012345678. Staff may call to confirm at the door."
+        hint={t.phoneHint}
         error={errors?.phone}
       >
         <Input
@@ -104,9 +100,9 @@ function PersonFields({
       </Field>
 
       <Field
-        label="Only allowed until (optional)"
+        label={t.expires}
         htmlFor="pickup-expires"
-        hint="Leave blank for an ongoing arrangement. Set a date for a one-off, e.g. a grandparent visiting this week."
+        hint={t.expiresHint}
         error={errors?.expiresAt}
       >
         <Input
@@ -118,9 +114,9 @@ function PersonFields({
       </Field>
 
       <Field
-        label="Photo (optional)"
+        label={t.photo}
         htmlFor="pickup-photo"
-        hint="A clear photo of their face helps staff recognise them at the door."
+        hint={t.photoHint}
         error={errors?.photo}
       >
         {hasPhoto && personId ? (
@@ -155,12 +151,20 @@ function PersonFields({
  * form and the add form); a shared id would be a duplicate on the page and make
  * the label ambiguous.
  */
-function ConfirmPassword({ id, error }: { id: string; error?: string }) {
+function ConfirmPassword({
+  id,
+  error,
+  t,
+}: {
+  id: string;
+  error?: string;
+  t: PickupStrings;
+}) {
   return (
     <Field
-      label="Confirm your password"
+      label={t.confirmPassword}
       htmlFor={id}
-      hint="For your child's safety, changes to who can collect them need your password."
+      hint={t.confirmPasswordHint}
       error={error}
     >
       <Input
@@ -179,7 +183,13 @@ function ConfirmPassword({ id, error }: { id: string; error?: string }) {
   );
 }
 
-export function AddPickupPersonForm({ childId }: { childId: string }) {
+export function AddPickupPersonForm({
+  childId,
+  t,
+}: {
+  childId: string;
+  t: PickupStrings;
+}) {
   const [state, action] = useActionState<PickupState, FormData>(
     addPickupPersonAction,
     {},
@@ -190,13 +200,15 @@ export function AddPickupPersonForm({ childId }: { childId: string }) {
       <input type="hidden" name="childId" value={childId} />
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
-      <PersonFields errors={state.errors} />
-      <ConfirmPassword id="add-password" error={state.errors?.currentPassword} />
+      <PersonFields errors={state.errors} t={t} />
+      <ConfirmPassword
+        id="add-password"
+        error={state.errors?.currentPassword}
+        t={t}
+      />
 
-      <Submit label="Send for approval" pendingLabel="Sending…" />
-      <p className="text-sm text-ink-soft">
-        The nursery reviews everyone you add before they can collect your child.
-      </p>
+      <Submit label={t.sendForApproval} pendingLabel={t.sending} />
+      <p className="text-sm text-ink-soft">{t.reviewNote}</p>
     </form>
   );
 }
@@ -204,8 +216,10 @@ export function AddPickupPersonForm({ childId }: { childId: string }) {
 export function EditPickupPersonForm({
   childId,
   person,
+  t,
 }: {
   childId: string;
+  t: PickupStrings;
   person: {
     id: string;
     fullName: string;
@@ -226,9 +240,7 @@ export function EditPickupPersonForm({
       <input type="hidden" name="pickupPersonId" value={person.id} />
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
-      <Alert tone="info">
-        Editing sends this person back to the nursery for approval again.
-      </Alert>
+      <Alert tone="info">{t.editResubmitNote}</Alert>
 
       <PersonFields
         errors={state.errors}
@@ -240,10 +252,15 @@ export function EditPickupPersonForm({
         }}
         hasPhoto={person.hasPhoto}
         personId={person.id}
+        t={t}
       />
-      <ConfirmPassword id="edit-password" error={state.errors?.currentPassword} />
+      <ConfirmPassword
+        id="edit-password"
+        error={state.errors?.currentPassword}
+        t={t}
+      />
 
-      <Submit label="Save changes" pendingLabel="Saving…" />
+      <Submit label={t.saveChanges} pendingLabel={t.saving} />
     </form>
   );
 }
@@ -251,9 +268,11 @@ export function EditPickupPersonForm({
 export function PickupMethodForm({
   childId,
   method,
+  t,
 }: {
   childId: string;
   method: "HANDOVER" | "BUS";
+  t: PickupStrings;
 }) {
   const [state, action] = useActionState<PickupState, FormData>(
     setPickupMethodAction,
@@ -275,25 +294,29 @@ export function PickupMethodForm({
       */}
       <fieldset key={method} className="space-y-2">
         <legend className="mb-1 text-sm font-bold text-ink">
-          How does this child go home?
+          {t.methodLegend}
         </legend>
         <MethodRadio
           value="HANDOVER"
-          label={pickupMethodLabels.HANDOVER}
-          description="Collected by you or someone you've had approved."
+          label={t.methodHandover}
+          description={t.methodHandoverDesc}
           defaultChecked={method === "HANDOVER"}
         />
         <MethodRadio
           value="BUS"
-          label={pickupMethodLabels.BUS}
-          description="Goes home on the nursery bus. No door pickup people needed."
+          label={t.methodBus}
+          description={t.methodBusDesc}
           defaultChecked={method === "BUS"}
         />
       </fieldset>
 
-      <ConfirmPassword id="method-password" error={state.errors?.currentPassword} />
+      <ConfirmPassword
+        id="method-password"
+        error={state.errors?.currentPassword}
+        t={t}
+      />
 
-      <Submit label="Save arrangement" pendingLabel="Saving…" />
+      <Submit label={t.saveArrangement} pendingLabel={t.saving} />
     </form>
   );
 }

@@ -11,6 +11,8 @@ import {
   SectionTitle,
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listAnnouncementsForStaff } from "@/lib/data/announcements";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -34,6 +36,7 @@ export default async function AnnouncementsPage({
 }) {
   const query = await searchParams;
   const session = await requireStaff("/admin/announcements");
+  const dict = await getDictionary(await getAppLocale());
 
   const [announcements, classes] = await Promise.all([
     listAnnouncementsForStaff(session),
@@ -44,7 +47,7 @@ export default async function AnnouncementsPage({
 
   return (
     <div>
-      <AdminNav current="/admin/announcements" role={session.user.role} />
+      <AdminNav current="/admin/announcements" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
         title="Announcements"

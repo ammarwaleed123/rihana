@@ -6,6 +6,8 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { Badge, Card, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { getChildDetail } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listParentsForPicker } from "@/lib/data/people";
@@ -30,6 +32,7 @@ export default async function ChildDetailPage({
 }) {
   const { childId } = await params;
   const session = await requireStaff(`/admin/children/${childId}`);
+  const dict = await getDictionary(await getAppLocale());
 
   // getChildDetail throws NotFound for a child outside the caller's scope, so a
   // teacher guessing an id from another class gets a 404 — not a 403, which
@@ -55,7 +58,7 @@ export default async function ChildDetailPage({
 
   return (
     <div>
-      <AdminNav current="/admin/children" role={session.user.role} />
+      <AdminNav current="/admin/children" role={session.user.role} t={dict.admin.nav} />
 
       <p className="mb-4">
         <Link

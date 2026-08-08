@@ -38,8 +38,13 @@
   --color-danger: #d2483c;
 
   /* Type */
-  --font-display: var(--font-fredoka), ui-rounded, "Segoe UI", sans-serif;
-  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  /* Latin face first, Arabic face second. Font fallback is per-glyph, so a
+     mixed Arabic/Latin line picks the right face for each character with no
+     conditional styling. */
+  --font-display: var(--font-fredoka), var(--font-baloo-arabic), ui-rounded,
+    "Segoe UI", sans-serif;
+  --font-sans: var(--font-nunito), var(--font-tajawal), ui-sans-serif, system-ui,
+    sans-serif;
 
   /* Bulletin-board depth: paper pinned to cork, not material elevation */
   --shadow-pin: 0 2px 0 0 rgb(51 64 47 / 0.08), 0 6px 16px -6px rgb(51 64 47 / 0.18);
@@ -80,6 +85,31 @@
     letter-spacing: -0.01em;
     color: var(--color-ink);
   }
+
+  /*
+   * Arabic typography corrections.
+   *
+   * Arabic is a cursive script: adjusting letter-spacing pulls the glyphs apart
+   * and breaks the joins that make a word legible, so every tracking value has
+   * to be neutralised rather than merely reduced. There is also no letter case,
+   * which makes `text-transform: uppercase` a no-op at best.
+   *
+   * Arabic glyphs also sit taller and deeper than Latin ones, so the tight
+   * display leading set above crowds them; a little more room restores it.
+   */
+  [dir="rtl"] h1,
+  [dir="rtl"] h2,
+  [dir="rtl"] h3,
+  [dir="rtl"] h4 {
+    letter-spacing: normal;
+    line-height: 1.3;
+  }
+
+  [dir="rtl"] .u-eyebrow {
+    letter-spacing: normal;
+    text-transform: none;
+  }
+
 
   /* Visible focus everywhere. Never remove this without a replacement. */
   :focus-visible {

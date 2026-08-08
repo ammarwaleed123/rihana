@@ -6,6 +6,9 @@ import { Card, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { NotFoundError } from "@/lib/auth/errors";
 import { requireParent } from "@/lib/auth/scope";
 import { getChildPickupDetail } from "@/lib/data/pickup";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill } from "@/lib/i18n/plural";
 
 import { EditPickupPersonForm } from "../../../pickup-forms";
 
@@ -30,6 +33,9 @@ export default async function EditPickupPersonPage({
     `/portal/pickup/${childId}/${personId}/edit`,
   );
 
+  const dict = await getDictionary(await getAppLocale());
+  const t = dict.portal.pickupForm;
+
   let detail;
   try {
     detail = await getChildPickupDetail(session, childId);
@@ -48,13 +54,18 @@ export default async function EditPickupPersonPage({
           href={`/portal/pickup/${childId}`}
           className="text-sm font-semibold text-leaf underline underline-offset-4"
         >
-          ← Back to {detail.child.firstName}
+          <span aria-hidden className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {fill(t.editBackTo, { name: detail.child.firstName })}
         </Link>
       </div>
 
       <PageHeader
-        title="Edit pickup person"
-        description={`For ${detail.child.firstName} ${detail.child.lastName}`}
+        title={t.editTitle}
+        description={fill(t.editFor, {
+          name: `${detail.child.firstName} ${detail.child.lastName}`,
+        })}
       />
 
       <Card>
@@ -69,6 +80,7 @@ export default async function EditPickupPersonPage({
             expiresAt: toDateInput(person.expiresAt),
             hasPhoto: person.hasPhoto,
           }}
+          t={t}
         />
       </Card>
     </div>

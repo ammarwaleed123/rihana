@@ -1,15 +1,22 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Alert, Button, Field, Input } from "@/components/ui/form";
+import { cn } from "@/lib/cn";
+import { LOCALES, LOCALE_LABEL, type Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
 import {
   changePasswordAction,
   updateContactDetailsAction,
+  updateLocaleAction,
   updatePreferencesAction,
   type AccountState,
 } from "@/lib/portal/account-actions";
+
+type FormStrings = Dictionary["portal"]["forms"];
 
 function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
@@ -23,9 +30,11 @@ function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }
 export function ContactDetailsForm({
   name,
   phone,
+  t,
 }: {
   name: string;
   phone: string | null;
+  t: FormStrings;
 }) {
   const [state, action] = useActionState<AccountState, FormData>(
     updateContactDetailsAction,
@@ -37,7 +46,7 @@ export function ContactDetailsForm({
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
-      <Field label="Your name" htmlFor="account-name" error={state.errors?.name}>
+      <Field label={t.yourName} htmlFor="account-name" error={state.errors?.name}>
         <Input
           id="account-name"
           name="name"
@@ -48,9 +57,9 @@ export function ContactDetailsForm({
       </Field>
 
       <Field
-        label="Phone"
+        label={t.phone}
         htmlFor="account-phone"
-        hint="Egyptian mobile, e.g. 01012345678. Used by the nursery to reach you. Optional."
+        hint={t.phoneHint}
         error={state.errors?.phone}
       >
         <Input
@@ -64,13 +73,19 @@ export function ContactDetailsForm({
         />
       </Field>
 
-      <Submit label="Save details" pendingLabel="Saving…" />
+      <Submit label={t.saveDetails} pendingLabel={t.saving} />
     </form>
   );
 }
 
 
-export function ChangePasswordForm({ minLength }: { minLength: number }) {
+export function ChangePasswordForm({
+  minLength,
+  t,
+}: {
+  minLength: number;
+  t: FormStrings;
+}) {
   const [state, action] = useActionState<AccountState, FormData>(
     changePasswordAction,
     {},
@@ -82,7 +97,7 @@ export function ChangePasswordForm({ minLength }: { minLength: number }) {
       {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
       <Field
-        label="Current password"
+        label={t.currentPassword}
         htmlFor="current-password"
         error={state.errors?.currentPassword}
       >
@@ -96,9 +111,9 @@ export function ChangePasswordForm({ minLength }: { minLength: number }) {
       </Field>
 
       <Field
-        label="New password"
+        label={t.newPassword}
         htmlFor="new-password"
-        hint={`At least ${minLength} characters. A short phrase you will remember works well.`}
+        hint={fill(t.newPasswordHint, { min: minLength })}
         error={state.errors?.password}
       >
         <Input
@@ -112,7 +127,7 @@ export function ChangePasswordForm({ minLength }: { minLength: number }) {
       </Field>
 
       <Field
-        label="Confirm new password"
+        label={t.confirmNewPassword}
         htmlFor="confirm-password"
         error={state.errors?.confirmPassword}
       >
@@ -125,10 +140,8 @@ export function ChangePasswordForm({ minLength }: { minLength: number }) {
         />
       </Field>
 
-      <Submit label="Change password" pendingLabel="Changing…" />
-      <p className="text-sm text-ink-soft">
-        Changing your password signs out every other device using this account.
-      </p>
+      <Submit label={t.changePassword} pendingLabel={t.changing} />
+      <p className="text-sm text-ink-soft">{t.passwordSignsOutNote}</p>
     </form>
   );
 }
@@ -140,14 +153,88 @@ export function ChangePasswordForm({ minLength }: { minLength: number }) {
  * uncontrolled box clicked before hydration can be visually accepted and then
  * reverted, saving the wrong value for a setting people expect to stick.
  */
+/**
+ * Interface language.
+ *
+ * Each option is written in its own language — someone who cannot read the
+ * current interface must still be able to find their way out of it. Submitting
+ * reloads the shell in the new direction, so no confirmation step is needed:
+ * the result is immediately visible and immediately reversible.
+ */
+export function LanguageForm({
+  current,
+  labels,
+  returnTo,
+}: {
+  current: Locale;
+  labels: { legend: string; save: string; saving: string };
+  /** Which account page to come back to; validated against a fixed list server-side. */
+  returnTo: string;
+}) {
+  const [state, action] = useActionState<AccountState, FormData>(
+    updateLocaleAction,
+    {},
+  );
+  const [choice, setChoice] = useState<Locale>(current);
+
+  /*
+   * A full page load, not a router push. `<html lang dir>` comes from the root
+   * layout, which a soft navigation never re-renders — so without this the
+   * interface would keep the old language until the next hard reload, and the
+   * save would look like it had not worked.
+   */
+  const reloadTo = state.reloadTo;
+  useEffect(() => {
+    if (reloadTo) window.location.assign(reloadTo);
+  }, [reloadTo]);
+
+  return (
+    <form action={action} className="space-y-4">
+      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
+      {state.success ? <Alert tone="success">{state.success}</Alert> : null}
+
+      <fieldset>
+        <legend className="mb-2 block text-sm font-bold text-ink">
+          {labels.legend}
+        </legend>
+        <div className="flex flex-wrap gap-2.5">
+          {LOCALES.map((code) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => setChoice(code)}
+              aria-pressed={choice === code}
+              lang={code}
+              className={cn(
+                "rounded-xl border-2 px-4 py-2.5 font-bold transition-colors",
+                choice === code
+                  ? "border-leaf bg-leaf text-white"
+                  : "border-ink/15 bg-card text-ink-soft hover:border-leaf hover:text-ink",
+              )}
+            >
+              {LOCALE_LABEL[code]}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <input type="hidden" name="locale" value={choice} />
+      <input type="hidden" name="returnTo" value={returnTo} />
+      <Submit label={labels.save} pendingLabel={labels.saving} />
+    </form>
+  );
+}
+
 export function PreferencesForm({
   defaults,
+  t,
 }: {
   defaults: {
     emailNewPhotos: boolean;
     emailAnnouncements: boolean;
     emailPickupUpdates: boolean;
   };
+  t: FormStrings;
 }) {
   const [state, action] = useActionState<AccountState, FormData>(
     updatePreferencesAction,
@@ -163,32 +250,28 @@ export function PreferencesForm({
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
-      <p className="text-sm text-ink-soft">
-        Choose what you&rsquo;re notified about. These apply to the phone
-        notifications that arrive once you add the app to your home screen — the
-        in-app bell always shows everything.
-      </p>
+      <p className="text-sm text-ink-soft">{t.prefsIntro}</p>
 
       <PrefRow
-        label="New photos of my child"
+        label={t.prefNewPhotos}
         checked={prefs.emailNewPhotos}
         onChange={toggle("emailNewPhotos")}
         name="emailNewPhotos"
       />
       <PrefRow
-        label="Announcements from the nursery"
+        label={t.prefAnnouncements}
         checked={prefs.emailAnnouncements}
         onChange={toggle("emailAnnouncements")}
         name="emailAnnouncements"
       />
       <PrefRow
-        label="Pickup authorisation updates"
+        label={t.prefPickup}
         checked={prefs.emailPickupUpdates}
         onChange={toggle("emailPickupUpdates")}
         name="emailPickupUpdates"
       />
 
-      <Submit label="Save preferences" pendingLabel="Saving…" />
+      <Submit label={t.savePreferences} pendingLabel={t.saving} />
     </form>
   );
 }

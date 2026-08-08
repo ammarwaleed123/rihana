@@ -1,4 +1,7 @@
 import { cn } from "@/lib/cn";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+
+type StatusStrings = Dictionary["portal"]["pickupStatus"];
 
 /**
  * The status of a pickup person, as a single glanceable pill.
@@ -11,11 +14,13 @@ import { cn } from "@/lib/cn";
 export function PickupStatusBadge({
   status,
   isExpired = false,
+  t,
 }: {
   status: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
   isExpired?: boolean;
+  t: StatusStrings;
 }) {
-  const { label, tone } = describe(status, isExpired);
+  const { label, tone } = describe(status, isExpired, t);
 
   return (
     <span
@@ -32,18 +37,19 @@ export function PickupStatusBadge({
 function describe(
   status: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED",
   isExpired: boolean,
+  t: StatusStrings,
 ): { label: string; tone: string } {
   if (status === "APPROVED" && isExpired) {
-    return { label: "Expired", tone: "bg-ink/10 text-ink-soft" };
+    return { label: t.expired, tone: "bg-ink/10 text-ink-soft" };
   }
   switch (status) {
     case "APPROVED":
-      return { label: "Approved", tone: "bg-leaf-soft text-leaf-dark" };
+      return { label: t.approved, tone: "bg-leaf-soft text-leaf-dark" };
     case "PENDING":
-      return { label: "Awaiting approval", tone: "bg-sun-soft text-warning" };
+      return { label: t.pending, tone: "bg-sun-soft text-warning" };
     case "REJECTED":
-      return { label: "Not approved", tone: "bg-coral-soft text-danger" };
+      return { label: t.rejected, tone: "bg-coral-soft text-danger" };
     case "REVOKED":
-      return { label: "Removed", tone: "bg-ink/10 text-ink-soft" };
+      return { label: t.revoked, tone: "bg-ink/10 text-ink-soft" };
   }
 }

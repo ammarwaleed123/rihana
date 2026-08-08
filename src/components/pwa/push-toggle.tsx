@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, BellOff, Loader2 } from "lucide-react";
 
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/pwa/push-actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 /**
  * Turn lock-screen push on or off for the current device.
@@ -28,7 +29,7 @@ function urlBase64ToUint8Array(base64String: string) {
 
 type State = "loading" | "unsupported" | "denied" | "off" | "on" | "working";
 
-export function PushToggle() {
+export function PushToggle({ t }: { t: Dictionary["portal"]["push"] }) {
   const [state, setState] = useState<State>("loading");
 
   useEffect(() => {
@@ -95,7 +96,7 @@ export function PushToggle() {
   }
 
   if (state === "loading") {
-    return <p className="text-sm text-ink-soft">Checking notifications…</p>;
+    return <p className="text-sm text-ink-soft">{t.checking}</p>;
   }
 
   if (state === "unsupported") {
@@ -139,15 +140,15 @@ export function PushToggle() {
           <Bell className="size-4" aria-hidden="true" />
         )}
         {busy
-          ? "Just a moment…"
+          ? t.justAMoment
           : on
-            ? "Turn off on this device"
-            : "Turn on notifications"}
+            ? t.turnOff
+            : t.turnOn}
       </button>
       <span className="text-sm text-ink-soft">
         {on
-          ? "On for this device — you’ll get a push for new photos, announcements and pickup updates."
-          : "Get a push on this device when something new arrives."}
+          ? t.onDescription
+          : t.offDescription}
       </span>
     </div>
   );

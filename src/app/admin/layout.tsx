@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { BrandLogo } from "@/components/brand-logo";
 import { AppBadgeSync } from "@/components/pwa/app-badge-sync";
 import { InstallHint } from "@/components/pwa/install-hint";
@@ -5,8 +7,9 @@ import { SessionLock } from "@/components/pwa/session-lock";
 import { SessionLockBoot } from "@/components/pwa/session-lock-boot";
 import { NotificationBell } from "@/components/portal/notification-bell";
 import { ADMIN_LOCK_MS } from "@/lib/pwa/portal-lock";
-import { SignOutButton } from "@/components/sign-out-button";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { unreadNotificationCount } from "@/lib/data/notifications";
 
 /**
@@ -29,6 +32,7 @@ export default async function AdminLayout({
 }) {
   const session = await requireStaff("/admin");
   const unread = await unreadNotificationCount(session);
+  const dict = await getDictionary(await getAppLocale());
 
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
@@ -41,16 +45,27 @@ export default async function AdminLayout({
           <div className="flex min-w-0 items-center gap-3">
             <BrandLogo href="/admin" />
             <span className="whitespace-nowrap rounded-full bg-sun-soft px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-ink">
-              {session.user.role === "OWNER" ? "Owner" : "Teacher"}
+              {session.user.role === "OWNER"
+                ? dict.admin.roleOwner
+                : dict.admin.roleTeacher}
             </span>
           </div>
 
+          {/* Sign out lives on the Account page now, the same as it does for
+              parents — beside the bell it was a mis-tap away from ending a
+              teacher's shift mid-upload. The name is the way in. */}
           <div className="flex shrink-0 items-center gap-3">
-            <span className="hidden max-w-[16ch] truncate text-sm text-ink-soft sm:inline">
+            <Link
+              href="/admin/account"
+              className="hidden max-w-[16ch] truncate rounded-full px-2 py-1 text-sm text-ink-soft transition-colors hover:bg-paper hover:text-ink sm:inline-block"
+            >
               {session.user.name}
-            </span>
-            <NotificationBell unread={unread} href="/admin/notifications" />
-            <SignOutButton />
+            </Link>
+            <NotificationBell
+              unread={unread}
+              href="/admin/notifications"
+              t={dict.portal.bell}
+            />
           </div>
         </div>
       </header>

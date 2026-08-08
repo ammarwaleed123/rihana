@@ -4,6 +4,9 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
 import { getParentPickupSummary } from "@/lib/data/pickup";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { plural } from "@/lib/i18n/plural";
 
 export const metadata: Metadata = {
   title: "Pickup",
@@ -14,18 +17,19 @@ export default async function PickupOverviewPage() {
   const session = await requireParent("/portal/pickup");
   const children = await getParentPickupSummary(session);
 
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.portal.pickup;
+
   return (
     <div>
       <PageHeader
-        title="Pickup"
-        description="Say who may collect each of your children — or that they ride the nursery bus. Everyone you add is checked by the nursery before they can collect."
+        title={t.title}
+        description={t.description}
       />
 
       {children.length === 0 ? (
-        <EmptyState
-          title="No children linked yet"
-          description="When the nursery links a child to your account, you can set up who may collect them here."
-        />
+        <EmptyState title={t.emptyTitle} description={t.emptyBody} />
       ) : (
         <ul className="space-y-3">
           {children.map((child) => (
@@ -39,32 +43,36 @@ export default async function PickupOverviewPage() {
                     {child.firstName} {child.lastName}
                   </p>
                   <p className="mt-0.5 text-sm text-ink-soft">
-                    {child.className ?? "No class"}
+                    {child.className ?? t.noClass}
                   </p>
                   <p className="mt-1 text-sm font-semibold">
                     {child.method === "BUS" ? (
-                      <span className="text-leaf-dark">🚌 Rides the nursery bus</span>
+                      <span className="text-leaf-dark">🚌 {t.ridesBus}</span>
                     ) : (
                       <>
                         <span className="text-leaf-dark">
-                          {child.approvedCount} approved
+                          {plural(t.approvedCount, child.approvedCount, locale)}
                         </span>
                         {child.pendingCount > 0 ? (
                           <span className="text-warning">
                             {" · "}
-                            {child.pendingCount} awaiting approval
+                            {plural(t.pendingCount, child.pendingCount, locale)}
                           </span>
                         ) : null}
                         {child.approvedCount === 0 && child.pendingCount === 0 ? (
                           <span className="text-ink-faint">
-                            {" · "}No one added yet
+                            {" · "}
+                            {t.noneYet}
                           </span>
                         ) : null}
                       </>
                     )}
                   </p>
                 </div>
-                <span aria-hidden className="shrink-0 text-ink-faint">
+                <span
+                  aria-hidden
+                  className="shrink-0 text-ink-faint rtl:-scale-x-100"
+                >
                   ›
                 </span>
               </Link>

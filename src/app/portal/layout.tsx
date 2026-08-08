@@ -7,6 +7,8 @@ import { NotificationBell } from "@/components/portal/notification-bell";
 import { PortalNavDesktop, PortalNavMobile } from "@/components/portal/portal-nav";
 import { requireParent } from "@/lib/auth/scope";
 import { unreadNotificationCount } from "@/lib/data/notifications";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 
 /**
  * Parent portal shell.
@@ -32,6 +34,11 @@ export default async function PortalLayout({
   const session = await requireParent("/portal");
   const unread = await unreadNotificationCount(session);
 
+  // Locale comes from the account preference, mirrored into a cookie and
+  // resolved in proxy.ts — the portal's URLs never carry a language.
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
       {/* First child: decides the lock before the header (which prints the
@@ -42,7 +49,7 @@ export default async function PortalLayout({
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-4">
           <div className="flex min-w-0 items-center gap-6">
             <BrandLogo href="/portal" />
-            <PortalNavDesktop />
+            <PortalNavDesktop t={dict.portal.nav} />
           </div>
 
           {/* Sign out lives on the Account page now, so the header is just the
@@ -51,7 +58,7 @@ export default async function PortalLayout({
             <span className="hidden max-w-[14ch] truncate text-sm text-ink-soft lg:inline">
               {session.user.name}
             </span>
-            <NotificationBell unread={unread} />
+            <NotificationBell unread={unread} t={dict.portal.bell} />
           </div>
         </div>
       </header>
@@ -69,7 +76,7 @@ export default async function PortalLayout({
         {children}
       </main>
 
-      <PortalNavMobile />
+      <PortalNavMobile t={dict.portal.nav} />
       <AppBadgeSync count={unread} />
       <SessionLock />
     </div>

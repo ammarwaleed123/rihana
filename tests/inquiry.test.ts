@@ -8,6 +8,7 @@ import { inquiryInput } from "@/lib/validation";
  */
 
 const base = {
+  kind: "QUESTION",
   parentName: "Amira Hassan",
   email: "amira@example.com",
   // Phone is required (the owner wanted a number staff can call a lead back on).
@@ -15,18 +16,48 @@ const base = {
   childFirstName: "",
   childDateOfBirth: "",
   preferredStartDate: "",
-  message: "",
+  preferredVisit: "",
+  // A question needs a message; a visit request does not.
+  message: "Do you have a place in the toddler group?",
 };
 
 describe("inquiryInput", () => {
-  it("accepts a minimal enquiry (name + email + phone)", () => {
+  it("accepts a question with name, email, phone and a message", () => {
     const result = inquiryInput.safeParse(base);
     expect(result.success).toBe(true);
     if (result.success) {
+      expect(result.data.kind).toBe("QUESTION");
       expect(result.data.parentName).toBe("Amira Hassan");
       expect(result.data.phone).toBe("01001234567");
       expect(result.data.childDateOfBirth).toBeNull();
+      expect(result.data.message).toBe("Do you have a place in the toddler group?");
+    }
+  });
+
+  it("defaults the reason to a question when kind is omitted", () => {
+    const { kind, ...withoutKind } = base;
+    void kind;
+    const result = inquiryInput.safeParse(withoutKind);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.kind).toBe("QUESTION");
+  });
+
+  it("requires a message when the reason is a question", () => {
+    expect(inquiryInput.safeParse({ ...base, message: "" }).success).toBe(false);
+  });
+
+  it("allows a visit request with no message", () => {
+    const result = inquiryInput.safeParse({
+      ...base,
+      kind: "VISIT",
+      message: "",
+      preferredVisit: "Weekday mornings",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.kind).toBe("VISIT");
       expect(result.data.message).toBeUndefined();
+      expect(result.data.preferredVisit).toBe("Weekday mornings");
     }
   });
 

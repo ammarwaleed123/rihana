@@ -7,6 +7,8 @@ import { Alert } from "@/components/ui/form";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { getUploadSession, getUploadSessionPhotos } from "@/lib/data/photos";
 import { getTaggableChildren } from "@/lib/data/uploads";
 
@@ -32,6 +34,7 @@ export default async function TagPhotosPage({
   const { uploadSessionId } = await params;
   const query = await searchParams;
   const session = await requireStaff(`/admin/photos/${uploadSessionId}`);
+  const dict = await getDictionary(await getAppLocale());
 
   let photos;
   let upload;
@@ -66,7 +69,7 @@ export default async function TagPhotosPage({
 
   return (
     <div>
-      <AdminNav current="/admin/photos" role={session.user.role} />
+      <AdminNav current="/admin/photos" role={session.user.role} t={dict.admin.nav} />
 
       <p className="mb-4">
         <Link

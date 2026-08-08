@@ -1,6 +1,11 @@
 import Link from "next/link";
 
 import type { PhotoListItem } from "@/lib/data/photos";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill, joinList } from "@/lib/i18n/plural";
+
+type PhotoStrings = Dictionary["portal"]["photo"];
 
 /**
  * The photo grid, used by the dashboard, the photo list and album pages.
@@ -11,29 +16,34 @@ import type { PhotoListItem } from "@/lib/data/photos";
  * Laila and Omar" is only safe *because* of that filtering, and stating the
  * rule in three separate templates is how the fourth one gets it wrong.
  */
-export function photoAltText(photo: PhotoListItem): string {
+export function photoAltText(
+  photo: PhotoListItem,
+  t: PhotoStrings,
+  locale: Locale,
+): string {
   if (photo.caption) return photo.caption;
 
   if (photo.taggedChildren.length > 0) {
     const names = photo.taggedChildren.map((child) => child.firstName);
-    const list =
-      names.length === 1
-        ? names[0]
-        : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
-    return `Photo of ${list}`;
+    // Intl.ListFormat, so Arabic joins with و rather than a translated "and".
+    return fill(t.altOf, { names: joinList(names, locale) });
   }
 
   // A class-album photo the family's own child is not tagged in. Deliberately
   // says nothing about who else is in it.
-  return "Class photo";
+  return t.altClass;
 }
 
 export function PhotoGrid({
   photos,
   hrefFor,
+  t,
+  locale,
 }: {
   photos: PhotoListItem[];
   hrefFor: (photo: PhotoListItem) => string;
+  t: PhotoStrings;
+  locale: Locale;
 }) {
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -54,7 +64,7 @@ export function PhotoGrid({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`/api/img/${photo.id}?v=thumb`}
-                alt={photo.caption ? "" : photoAltText(photo)}
+                alt={photo.caption ? "" : photoAltText(photo, t, locale)}
                 className="h-full w-full object-cover transition-transform group-hover:scale-105"
                 loading="lazy"
               />
@@ -73,10 +83,10 @@ export function PhotoGrid({
 /** "Load more" for a keyset-paginated photo list. */
 export function LoadMore({
   href,
-  label = "Load more photos",
+  label,
 }: {
   href: string;
-  label?: string;
+  label: string;
 }) {
   return (
     <div className="mt-8 text-center">

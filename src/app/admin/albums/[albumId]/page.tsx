@@ -7,6 +7,8 @@ import { Alert } from "@/components/ui/form";
 import { Badge, Card, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { getAlbumForStaff, getPhotosAvailableForAlbum } from "@/lib/data/albums";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -40,6 +42,7 @@ export default async function AlbumDetailPage({
   const { albumId } = await params;
   const query = await searchParams;
   const session = await requireStaff(`/admin/albums/${albumId}`);
+  const dict = await getDictionary(await getAppLocale());
 
   let album;
   try {
@@ -71,7 +74,7 @@ export default async function AlbumDetailPage({
 
   return (
     <div>
-      <AdminNav current="/admin/albums" role={session.user.role} />
+      <AdminNav current="/admin/albums" role={session.user.role} t={dict.admin.nav} />
 
       <p className="mb-4">
         <Link

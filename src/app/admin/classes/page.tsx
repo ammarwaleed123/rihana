@@ -10,6 +10,8 @@ import {
   SectionTitle,
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listPeople } from "@/lib/data/people";
 import { ageGroupLabels, type AGE_GROUPS } from "@/lib/validation";
@@ -28,6 +30,7 @@ export const metadata: Metadata = {
 
 export default async function ClassesPage() {
   const session = await requireStaff("/admin/classes");
+  const dict = await getDictionary(await getAppLocale());
   const isOwner = session.user.role === "OWNER";
 
   const classes = await listClassesForSession(session);
@@ -40,7 +43,7 @@ export default async function ClassesPage() {
 
   return (
     <div>
-      <AdminNav current="/admin/classes" role={session.user.role} />
+      <AdminNav current="/admin/classes" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
         title="Classes"

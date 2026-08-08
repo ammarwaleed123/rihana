@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import {
@@ -13,7 +14,9 @@ import {
 } from "@/lib/auth/password-constants";
 import { requireSessionOrThrow } from "@/lib/auth/scope";
 import { hashIp } from "@/lib/auth/tokens";
-import { updateMyContactDetails } from "@/lib/data/account";
+import { setMyLocale, updateMyContactDetails } from "@/lib/data/account";
+import { LOCALES } from "@/lib/i18n/config";
+import { setLocaleCookie } from "@/lib/i18n/locale-cookie";
 import { recordAudit } from "@/lib/data/audit";
 import { setPassword, verifyPasswordForUser } from "@/lib/data/auth";
 import { updateNotificationPreferences } from "@/lib/data/notifications";
@@ -37,6 +40,11 @@ export type AccountState = {
   error?: string;
   success?: string;
   errors?: Record<string, string>;
+  /**
+   * Set only by `updateLocaleAction`: a path the client must load with a FULL
+   * page navigation. See that action for why a soft navigation is not enough.
+   */
+  reloadTo?: string;
 };
 
 async function context(session: Session) {
@@ -229,6 +237,61 @@ export async function updatePreferencesAction(
     return { success: "Notification preferences saved." };
   } catch (error) {
     logger.error({ err: error, scope: "updatePreferences" }, "prefs update failed");
+    return { error: "Something went wrong. Please try again." };
+  }
+}
+
+/**
+ * Where `updateLocaleAction` is allowed to send the browser afterwards.
+ *
+ * A fixed list rather than a validated path: the value arrives in the form, and
+ * an attacker-supplied redirect target is exactly the shape of an open-redirect
+ * bug. There are only two account pages, so enumerate them.
+ */
+const LOCALE_RETURN_PATHS = ["/portal/account", "/admin/account"] as const;
+
+/**
+ * Interface language.
+ *
+ * Written to the user row (the source of truth, so the choice follows the
+ * account onto a new device) and mirrored into a cookie. No re-authentication:
+ * this is a display preference, not a credential change, and it is reversible
+ * from the same screen in either language.
+ *
+ * Changing the language needs a FULL page load to take effect, and that is the
+ * whole subtlety here. `<html lang dir>` is rendered by the root layout, and
+ * the locale is resolved when the request arrives. A cookie written part-way
+ * through a request is not visible to the re-render that follows it, and
+ * `redirect()` from a Server Action performs a *soft* navigation that never
+ * re-renders the root layout at all — so with either of those the interface
+ * keeps the old language until something forces a real reload. That was the
+ * "press Save twice" bug.
+ *
+ * So the action returns `reloadTo` and the client hands it to
+ * `window.location`, which is a genuine navigation: the request carries the new
+ * cookie, the root layout re-renders, and one press is enough. Without
+ * JavaScript the Server Action already falls back to a full form POST, which
+ * has the same effect for free.
+ */
+export async function updateLocaleAction(
+  _prev: AccountState,
+  formData: FormData,
+): Promise<AccountState> {
+  const session = await requireSessionOrThrow();
+
+  const parsed = z.enum(LOCALES).safeParse(formData.get("locale"));
+  if (!parsed.success) return { error: "Please choose a language." };
+
+  const requested = formData.get("returnTo");
+  const returnTo = LOCALE_RETURN_PATHS.find((p) => p === requested) ?? "/portal/account";
+
+  try {
+    await setMyLocale(session, parsed.data);
+    await setLocaleCookie(parsed.data);
+    revalidatePath("/", "layout");
+    return { reloadTo: returnTo };
+  } catch (error) {
+    logger.error({ err: error, scope: "updateLocale" }, "locale update failed");
     return { error: "Something went wrong. Please try again." };
   }
 }

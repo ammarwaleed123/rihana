@@ -7,17 +7,15 @@ import { requireParent } from "@/lib/auth/scope";
 import { getAlbumsPageForParent } from "@/lib/data/albums";
 import { parsePageParam } from "@/lib/data/pagination";
 import { getMyChildren } from "@/lib/data/photos";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { LOCALE_INTL } from "@/lib/i18n/config";
+import { fill, plural } from "@/lib/i18n/plural";
 
 export const metadata: Metadata = {
   title: "Albums",
   robots: { index: false, follow: false },
 };
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
 
 export default async function AlbumsPage({
   searchParams,
@@ -26,6 +24,16 @@ export default async function AlbumsPage({
 }) {
   const params = await searchParams;
   const session = await requireParent("/portal/albums");
+
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.portal.albums;
+  // Dates follow the reader's locale: an Arabic parent sees Arabic month names.
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   // Only albums holding at least one photo this family may see — narrowed to
   // one child when a chip is chosen. An album of other children simply does not
@@ -50,14 +58,14 @@ export default async function AlbumsPage({
   return (
     <div>
       <PageHeader
-        title="Albums"
-        description="Collections the nursery has put together, like a sports day or a school trip."
+        title={t.title}
+        description={t.description}
       />
 
       {children.length > 1 ? (
-        <nav aria-label="Filter by child" className="mb-6 flex flex-wrap gap-2">
+        <nav aria-label={dict.portal.photos.filterByChild} className="mb-6 flex flex-wrap gap-2">
           <ChildChip href="/portal/albums" active={!params.childId}>
-            Everyone
+            {dict.portal.photos.everyone}
           </ChildChip>
           {children.map((child) => (
             <ChildChip
@@ -72,10 +80,7 @@ export default async function AlbumsPage({
       ) : null}
 
       {page.total === 0 ? (
-        <EmptyState
-          title="No albums yet"
-          description="When the nursery groups photos into an album, it will appear here."
-        />
+        <EmptyState title={t.emptyTitle} description={t.emptyBody} />
       ) : (
         <>
           <ul className="grid gap-4 sm:grid-cols-2">
@@ -105,8 +110,7 @@ export default async function AlbumsPage({
                       {album.title}
                     </p>
                     <p className="mt-0.5 text-sm text-ink-soft">
-                      {album.photoCount} photo
-                      {album.photoCount === 1 ? "" : "s"}
+                      {plural(dict.portal.common.photoCount, album.photoCount, locale)}
                       {album.eventDate
                         ? ` · ${dateFormat.format(album.eventDate)}`
                         : ""}
@@ -123,11 +127,19 @@ export default async function AlbumsPage({
           </ul>
 
           <p className="mt-6 text-center text-sm text-ink-soft">
-            Page {page.page} of {page.pageCount} · {page.total} album
-            {page.total === 1 ? "" : "s"}
+            {fill(dict.portal.photos.pageSummary, {
+              page: page.page,
+              pageCount: page.pageCount,
+              count: plural(t.albumCount, page.total, locale),
+            })}
           </p>
 
-          <Pager page={page.page} pageCount={page.pageCount} hrefFor={hrefFor} />
+          <Pager
+            page={page.page}
+            pageCount={page.pageCount}
+            hrefFor={hrefFor}
+            t={dict.portal.pager}
+          />
         </>
       )}
     </div>

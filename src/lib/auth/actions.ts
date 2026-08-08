@@ -14,7 +14,9 @@ import { GENERIC_LOGIN_ERROR } from "@/lib/auth/errors";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
 import { getSession, homePathForRole } from "@/lib/auth/scope";
 import { hashIp } from "@/lib/auth/tokens";
+import { getUserLocale } from "@/lib/data/account";
 import { recordAudit } from "@/lib/data/audit";
+import { setLocaleCookie, toLocale } from "@/lib/i18n/locale-cookie";
 import {
   findUserByInviteToken,
   findUserByResetToken,
@@ -157,6 +159,12 @@ export async function signInAction(
     userAgent: ctx.userAgent,
   });
   await setSessionCookie(token);
+
+  // Mirror the account's saved language into its cookie, so the first page
+  // rendered after sign-in is already in the right language and direction
+  // rather than correcting itself a beat later. Display only — this cookie
+  // grants nothing.
+  await setLocaleCookie(toLocale(await getUserLocale(outcome.userId)));
 
   await recordAudit({
     action: "auth.signed_in",

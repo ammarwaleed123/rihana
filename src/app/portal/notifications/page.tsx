@@ -9,18 +9,14 @@ import {
   markAllReadAction,
   openNotificationAction,
 } from "@/lib/portal/notification-actions";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { LOCALE_INTL } from "@/lib/i18n/config";
 
 export const metadata: Metadata = {
   title: "Notifications",
   robots: { index: false, follow: false },
 };
-
-const when = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 export default async function NotificationsPage({
   searchParams,
@@ -30,19 +26,29 @@ export default async function NotificationsPage({
   const params = await searchParams;
   const session = await requireParent("/portal/notifications");
 
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.portal.notifications;
+  const when = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   const page = await listNotifications(session, { cursor: params.cursor ?? null });
   const hasUnread = page.items.some((n) => !n.readAt);
 
   return (
     <div>
       <PageHeader
-        title="Notifications"
-        description="New photos and updates from the nursery."
+        title={t.title}
+        description={t.description}
         action={
           hasUnread ? (
             <form action={markAllReadAction}>
               <Button type="submit" variant="secondary" className="px-4 py-2 text-sm">
-                Mark all as read
+                {t.markAllRead}
               </Button>
             </form>
           ) : undefined
@@ -50,10 +56,7 @@ export default async function NotificationsPage({
       />
 
       {page.items.length === 0 ? (
-        <EmptyState
-          title="Nothing yet"
-          description="When the nursery shares new photos or an announcement, it will show up here."
-        />
+        <EmptyState title={t.emptyTitle} description={t.emptyBody} />
       ) : (
         <>
           <ul className="space-y-2">
@@ -105,7 +108,7 @@ export default async function NotificationsPage({
           {page.hasMore && page.nextCursor ? (
             <LoadMore
               href={`/portal/notifications?cursor=${encodeURIComponent(page.nextCursor)}`}
-              label="Load older"
+              label={dict.portal.common.loadOlder}
             />
           ) : null}
         </>

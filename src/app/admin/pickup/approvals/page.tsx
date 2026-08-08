@@ -5,6 +5,8 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { Alert } from "@/components/ui/form";
 import { Card, EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireOwner } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { getPendingPickupApprovals } from "@/lib/data/pickup";
 import {
   approvePickupAction,
@@ -28,49 +30,54 @@ export default async function PickupApprovalsPage({
   searchParams: Promise<{ approved?: string; rejected?: string; gone?: string }>;
 }) {
   const session = await requireOwner("/admin/pickup/approvals");
+  const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.approvals;
   const query = await searchParams;
   const pending = await getPendingPickupApprovals(session);
 
   return (
     <div>
-      <AdminNav current="/admin/pickup" role={session.user.role} />
+      <AdminNav current="/admin/pickup" role={session.user.role} t={dict.admin.nav} />
 
       <div className="mb-2">
         <Link
           href="/admin/pickup"
           className="text-sm font-semibold text-leaf underline underline-offset-4"
         >
-          ← Back to the pickup board
+          <span aria-hidden className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {dict.admin.pickupBoard.backToBoard}
         </Link>
       </div>
 
       <PageHeader
-        title="Pickup approvals"
-        description="People parents have asked to authorize for collecting their child. Approving one puts them on the pickup board; the parent is notified either way."
+        title={t.title}
+        description={t.description}
       />
 
       {query.approved ? (
         <div className="mb-4">
-          <Alert tone="success">Approved. They can now collect the child.</Alert>
+          <Alert tone="success">{t.approvedToast}</Alert>
         </div>
       ) : null}
       {query.rejected ? (
         <div className="mb-4">
-          <Alert tone="success">Turned down. The parent has been notified.</Alert>
+          <Alert tone="success">{t.rejectedToast}</Alert>
         </div>
       ) : null}
       {query.gone ? (
         <div className="mb-4">
           <Alert tone="info">
-            That request had already been handled — nothing to do.
+            {t.alreadyHandled}
           </Alert>
         </div>
       ) : null}
 
       {pending.length === 0 ? (
         <EmptyState
-          title="Nothing to review"
-          description="When a parent adds someone who may collect their child, the request appears here for you to approve."
+          title={t.emptyTitle}
+          description={t.emptyBody}
         />
       ) : (
         <ul className="space-y-4">
@@ -101,20 +108,20 @@ export default async function PickupApprovalsPage({
                       {person.fullName}
                     </p>
                     <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-                      <Row label="Relationship" value={person.relationship} />
-                      <Row label="Phone" value={person.phone} />
+                      <Row label={t.relationship} value={person.relationship} />
+                      <Row label={t.phone} value={person.phone} />
                       <Row
-                        label="Child"
+                        label={t.child}
                         value={`${person.child.firstName} ${person.child.lastName}${person.child.className ? ` · ${person.child.className}` : ""}`}
                       />
-                      <Row label="Requested by" value={person.requestedBy} />
+                      <Row label={t.requestedBy} value={person.requestedBy} />
                       <Row
-                        label="Requested"
+                        label={t.requested}
                         value={dateFormat.format(person.createdAt)}
                       />
                       {person.expiresAt ? (
                         <Row
-                          label="Only until"
+                          label={t.onlyUntil}
                           value={
                             (person.isExpired ? "Expired — " : "") +
                             dateFormat.format(person.expiresAt)
@@ -141,7 +148,7 @@ export default async function PickupApprovalsPage({
                           type="submit"
                           className="w-full rounded-full bg-leaf px-6 py-2.5 font-bold text-white hover:bg-leaf-dark sm:w-auto"
                         >
-                          Approve
+                          {t.approve}
                         </button>
                       </form>
 
@@ -159,13 +166,13 @@ export default async function PickupApprovalsPage({
                             htmlFor={`reason-${person.id}`}
                             className="mb-1 block text-xs font-bold text-ink-soft"
                           >
-                            Reason (optional)
+                            {t.reasonOptional}
                           </label>
                           <input
                             id={`reason-${person.id}`}
                             name="reason"
                             maxLength={300}
-                            placeholder="Shown to the parent"
+                            placeholder={t.shownToParent}
                             className="w-full rounded-xl border-2 border-ink/15 bg-card px-3 py-2 text-sm"
                           />
                         </div>
@@ -173,7 +180,7 @@ export default async function PickupApprovalsPage({
                           type="submit"
                           className="rounded-full border-2 border-danger/40 bg-card px-5 py-2.5 font-bold text-danger hover:bg-coral-soft"
                         >
-                          Reject
+                          {t.reject}
                         </button>
                       </form>
                     </div>

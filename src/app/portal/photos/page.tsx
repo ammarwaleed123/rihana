@@ -7,6 +7,9 @@ import { EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
 import { parsePageParam } from "@/lib/data/pagination";
 import { getMyChildren, getPhotosPageForParent } from "@/lib/data/photos";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill, plural } from "@/lib/i18n/plural";
 
 export const metadata: Metadata = {
   title: "Photos",
@@ -20,6 +23,10 @@ export default async function PhotosPage({
 }) {
   const params = await searchParams;
   const session = await requireParent("/portal/photos");
+
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.portal.photos;
 
   // Every photo below comes through the routing rule; there is no other query.
   const [page, children] = await Promise.all([
@@ -42,14 +49,14 @@ export default async function PhotosPage({
   return (
     <div>
       <PageHeader
-        title="Photos"
-        description="Photos of your children, and pictures shared with their class."
+        title={t.title}
+        description={t.description}
       />
 
       {children.length > 1 ? (
-        <nav aria-label="Filter by child" className="mb-6 flex flex-wrap gap-2">
+        <nav aria-label={t.filterByChild} className="mb-6 flex flex-wrap gap-2">
           <ChildChip href="/portal/photos" active={!params.childId}>
-            Everyone
+            {t.everyone}
           </ChildChip>
           {children.map((child) => (
             <ChildChip
@@ -64,10 +71,7 @@ export default async function PhotosPage({
       ) : null}
 
       {page.total === 0 ? (
-        <EmptyState
-          title="No photos yet"
-          description="When the nursery shares photos of your child, they will appear here."
-        />
+        <EmptyState title={t.emptyTitle} description={t.emptyBody} />
       ) : (
         <>
           <PhotoGrid
@@ -75,14 +79,24 @@ export default async function PhotosPage({
             hrefFor={(photo) =>
               `/portal/photos/${photo.id}?from=${encodeURIComponent(hrefFor(page.page))}`
             }
+            t={dict.portal.photo}
+            locale={locale}
           />
 
           <p className="mt-6 text-center text-sm text-ink-soft">
-            Page {page.page} of {page.pageCount} · {page.total} photo
-            {page.total === 1 ? "" : "s"}
+            {fill(t.pageSummary, {
+              page: page.page,
+              pageCount: page.pageCount,
+              count: plural(dict.portal.common.photoCount, page.total, locale),
+            })}
           </p>
 
-          <Pager page={page.page} pageCount={page.pageCount} hrefFor={hrefFor} />
+          <Pager
+            page={page.page}
+            pageCount={page.pageCount}
+            hrefFor={hrefFor}
+            t={dict.portal.pager}
+          />
         </>
       )}
     </div>

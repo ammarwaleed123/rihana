@@ -7,29 +7,36 @@ import { Card, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password-constants";
 import { requireParent } from "@/lib/auth/scope";
 import { getMyAccount, getMyFamily } from "@/lib/data/account";
-import { guardianRelationshipLabels } from "@/lib/validation";
 
 import { getNotificationPreferences } from "@/lib/data/notifications";
 
 import {
   ChangePasswordForm,
   ContactDetailsForm,
+  LanguageForm,
   PreferencesForm,
-} from "./account-forms";
+} from "@/components/account/account-forms";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
+import { LOCALE_INTL } from "@/lib/i18n/config";
+import { toLocale } from "@/lib/i18n/locale-cookie";
 
 export const metadata: Metadata = {
   title: "Your account",
   robots: { index: false, follow: false },
 };
 
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-
 export default async function AccountPage() {
   const session = await requireParent("/portal/account");
+
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const a = dict.portal.account;
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   const [account, family, prefs] = await Promise.all([
     getMyAccount(session),
@@ -40,19 +47,16 @@ export default async function AccountPage() {
   return (
     <div>
       <PageHeader
-        title="Your account"
-        description="Your details, your children, and your sign-in settings."
+        title={a.title}
+        description={a.descriptionParent}
       />
 
       <div className="space-y-6">
         <Card>
-          <SectionTitle>Your children</SectionTitle>
+          <SectionTitle>{a.childrenTitle}</SectionTitle>
 
           {family.length === 0 ? (
-            <p className="text-ink-soft">
-              No children are linked to your account yet. Please contact the
-              nursery.
-            </p>
+            <p className="text-ink-soft">{a.noChildren}</p>
           ) : (
             <ul className="space-y-4">
               {family.map((child) => (
@@ -64,27 +68,32 @@ export default async function AccountPage() {
                     {child.firstName} {child.lastName}
                   </p>
                   <dl className="mt-2 space-y-1 text-sm">
-                    <Row label="Class" value={child.class?.name ?? "Not assigned"} />
                     <Row
-                      label="Born"
+                      label={a.childClass}
+                      value={child.class?.name ?? a.classUnassigned}
+                    />
+                    <Row
+                      label={a.childBorn}
                       value={dateFormat.format(child.dateOfBirth)}
                     />
                     {child.relationship ? (
                       <Row
-                        label="You are"
+                        label={a.youAre}
                         value={
-                          guardianRelationshipLabels[
-                            child.relationship as keyof typeof guardianRelationshipLabels
+                          // The stored value is an enum (MOTHER/FATHER/…), so it
+                          // is a label to translate, not text the parent typed.
+                          dict.portal.relationship[
+                            child.relationship as keyof typeof dict.portal.relationship
                           ] ?? child.relationship
                         }
                       />
                     ) : null}
                     <Row
-                      label="Photos"
+                      label={a.childPhotos}
                       value={
                         child.photoConsent
-                          ? "Shared with you"
-                          : "Not shared — photo consent has been withdrawn"
+                          ? a.photosShared
+                          : a.photosWithdrawn
                       }
                     />
                   </dl>
@@ -100,60 +109,73 @@ export default async function AccountPage() {
               answer is not "a setting on this page" — it is a decision the
               nursery records as the data controller.
             */}
-            To change a class, a name, or whether photos of your child may be
-            shared, please contact the nursery. They keep these records.
+            {a.recordsNote}
           </p>
         </Card>
 
         <Card>
-          <SectionTitle>Your details</SectionTitle>
-          <ContactDetailsForm name={account.name} phone={account.phone} />
+          <SectionTitle>{a.detailsTitle}</SectionTitle>
+          <ContactDetailsForm
+            name={account.name}
+            phone={account.phone}
+            t={dict.portal.forms}
+          />
         </Card>
 
         <Card>
-          <SectionTitle>Email address</SectionTitle>
+          <SectionTitle>{a.emailTitle}</SectionTitle>
           {/*
             Read-only. The email is issued by the nursery and is what a password
             reset would be sent to, so it is theirs to change, not the parent's.
             Shown here so the parent knows which address they sign in with.
           */}
           <p className="font-semibold">{account.email}</p>
-          <p className="mt-2 text-sm text-ink-soft">
-            This is the address you sign in with. It is set by the nursery — if
-            it is wrong, please contact them and they will correct it.
-          </p>
+          <p className="mt-2 text-sm text-ink-soft">{a.emailNoteParent}</p>
         </Card>
 
         <Card>
-          <SectionTitle>Notifications</SectionTitle>
+          <SectionTitle>{a.languageTitle}</SectionTitle>
+          <LanguageForm
+            current={toLocale(account.locale)}
+            returnTo="/portal/account"
+            labels={{
+              legend: a.languageLegend,
+              save: a.languageSave,
+              saving: a.languageSaving,
+            }}
+          />
+        </Card>
+
+        <Card>
+          <SectionTitle>{a.notificationsTitle}</SectionTitle>
           <div className="space-y-5">
             <div>
-              <p className="mb-2 font-bold text-ink">Install the app</p>
-              <InstallButton />
+              <p className="mb-2 font-bold text-ink">{a.installApp}</p>
+              <InstallButton t={dict.portal.install} />
             </div>
             <div className="border-t border-ink/10 pt-5">
-              <p className="mb-2 font-bold text-ink">On this device</p>
-              <PushToggle />
+              <p className="mb-2 font-bold text-ink">{a.onThisDevice}</p>
+              <PushToggle t={dict.portal.push} />
             </div>
             <div className="border-t border-ink/10 pt-5">
-              <p className="mb-3 font-bold text-ink">Email</p>
-              <PreferencesForm defaults={prefs} />
+              <p className="mb-3 font-bold text-ink">{a.emailLabel}</p>
+              <PreferencesForm defaults={prefs} t={dict.portal.forms} />
             </div>
           </div>
         </Card>
 
         <Card>
-          <SectionTitle>Password</SectionTitle>
-          <ChangePasswordForm minLength={PASSWORD_MIN_LENGTH} />
+          <SectionTitle>{a.passwordTitle}</SectionTitle>
+          <ChangePasswordForm
+            minLength={PASSWORD_MIN_LENGTH}
+            t={dict.portal.forms}
+          />
         </Card>
 
         <Card>
-          <SectionTitle>Sign out</SectionTitle>
-          <p className="mb-4 text-ink-soft">
-            Sign out of your account on this device. You will need your email and
-            password to sign back in.
-          </p>
-          <SignOutButton prominent />
+          <SectionTitle>{a.signOutTitle}</SectionTitle>
+          <p className="mb-4 text-ink-soft">{a.signOutBody}</p>
+          <SignOutButton prominent t={dict.portal.signOut} />
         </Card>
       </div>
     </div>

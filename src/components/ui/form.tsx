@@ -52,6 +52,14 @@ export function Field({
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
+      /*
+       * `dir="auto"` lets the browser pick the direction from the first strong
+       * character the user actually types, so an Arabic name entered on the
+       * English form reads right-to-left and a Latin name on the Arabic form
+       * reads left-to-right. Callers that know better (a phone number, which is
+       * always LTR) override it via props below.
+       */
+      dir="auto"
       {...props}
       className={cn(
         "w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3",

@@ -14,6 +14,8 @@ import {
   Th,
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listActivity } from "@/lib/data/activity";
 
 export const metadata: Metadata = {
@@ -44,13 +46,14 @@ export default async function ActivityPage({
 }) {
   const params = await searchParams;
   const session = await requireStaff("/admin/activity");
+  const dict = await getDictionary(await getAppLocale());
   if (session.user.role !== "OWNER") redirect("/admin");
 
   const page = await listActivity(session, { cursor: params.cursor ?? null });
 
   return (
     <div>
-      <AdminNav current="/admin/activity" role={session.user.role} />
+      <AdminNav current="/admin/activity" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
         title="Activity"

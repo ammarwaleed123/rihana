@@ -49,6 +49,11 @@ model User {
   emailAnnouncements Boolean @default(true)
   emailPickupUpdates Boolean @default(true)
 
+  /// Preferred interface language, "en" or "ar". Follows the account rather than
+  /// the device, so a parent who signs in on a new phone keeps their language.
+  /// The private app carries no locale in its URLs — see src/lib/i18n/config.ts.
+  locale String @default("en")
+
   // Invite / reset tokens are stored hashed; the raw token only ever exists in the email.
   inviteTokenHash String?   @unique
   inviteExpiresAt DateTime?
@@ -604,14 +609,24 @@ enum InquiryStatus {
 }
 
 /// Public admissions form. Rate-limited and honeypot-protected at the route.
+enum InquiryKind {
+  VISIT
+  QUESTION
+}
+
 model Inquiry {
   id                 String        @id @default(cuid(2))
+  /// Why the family got in touch. A visit request is triaged differently from a
+  /// general question, and the message is only required for questions.
+  kind               InquiryKind   @default(QUESTION)
   parentName         String
   email              String
   phone              String?
   childFirstName     String?
   childDateOfBirth   DateTime?     @db.Date
   preferredStartDate DateTime?     @db.Date
+  /// Free text for a visit request: "weekday mornings", "Tuesday after 2pm".
+  preferredVisit     String?
   message            String?
   status             InquiryStatus @default(NEW)
   handledByUserId    String?

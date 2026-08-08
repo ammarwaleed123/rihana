@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/cn";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 /**
  * Parent portal navigation.
@@ -16,32 +17,47 @@ import { cn } from "@/lib/cn";
  * The active tab is decided by longest-prefix match, the same rule the admin
  * tabs use: a plain `startsWith` lights up "Home" on every page, since every
  * path begins with /portal.
+ *
+ * Labels arrive as a prop from the server layout: these are client components,
+ * and shipping the whole dictionary to the browser to translate five words would
+ * be a poor trade. The URLs are never localized — see src/lib/i18n/config.ts.
  */
 
-const items = [
-  { href: "/portal", label: "Home", icon: HomeIcon },
-  { href: "/portal/photos", label: "Photos", icon: PhotoIcon },
-  { href: "/portal/albums", label: "Albums", icon: AlbumIcon },
-  { href: "/portal/pickup", label: "Pickup", icon: PickupIcon },
-  { href: "/portal/account", label: "Account", icon: AccountIcon },
+type NavStrings = Dictionary["portal"]["nav"];
+
+function navItems(t: NavStrings) {
+  return [
+    { href: "/portal", label: t.home, icon: HomeIcon },
+    { href: "/portal/photos", label: t.photos, icon: PhotoIcon },
+    { href: "/portal/albums", label: t.albums, icon: AlbumIcon },
+    { href: "/portal/pickup", label: t.pickup, icon: PickupIcon },
+    { href: "/portal/account", label: t.account, icon: AccountIcon },
+  ];
+}
+
+const HREFS = [
+  "/portal",
+  "/portal/photos",
+  "/portal/albums",
+  "/portal/pickup",
+  "/portal/account",
 ];
 
 function useActiveHref(): string | undefined {
   const pathname = usePathname();
 
-  return items
-    .filter(
-      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
-    )
-    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  return HREFS.filter(
+    (href) => pathname === href || pathname.startsWith(`${href}/`),
+  ).sort((a, b) => b.length - a.length)[0];
 }
 
 /** Header navigation, from `sm` upwards. */
-export function PortalNavDesktop() {
+export function PortalNavDesktop({ t }: { t: NavStrings }) {
   const active = useActiveHref();
+  const items = navItems(t);
 
   return (
-    <nav aria-label="Portal sections" className="hidden sm:block">
+    <nav aria-label={t.ariaLabel} className="hidden sm:block">
       <ul className="flex items-center gap-1">
         {items.map((item) => (
           <li key={item.href}>
@@ -71,12 +87,13 @@ export function PortalNavDesktop() {
  * indicator on an iPhone; without it the bottom row of text sits under the
  * system gesture area and is both hard to read and hard to tap.
  */
-export function PortalNavMobile() {
+export function PortalNavMobile({ t }: { t: NavStrings }) {
   const active = useActiveHref();
+  const items = navItems(t);
 
   return (
     <nav
-      aria-label="Portal sections"
+      aria-label={t.ariaLabel}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-card pb-[env(safe-area-inset-bottom)] sm:hidden"
     >
       <ul className="flex">
