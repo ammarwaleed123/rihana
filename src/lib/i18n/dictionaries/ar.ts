@@ -565,6 +565,27 @@ const ar: Dictionary = {
       nextStepNote: "ستختار الصور في الخطوة التالية. لا يُشارَك شيء حتى تنشره.",
     },
 
+    peopleForm: {
+      inviteParent: "دعوة ولي أمر",
+      inviteTeacher: "دعوة معلّمة",
+      fullName: "الاسم بالكامل",
+      email: "البريد الإلكتروني",
+      phoneOptional: "رقم الهاتف (اختياري)",
+      createInvitation: "إنشاء دعوة",
+      creating: "جارٍ الإنشاء…",
+      invitationLink: "رابط الدعوة",
+      linkNote: "أرسل هذا الرابط إليه. يعمل مرة واحدة وينتهي خلال 14 يومًا.",
+      linkToChildren: "الربط بالأطفال",
+      linkToChildrenHint: "سيرى صور كل من تختاره هنا.",
+      assignToClasses: "الإسناد إلى الفصول",
+      assignToClassesHint: "سترى كل طفل في الفصول المختارة هنا.",
+      newInviteLink: "رابط دعوة جديد",
+      reissuing: "جارٍ الإصدار…",
+      disable: "تعطيل",
+      reEnable: "إعادة التفعيل",
+      toggleAria: "{action} {name}",
+    },
+
     inquiryStatus: {
       NEW: "جديد", CONTACTED: "تم التواصل", TOURED: "زار الحضانة",
       ENROLLED: "تم التسجيل", CLOSED: "مغلق",

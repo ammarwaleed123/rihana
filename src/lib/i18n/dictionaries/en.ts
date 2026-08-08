@@ -571,6 +571,28 @@ const en = {
         "You will choose the photos next. Nothing is shared until you publish.",
     },
 
+    peopleForm: {
+      inviteParent: "Invite a parent",
+      inviteTeacher: "Invite a teacher",
+      fullName: "Full name",
+      email: "Email",
+      phoneOptional: "Phone (optional)",
+      createInvitation: "Create invitation",
+      creating: "Creating…",
+      invitationLink: "Invitation link",
+      linkNote: "Send this to them. It works once and expires in 14 days.",
+      linkToChildren: "Link to children",
+      linkToChildrenHint: "They will see photos of everyone selected here.",
+      assignToClasses: "Assign to classes",
+      assignToClassesHint:
+        "They will see every child in the classes selected here.",
+      newInviteLink: "New invite link",
+      reissuing: "Reissuing…",
+      disable: "Disable",
+      reEnable: "Re-enable",
+      toggleAria: "{action} {name}",
+    },
+
     inquiryStatus: {
       NEW: "New", CONTACTED: "Contacted", TOURED: "Toured",
       ENROLLED: "Enrolled", CLOSED: "Closed",

@@ -13,6 +13,8 @@ import {
   reissueInviteAction,
   type FormState,
 } from "@/lib/admin/actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
 
 function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
@@ -30,14 +32,16 @@ function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }
  * sends it themselves, which is also the fallback whenever an email bounces —
  * so this stays useful afterwards.
  */
-function InviteLink({ url }: { url: string }) {
+type PeopleStrings = Dictionary["admin"]["peopleForm"];
+
+function InviteLink({ url, t }: { url: string; t: PeopleStrings }) {
   const [copied, setCopied] = useState(false);
 
   return (
     <div className="rounded-xl border-2 border-leaf/30 bg-leaf-soft p-4">
-      <p className="font-bold">Invitation link</p>
+      <p className="font-bold">{t.invitationLink}</p>
       <p className="mt-1 text-sm text-ink-soft">
-        Send this to them. It works once and expires in 14 days.
+        {t.linkNote}
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -65,10 +69,12 @@ const checkboxListClass =
   "max-h-48 space-y-2 overflow-y-auto rounded-xl border-2 border-ink/15 bg-card p-3";
 
 export function InviteParentForm({
+  t,
   // Not named `children`: React reserves that prop, and passing a data array
   // through it would be genuinely confusing to read.
   childOptions,
 }: {
+  t: PeopleStrings;
   childOptions: Array<{ id: string; firstName: string; lastName: string }>;
 }) {
   const [state, action] = useActionState<FormState, FormData>(
@@ -77,17 +83,17 @@ export function InviteParentForm({
   );
 
   return (
-    <Disclosure label="Invite a parent">
+    <Disclosure label={t.inviteParent}>
       <form action={action} className="space-y-4">
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
         {state.success ? <Alert tone="success">{state.success}</Alert> : null}
-        {state.inviteUrl ? <InviteLink url={state.inviteUrl} /> : null}
+        {state.inviteUrl ? <InviteLink t={t} url={state.inviteUrl} /> : null}
 
-        <Field label="Full name" htmlFor="parent-name" error={state.errors?.name}>
+        <Field label={t.fullName} htmlFor="parent-name" error={state.errors?.name}>
           <Input id="parent-name" name="name" required autoComplete="off" />
         </Field>
 
-        <Field label="Email" htmlFor="parent-email" error={state.errors?.email}>
+        <Field label={t.email} htmlFor="parent-email" error={state.errors?.email}>
           <Input
             id="parent-email"
             name="email"
@@ -97,7 +103,7 @@ export function InviteParentForm({
           />
         </Field>
 
-        <Field label="Phone (optional)" htmlFor="parent-phone">
+        <Field label={t.phoneOptional} htmlFor="parent-phone">
           <Input id="parent-phone" name="phone" type="tel" autoComplete="off" />
         </Field>
 
@@ -127,15 +133,17 @@ export function InviteParentForm({
           </fieldset>
         ) : null}
 
-        <Submit label="Create invitation" pendingLabel="Creating…" />
+        <Submit label={t.createInvitation} pendingLabel={t.creating} />
       </form>
     </Disclosure>
   );
 }
 
 export function InviteTeacherForm({
+  t,
   classes,
 }: {
+  t: PeopleStrings;
   classes: Array<{ id: string; name: string }>;
 }) {
   const [state, action] = useActionState<FormState, FormData>(
@@ -144,17 +152,17 @@ export function InviteTeacherForm({
   );
 
   return (
-    <Disclosure label="Invite a teacher" variant="secondary">
+    <Disclosure label={t.inviteTeacher} variant="secondary">
       <form action={action} className="space-y-4">
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
         {state.success ? <Alert tone="success">{state.success}</Alert> : null}
-        {state.inviteUrl ? <InviteLink url={state.inviteUrl} /> : null}
+        {state.inviteUrl ? <InviteLink t={t} url={state.inviteUrl} /> : null}
 
-        <Field label="Full name" htmlFor="teacher-name" error={state.errors?.name}>
+        <Field label={t.fullName} htmlFor="teacher-name" error={state.errors?.name}>
           <Input id="teacher-name" name="name" required autoComplete="off" />
         </Field>
 
-        <Field label="Email" htmlFor="teacher-email" error={state.errors?.email}>
+        <Field label={t.email} htmlFor="teacher-email" error={state.errors?.email}>
           <Input
             id="teacher-email"
             name="email"
@@ -164,7 +172,7 @@ export function InviteTeacherForm({
           />
         </Field>
 
-        <Field label="Phone (optional)" htmlFor="teacher-phone">
+        <Field label={t.phoneOptional} htmlFor="teacher-phone">
           <Input id="teacher-phone" name="phone" type="tel" autoComplete="off" />
         </Field>
 
@@ -190,13 +198,19 @@ export function InviteTeacherForm({
           </fieldset>
         ) : null}
 
-        <Submit label="Create invitation" pendingLabel="Creating…" />
+        <Submit label={t.createInvitation} pendingLabel={t.creating} />
       </form>
     </Disclosure>
   );
 }
 
-export function ReissueInviteButton({ userId }: { userId: string }) {
+export function ReissueInviteButton({
+  userId,
+  t,
+}: {
+  userId: string;
+  t: PeopleStrings;
+}) {
   const [state, action] = useActionState<FormState, FormData>(
     reissueInviteAction,
     {},
@@ -215,7 +229,7 @@ export function ReissueInviteButton({ userId }: { userId: string }) {
       </form>
       {state.inviteUrl ? (
         <div className="mt-2">
-          <InviteLink url={state.inviteUrl} />
+          <InviteLink t={t} url={state.inviteUrl} />
         </div>
       ) : null}
       {state.error ? (
@@ -226,10 +240,12 @@ export function ReissueInviteButton({ userId }: { userId: string }) {
 }
 
 export function TogglePersonButton({
+  t,
   userId,
   name,
   disabled,
 }: {
+  t: PeopleStrings;
   userId: string;
   name: string;
   disabled: boolean;
@@ -250,9 +266,12 @@ export function TogglePersonButton({
               ? "text-sm font-semibold text-leaf underline underline-offset-2"
               : "text-sm font-semibold text-danger underline underline-offset-2"
           }
-          aria-label={`${disabled ? "Re-enable" : "Disable"} ${name}`}
+          aria-label={fill(t.toggleAria, {
+            action: disabled ? t.reEnable : t.disable,
+            name,
+          })}
         >
-          {disabled ? "Re-enable" : "Disable"}
+          {disabled ? t.reEnable : t.disable}
         </button>
       </form>
       {state.error ? (

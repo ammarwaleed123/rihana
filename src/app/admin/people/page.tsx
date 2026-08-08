@@ -72,8 +72,8 @@ export default async function PeoplePage({
       />
 
       <div className="mb-8 flex flex-wrap gap-3">
-        <InviteParentForm childOptions={childPage.items} />
-        <InviteTeacherForm classes={classes} />
+        <InviteParentForm t={dict.admin.peopleForm} childOptions={childPage.items} />
+        <InviteTeacherForm t={dict.admin.peopleForm} classes={classes} />
       </div>
 
       <LiveSearch basePath="/admin/people" placeholder={t.searchPlaceholder} />
@@ -128,12 +128,12 @@ export default async function PeoplePage({
                   <Td>
                     <div className="space-y-2">
                       {person.status === "INVITED" ? (
-                        <ReissueInviteButton userId={person.id} />
+                        <ReissueInviteButton t={dict.admin.peopleForm} userId={person.id} />
                       ) : null}
                       {person.id === session.user.id ? (
                         <span className="text-sm text-ink-faint">You</span>
                       ) : (
-                        <TogglePersonButton
+                        <TogglePersonButton t={dict.admin.peopleForm}
                           userId={person.id}
                           name={person.name}
                           disabled={person.status === "DISABLED"}
@@ -175,9 +175,9 @@ export default async function PeoplePage({
                 ) : (
                   <div className="space-y-2">
                     {person.status === "INVITED" ? (
-                      <ReissueInviteButton userId={person.id} />
+                      <ReissueInviteButton t={dict.admin.peopleForm} userId={person.id} />
                     ) : null}
-                    <TogglePersonButton
+                    <TogglePersonButton t={dict.admin.peopleForm}
                       userId={person.id}
                       name={person.name}
                       disabled={person.status === "DISABLED"}
@@ -237,9 +237,9 @@ export default async function PeoplePage({
                   <Td>
                     <div className="space-y-2">
                       {person.status === "INVITED" ? (
-                        <ReissueInviteButton userId={person.id} />
+                        <ReissueInviteButton t={dict.admin.peopleForm} userId={person.id} />
                       ) : null}
-                      <TogglePersonButton
+                      <TogglePersonButton t={dict.admin.peopleForm}
                         userId={person.id}
                         name={person.name}
                         disabled={person.status === "DISABLED"}
@@ -275,9 +275,9 @@ export default async function PeoplePage({
               action={
                 <div className="space-y-2">
                   {person.status === "INVITED" ? (
-                    <ReissueInviteButton userId={person.id} />
+                    <ReissueInviteButton t={dict.admin.peopleForm} userId={person.id} />
                   ) : null}
-                  <TogglePersonButton
+                  <TogglePersonButton t={dict.admin.peopleForm}
                     userId={person.id}
                     name={person.name}
                     disabled={person.status === "DISABLED"}
