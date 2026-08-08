@@ -37,6 +37,7 @@ export default async function AlbumsPage({
   const query = await searchParams;
   const session = await requireStaff("/admin/albums");
   const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.albums;
 
   // Both scoped: a teacher sees, and can create albums for, their own classes.
   const [albums, classes] = await Promise.all([
@@ -51,8 +52,8 @@ export default async function AlbumsPage({
       <AdminNav current="/admin/albums" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Albums"
-        description="Group photos into a named album, like a graduation day. An album never shares a photo — families see only the pictures they could already see."
+        title={t.title}
+        description={t.description}
       />
 
       {query.deleted ? (
@@ -66,10 +67,10 @@ export default async function AlbumsPage({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <Card className="h-fit">
-          <SectionTitle>Create an album</SectionTitle>
+          <SectionTitle>{t.createAlbum}</SectionTitle>
           {classes.length === 0 ? (
             <p className="text-sm text-ink-soft">
-              You need a class before you can make an album.
+              {t.needClass}
             </p>
           ) : (
             <CreateAlbumForm classes={classes} canChooseClass={isOwner} />
@@ -77,7 +78,7 @@ export default async function AlbumsPage({
         </Card>
 
         <div>
-          <SectionTitle>All albums</SectionTitle>
+          <SectionTitle>{t.allAlbums}</SectionTitle>
 
           {albums.length === 0 ? (
             <EmptyState
@@ -110,9 +111,9 @@ export default async function AlbumsPage({
                           {album.title}
                         </p>
                         {album.status === "PUBLISHED" ? (
-                          <Badge tone="green">Published</Badge>
+                          <Badge tone="green">{t.published}</Badge>
                         ) : (
-                          <Badge tone="yellow">Draft</Badge>
+                          <Badge tone="yellow">{t.draft}</Badge>
                         )}
                       </div>
 

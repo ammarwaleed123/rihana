@@ -453,6 +453,33 @@ const en = {
       viewChildrenIn: "View children in {name}",
     },
 
+    albums: {
+      title: "Albums",
+      description:
+        "Group photos into a named album, like a graduation day. An album never shares a photo — families see only the pictures they could already see.",
+      emptyTitle: "No albums yet",
+      emptyBody:
+        "Albums are a nice way to hand families a whole event at once — sports day, a trip, the last day of term.",
+      createAlbum: "Create an album",
+      needClass: "You need a class before you can make an album.",
+      allAlbums: "All albums",
+      published: "Published",
+      draft: "Draft",
+    },
+
+    photos: {
+      title: "Photos",
+      description: "Upload photos, tag who is in them, then publish to families.",
+      emptyTitle: "No uploads yet",
+      emptyBody:
+        "Upload your first batch of photos and tag who appears in each one.",
+      deleted: "Photo deleted. The upload it emptied has been removed from the list.",
+      newUpload: "New upload",
+      recentUploads: "Recent uploads",
+      published: "Published",
+      notPublished: "Not published",
+    },
+
     inquiryStatus: {
       NEW: "New", CONTACTED: "Contacted", TOURED: "Toured",
       ENROLLED: "Enrolled", CLOSED: "Closed",

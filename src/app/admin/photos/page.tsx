@@ -31,6 +31,7 @@ export default async function PhotosPage({
   const query = await searchParams;
   const session = await requireStaff("/admin/photos");
   const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.photos;
 
   // Both scoped: a teacher uploads into, and sees uploads for, their own
   // classes only.
@@ -44,8 +45,8 @@ export default async function PhotosPage({
       <AdminNav current="/admin/photos" role={session.user.role} t={dict.admin.nav} />
 
       <PageHeader
-        title="Photos"
-        description="Upload photos, tag who is in them, then publish to families."
+        title={t.title}
+        description={t.description}
       />
 
       {query.deleted ? (
@@ -53,19 +54,19 @@ export default async function PhotosPage({
         // exists once its last photo is gone.
         <div className="mb-6">
           <Alert tone="success">
-            Photo deleted. The upload it emptied has been removed from the list.
+            {t.deleted}
           </Alert>
         </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <Card>
-          <SectionTitle>New upload</SectionTitle>
+          <SectionTitle>{t.newUpload}</SectionTitle>
           <UploadForm classes={classes} />
         </Card>
 
         <div>
-          <SectionTitle>Recent uploads</SectionTitle>
+          <SectionTitle>{t.recentUploads}</SectionTitle>
 
           {uploads.length === 0 ? (
             <EmptyState
@@ -96,9 +97,9 @@ export default async function PhotosPage({
                       </div>
 
                       {published ? (
-                        <Badge tone="green">Published</Badge>
+                        <Badge tone="green">{t.published}</Badge>
                       ) : (
-                        <Badge tone="yellow">Not published</Badge>
+                        <Badge tone="yellow">{t.notPublished}</Badge>
                       )}
                     </div>
 
