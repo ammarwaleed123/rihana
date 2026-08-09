@@ -43,7 +43,11 @@ export default async function AdminLayout({
       <header className="border-b border-ink/10 bg-card pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <BrandLogo href="/admin" />
+            <BrandLogo
+              href="/admin"
+              name={dict.meta.siteName}
+              label={dict.meta.logoHome}
+            />
             <span className="whitespace-nowrap rounded-full bg-sun-soft px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-ink">
               {session.user.role === "OWNER"
                 ? dict.admin.roleOwner
@@ -71,7 +75,7 @@ export default async function AdminLayout({
       </header>
 
       <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-5 py-8">
-        <InstallHint userId={session.user.id} />
+        <InstallHint userId={session.user.id} t={dict.portal.install} />
         {children}
       </main>
       <AppBadgeSync count={unread} />

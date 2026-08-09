@@ -101,19 +101,13 @@ export function PushToggle({ t }: { t: Dictionary["portal"]["push"] }) {
 
   if (state === "unsupported") {
     return (
-      <p className="text-sm text-ink-soft">
-        Lock-screen notifications aren&rsquo;t available in this browser. The bell
-        above still shows everything.
-      </p>
+      <p className="text-sm text-ink-soft">{t.unsupported}</p>
     );
   }
 
   if (state === "denied") {
     return (
-      <p className="text-sm text-ink-soft">
-        Notifications are blocked for this site in your browser settings. Allow
-        them there to turn on push, or use the bell above.
-      </p>
+      <p className="text-sm text-ink-soft">{t.denied}</p>
     );
   }
 

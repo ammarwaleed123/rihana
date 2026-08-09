@@ -141,7 +141,7 @@ export default async function ActivityPage({
                 }}
                 className="inline-block rounded-full border-2 border-ink/15 bg-card px-6 py-3 font-bold transition-colors hover:border-leaf hover:text-leaf"
               >
-                Load older
+                {t.loadOlder}
               </Link>
             </div>
           ) : null}

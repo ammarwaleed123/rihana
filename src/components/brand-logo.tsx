@@ -11,20 +11,25 @@ import { cn } from "@/lib/cn";
  */
 export function BrandLogo({
   href,
+  name = "Rihana Montessori Academy",
+  label = "Rihana Montessori Academy — home",
   imgClassName = "h-12 w-auto sm:h-14",
 }: {
   href: string;
+  /** The nursery's name in the reader's language; the image is the same. */
+  name?: string;
+  label?: string;
   imgClassName?: string;
 }) {
   return (
     <Link
       href={href}
-      aria-label="Rihana Montessori Academy — home"
+      aria-label={label}
       className="inline-flex items-center"
     >
       <Image
         src="/logo.png"
-        alt="Rihana Montessori Academy"
+        alt={name}
         width={507}
         height={492}
         priority

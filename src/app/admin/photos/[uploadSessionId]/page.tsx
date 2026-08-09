@@ -9,6 +9,7 @@ import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill, plural } from "@/lib/i18n/plural";
 import { getUploadSession, getUploadSessionPhotos } from "@/lib/data/photos";
 import { getTaggableChildren } from "@/lib/data/uploads";
 
@@ -36,6 +37,7 @@ export default async function TagPhotosPage({
   const session = await requireStaff(`/admin/photos/${uploadSessionId}`);
   const locale = await getAppLocale();
   const dict = await getDictionary(locale);
+  const t = dict.admin.photoCard;
 
   let photos;
   let upload;
@@ -77,26 +79,24 @@ export default async function TagPhotosPage({
           href="/admin/photos"
           className="text-sm font-semibold text-leaf underline underline-offset-4"
         >
-          ← All uploads
+          <span aria-hidden className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {t.allUploads}
         </Link>
       </p>
 
       <PageHeader
-        title={published ? "Published photos" : "Tag these photos"}
-        description={
-          published
-            ? `${upload.class?.name ?? ""} · families can see these now.`
-            : `${upload.class?.name ?? ""} · choose who appears in each photo, then publish.`
-        }
+        title={published ? t.titlePublished : t.titleTag}
+        description={fill(published ? t.descPublished : t.descTag, {
+          class: upload.class?.name ?? "",
+        })}
       />
 
       {query.withdrawn ? (
         <div className="mb-6">
           <Alert tone="success">
-            Withdrawn. {query.withdrawn} photo
-            {query.withdrawn === "1" ? " is" : "s are"} no longer visible to
-            families. Their tags are kept, so you can correct them and publish
-            again.
+            {plural(t.withdrawnNotice, Number(query.withdrawn), locale)}
           </Alert>
         </div>
       ) : null}
@@ -106,47 +106,44 @@ export default async function TagPhotosPage({
         // removed the moment publishing succeeds.
         <div className="mb-6">
           <Alert tone="success">
-            Published {query.published} photo
-            {query.published === "1" ? "" : "s"}. Families can see them now.
+            {plural(t.publishedNotice, Number(query.published), locale)}
             {Number(query.unreachable) > 0
-              ? ` ${query.unreachable} were left unpublished because nobody is tagged in them.`
+              ? ` ${plural(t.unreachableSuffix, Number(query.unreachable), locale)}`
               : ""}
           </Alert>
         </div>
       ) : null}
 
       {photos.length === 0 ? (
-        <EmptyState
-          title="No photos in this upload"
-          description="Add some photos to get started."
-        />
+        <EmptyState title={t.emptyTitle} description={t.emptyBody} />
       ) : (
         <>
           {unpublished > 0 ? (
             <Card className="mb-6">
               <SectionTitle>
-                {published ? "New photos to share" : "Ready to share?"}
+                {published ? t.newPhotosToShare : t.readyToShare}
               </SectionTitle>
               <p className="mb-4 text-sm text-ink-soft">
-                {published
-                  ? "Photos tagged after this upload was published are not visible to families until you share them."
-                  : "Publishing makes these visible in the family portal and notifies the parents of every tagged child — one message per family, not one per photo."}
+                {published ? t.newPhotosNote : t.readyNote}
               </p>
               <PublishForm
                 uploadSessionId={uploadSessionId}
                 photoCount={photos.length}
                 untaggedCount={untagged}
                 unpublishedCount={unpublished}
+                t={t}
+                locale={locale}
               />
             </Card>
           ) : null}
 
           {published ? (
             <Card className="mb-6">
-              <SectionTitle>Withdraw these photos</SectionTitle>
+              <SectionTitle>{t.withdrawTitle}</SectionTitle>
               <UnpublishForm
                 uploadSessionId={uploadSessionId}
                 isOwner={isOwner}
+                t={t}
               />
             </Card>
           ) : null}
@@ -159,6 +156,7 @@ export default async function TagPhotosPage({
                 taggableChildren={children}
                 uploadSessionId={uploadSessionId}
                 published={published}
+                t={t}
               />
             ))}
           </div>

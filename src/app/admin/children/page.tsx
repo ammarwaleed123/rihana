@@ -136,7 +136,7 @@ export default async function ChildrenPage({
                     </span>
                     {child.status === "ARCHIVED" ? (
                       <span className="ml-2">
-                        <Badge tone="neutral">Left</Badge>
+                        <Badge tone="neutral">{t.colLeft}</Badge>
                       </span>
                     ) : null}
                   </Td>
@@ -161,9 +161,9 @@ export default async function ChildrenPage({
                   </Td>
                   <Td>
                     {child.photoConsent ? (
-                      <Badge tone="green">Consent given</Badge>
+                      <Badge tone="green">{t.consentGiven}</Badge>
                     ) : (
-                      <Badge tone="coral">No consent</Badge>
+                      <Badge tone="coral">{t.noConsent}</Badge>
                     )}
                   </Td>
                   {isOwner ? (
@@ -173,11 +173,11 @@ export default async function ChildrenPage({
                         // A column of identical "Manage" links is unusable with
                         // a screen reader, which lists links out of context.
                         aria-label={fill(t.manageAria, {
-                        name: `${child.firstName} ${child.lastName}`,
-                      })}
+                          name: `${child.firstName} ${child.lastName}`,
+                        })}
                         className="font-semibold text-leaf underline underline-offset-4"
                       >
-                        Manage
+                        {t.manage}
                       </Link>
                     </Td>
                   ) : null}
@@ -194,12 +194,12 @@ export default async function ChildrenPage({
                 badges={
                   <div className="flex flex-wrap gap-1.5">
                     {child.status === "ARCHIVED" ? (
-                      <Badge tone="neutral">Left</Badge>
+                      <Badge tone="neutral">{t.colLeft}</Badge>
                     ) : null}
                     {child.photoConsent ? (
                       <Badge tone="green">{t.consent}</Badge>
                     ) : (
-                      <Badge tone="coral">No consent</Badge>
+                      <Badge tone="coral">{t.noConsent}</Badge>
                     )}
                   </div>
                 }
@@ -231,7 +231,7 @@ export default async function ChildrenPage({
                       })}
                       className="inline-block rounded-full border-2 border-ink/15 px-5 py-2 font-bold text-leaf transition-colors hover:border-leaf"
                     >
-                      Manage {child.firstName}
+                      {fill(t.manageAria, { name: child.firstName })}
                     </Link>
                   ) : undefined
                 }

@@ -124,7 +124,7 @@ export function LiveFilters({
           onChange={(event) => setArchived(event.target.checked)}
           className="size-4 accent-[color:var(--color-leaf)]"
         />
-        Include children who have left
+        {t.includeLeft}
       </label>
 
       {/*

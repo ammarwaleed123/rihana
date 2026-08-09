@@ -8,10 +8,10 @@ import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill } from "@/lib/i18n/plural";
 import { getChildDetail } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listParentsForPicker } from "@/lib/data/people";
-import { guardianRelationshipLabels } from "@/lib/validation";
 
 import { ArchiveChildButton, EditChildForm } from "../child-forms";
 import {
@@ -32,7 +32,9 @@ export default async function ChildDetailPage({
 }) {
   const { childId } = await params;
   const session = await requireStaff(`/admin/children/${childId}`);
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.admin.children;
 
   // getChildDetail throws NotFound for a child outside the caller's scope, so a
   // teacher guessing an id from another class gets a 404 — not a 403, which
@@ -65,23 +67,28 @@ export default async function ChildDetailPage({
           href="/admin/children"
           className="text-sm font-semibold text-leaf underline underline-offset-4"
         >
-          ← All children
+          <span aria-hidden className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {t.allChildren}
         </Link>
       </p>
 
       <PageHeader
         title={fullName}
-        description={
-          child.class
-            ? `${child.class.name} · born ${child.dateOfBirth.toISOString().slice(0, 10)}`
-            : `Not assigned to a class · born ${child.dateOfBirth.toISOString().slice(0, 10)}`
-        }
+        description={[
+          child.class?.name ?? t.notAssignedToClass,
+          // The stored ISO date, not a formatted one: this is the record staff
+          // check against a birth certificate, so it must not shift with locale.
+          fill(t.born, { date: child.dateOfBirth.toISOString().slice(0, 10) }),
+        ].join(" · ")}
         action={
           isOwner ? (
             <ArchiveChildButton
               childId={child.id}
               childName={child.firstName}
               archived={child.status === "ARCHIVED"}
+              t={t}
             />
           ) : undefined
         }
@@ -89,35 +96,37 @@ export default async function ChildDetailPage({
 
       <div className="mb-6 flex flex-wrap gap-2">
         {child.status === "ARCHIVED" ? (
-          <Badge tone="neutral">Left the nursery</Badge>
+          <Badge tone="neutral">{t.leftTheNursery}</Badge>
         ) : (
-          <Badge tone="green">Enrolled</Badge>
+          <Badge tone="green">{t.enrolled}</Badge>
         )}
         {child.photoConsent ? (
-          <Badge tone="green">{dict.admin.children.photoConsentGiven}</Badge>
+          <Badge tone="green">{t.photoConsentGiven}</Badge>
         ) : (
-          <Badge tone="coral">Photo consent withdrawn</Badge>
+          <Badge tone="coral">{t.photoConsentWithdrawn}</Badge>
         )}
       </div>
 
       {child.allergiesNote ? (
         <div className="mb-6 rounded-2xl border-2 border-sun/50 bg-sun-soft px-5 py-4">
-          <p className="font-bold">Allergies and notes</p>
-          <p className="mt-1 text-ink-soft">{child.allergiesNote}</p>
+          <p className="font-bold">{t.allergiesTitle}</p>
+          {/* Staff wrote this note; it stays in whichever script they used. */}
+          <p dir="auto" className="mt-1 text-ink-soft">
+            {child.allergiesNote}
+          </p>
         </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <SectionTitle>Guardians</SectionTitle>
+          <SectionTitle>{t.guardians}</SectionTitle>
           <p className="mb-4 text-sm text-ink-soft">
-            Only these people can see {child.firstName}&rsquo;s photos.
+            {fill(t.guardiansNote, { name: child.firstName })}
           </p>
 
           {child.guardianships.length === 0 ? (
             <p className="mb-5 rounded-xl bg-sun-soft px-4 py-3 text-sm">
-              No guardian is linked yet, so nobody receives {child.firstName}
-              &rsquo;s photos.
+              {fill(t.noGuardianLinked, { name: child.firstName })}
             </p>
           ) : (
             <ul className="mb-5 space-y-3">
@@ -130,19 +139,20 @@ export default async function ChildDetailPage({
                     <p className="font-semibold">
                       {g.parent.name}
                       {g.isPrimary ? (
-                        <span className="ml-2">
-                          <Badge tone="sky">Primary</Badge>
+                        <span className="ms-2">
+                          <Badge tone="sky">{t.primary}</Badge>
                         </span>
                       ) : null}
                       {g.parent.status === "INVITED" ? (
-                        <span className="ml-2">
-                          <Badge tone="yellow">Invite pending</Badge>
+                        <span className="ms-2">
+                          <Badge tone="yellow">{t.invitePending}</Badge>
                         </span>
                       ) : null}
                     </p>
                     <p className="text-sm text-ink-faint">
-                      {guardianRelationshipLabels[g.relationship]} ·{" "}
-                      {g.parent.email}
+                      {dict.admin.relationship[g.relationship]} ·{" "}
+                      {/* An address is never bidi-reordered. */}
+                      <span dir="ltr">{g.parent.email}</span>
                     </p>
                   </div>
 
@@ -151,6 +161,7 @@ export default async function ChildDetailPage({
                       childId={child.id}
                       parentUserId={g.parent.id}
                       parentName={g.parent.name}
+                      t={t}
                     />
                   ) : null}
                 </li>
@@ -163,15 +174,17 @@ export default async function ChildDetailPage({
               childId={child.id}
               childName={child.firstName}
               parents={availableParents}
+              t={t}
+              relationships={dict.admin.relationship}
             />
           ) : null}
         </Card>
 
         {isOwner ? (
           <Card>
-            <SectionTitle>Details</SectionTitle>
+            <SectionTitle>{t.detailsTitle}</SectionTitle>
             <EditChildForm
-              t={dict.admin.children}
+              t={t}
               child={{
                 id: child.id,
                 firstName: child.firstName,
@@ -189,13 +202,9 @@ export default async function ChildDetailPage({
 
       {isOwner ? (
         <div className="mt-8 rounded-2xl border-2 border-danger/25 bg-coral-soft/40 p-6">
-          <SectionTitle>Erase this record</SectionTitle>
-          <p className="mb-4 max-w-2xl text-sm text-ink-soft">
-            Use this when a family asks for their data to be deleted. If the
-            child has simply left, mark them as left instead — that keeps their
-            photos available to their guardians.
-          </p>
-          <DeleteChildForm childId={child.id} childName={fullName} />
+          <SectionTitle>{t.eraseTitle}</SectionTitle>
+          <p className="mb-4 max-w-2xl text-sm text-ink-soft">{t.eraseNote}</p>
+          <DeleteChildForm childId={child.id} childName={fullName} t={t} />
         </div>
       ) : null}
     </div>

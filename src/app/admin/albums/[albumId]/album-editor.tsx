@@ -14,13 +14,13 @@ import {
   type AlbumFormState,
 } from "@/lib/admin/album-actions";
 import { cn } from "@/lib/cn";
+import { LOCALE_INTL, type Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill, plural } from "@/lib/i18n/plural";
+
+type T = Dictionary["admin"]["albumEditor"];
 
 type AvailablePhoto = { id: string; caption: string | null; createdAt: Date };
-
-const pickerDate = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-});
 
 function Pending({ label, pendingLabel, ...rest }: {
   label: string;
@@ -46,16 +46,27 @@ export function AddPhotosPicker({
   albumId,
   photos,
   nextCursor,
+  t,
+  locale,
 }: {
   albumId: string;
   photos: AvailablePhoto[];
   nextCursor: string | null;
+  t: T;
+  locale: Locale;
 }) {
   const [state, action] = useActionState<AlbumFormState, FormData>(
     addPhotosAction,
     {},
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Built per render rather than at module scope: the formatter depends on the
+  // reader's language, which a module-level constant would fix at import time.
+  const pickerDate = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "short",
+  });
 
   function toggle(photoId: string) {
     setSelected((current) => {
@@ -87,9 +98,7 @@ export function AddPhotosPicker({
     return (
       <div className="space-y-4">
         {outcome}
-        <p className="text-sm text-ink-soft">
-          Every photo you can reach is already in this album.
-        </p>
+        <p className="text-sm text-ink-soft">{t.allAdded}</p>
       </div>
     );
   }
@@ -114,7 +123,7 @@ export function AddPhotosPicker({
            * what distinguishes one from another, and it is shown visually too:
            * a wall of similar thumbnails is hard to pick from for everybody.
            */
-          const label = photo.caption ?? `Photo taken ${taken}`;
+          const label = photo.caption ?? fill(t.photoTakenAlt, { date: taken });
 
           return (
             <li key={photo.id}>
@@ -149,12 +158,17 @@ export function AddPhotosPicker({
                     loading="lazy"
                   />
                   {checked ? (
-                    <span className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-leaf text-sm font-bold text-white">
+                    <span className="absolute end-1 top-1 flex size-6 items-center justify-center rounded-full bg-leaf text-sm font-bold text-white">
                       ✓
                     </span>
                   ) : null}
                 </span>
-                <span className="block truncate px-1.5 py-1 text-xs text-ink-soft">
+                {/* A caption is the staff member's own words, so it may be in
+                    either language regardless of the interface. */}
+                <span
+                  dir="auto"
+                  className="block truncate px-1.5 py-1 text-xs text-ink-soft"
+                >
                   {photo.caption ?? taken}
                 </span>
               </label>
@@ -164,13 +178,13 @@ export function AddPhotosPicker({
       </ul>
 
       <div className="flex flex-wrap items-center gap-3">
-        <AddButton count={selected.size} />
+        <AddButton count={selected.size} t={t} locale={locale} />
         {nextCursor ? (
           <a
             href={`?cursor=${encodeURIComponent(nextCursor)}`}
             className="text-sm font-semibold text-leaf underline underline-offset-4"
           >
-            Show older photos
+            {t.showOlder}
           </a>
         ) : null}
       </div>
@@ -178,15 +192,23 @@ export function AddPhotosPicker({
   );
 }
 
-function AddButton({ count }: { count: number }) {
+function AddButton({
+  count,
+  t,
+  locale,
+}: {
+  count: number;
+  t: T;
+  locale: Locale;
+}) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending || count === 0}>
       {pending
-        ? "Adding…"
+        ? t.adding
         : count === 0
-          ? "Select photos to add"
-          : `Add ${count} photo${count === 1 ? "" : "s"}`}
+          ? t.selectToAdd
+          : plural(t.addN, count, locale)}
     </Button>
   );
 }
@@ -200,6 +222,7 @@ export function AlbumPhotoCard({
   photo,
   isCover,
   canManage,
+  t,
 }: {
   albumId: string;
   photo: {
@@ -210,6 +233,7 @@ export function AlbumPhotoCard({
   };
   isCover: boolean;
   canManage: boolean;
+  t: T;
 }) {
   const [removeState, remove] = useActionState<AlbumFormState, FormData>(
     removePhotoAction,
@@ -226,13 +250,13 @@ export function AlbumPhotoCard({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/api/img/${photo.id}?v=thumb`}
-          alt={photo.caption ?? "Photo in this album"}
+          alt={photo.caption ?? t.photoInAlbumAlt}
           className="h-full w-full object-cover"
           loading="lazy"
         />
         {isCover ? (
-          <span className="absolute left-1.5 top-1.5 rounded-full bg-leaf px-2 py-0.5 text-xs font-bold text-white">
-            Cover
+          <span className="absolute start-1.5 top-1.5 rounded-full bg-leaf px-2 py-0.5 text-xs font-bold text-white">
+            {t.cover}
           </span>
         ) : null}
         {canManage && !photo.publishedAt ? (
@@ -241,8 +265,8 @@ export function AlbumPhotoCard({
            * tile that needs it: adding a photo to an album does not share it.
            * Only shown to an editor — a view-only teacher cannot act on it.
            */
-          <span className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-sun-soft px-2 py-1 text-center text-xs font-bold">
-            Not shared yet
+          <span className="absolute bottom-1.5 start-1.5 end-1.5 rounded-lg bg-sun-soft px-2 py-1 text-center text-xs font-bold">
+            {t.notSharedYet}
           </span>
         ) : null}
       </div>
@@ -251,7 +275,7 @@ export function AlbumPhotoCard({
         <>
           <div className="flex items-center justify-between gap-2 px-2 py-1.5">
             {isCover ? (
-              <span className="text-xs text-ink-faint">Album cover</span>
+              <span className="text-xs text-ink-faint">{t.albumCover}</span>
             ) : (
               <form action={setCover}>
                 <input type="hidden" name="albumId" value={albumId} />
@@ -260,7 +284,7 @@ export function AlbumPhotoCard({
                   type="submit"
                   className="text-xs font-semibold text-leaf underline underline-offset-2"
                 >
-                  Make cover
+                  {t.makeCover}
                 </button>
               </form>
             )}
@@ -272,7 +296,7 @@ export function AlbumPhotoCard({
                 type="submit"
                 className="text-xs font-semibold text-danger underline underline-offset-2"
               >
-                Remove
+                {t.remove}
               </button>
             </form>
           </div>
@@ -297,10 +321,12 @@ export function PublishAlbumForm({
   albumId,
   reachable,
   total,
+  t,
 }: {
   albumId: string;
   reachable: number;
   total: number;
+  t: T;
 }) {
   const [state, action] = useActionState<AlbumFormState, FormData>(
     publishAlbumAction,
@@ -314,23 +340,22 @@ export function PublishAlbumForm({
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
       {reachable === 0 && total > 0 ? (
-        <Alert tone="info">
-          None of these photos have been shared with families yet, so publishing
-          the album will not show anything. Publish the photos from the Photos
-          page first.
-        </Alert>
+        <Alert tone="info">{t.noneShared}</Alert>
       ) : null}
 
-      <Pending label="Publish album" pendingLabel="Publishing…" />
-      <p className="text-sm text-ink-soft">
-        Each family sees only the photos of their own child. An album never
-        shows anyone a photo they could not already see.
-      </p>
+      <Pending label={t.publishAlbum} pendingLabel={t.publishing} />
+      <p className="text-sm text-ink-soft">{t.publishNote}</p>
     </form>
   );
 }
 
-export function UnpublishAlbumForm({ albumId }: { albumId: string }) {
+export function UnpublishAlbumForm({
+  albumId,
+  t,
+}: {
+  albumId: string;
+  t: T;
+}) {
   const [state, action] = useActionState<AlbumFormState, FormData>(
     unpublishAlbumAction,
     {},
@@ -342,14 +367,11 @@ export function UnpublishAlbumForm({ albumId }: { albumId: string }) {
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
       <Pending
-        label="Withdraw album"
-        pendingLabel="Withdrawing…"
+        label={t.withdrawAlbum}
+        pendingLabel={t.withdrawing}
         variant="secondary"
       />
-      <p className="text-sm text-ink-soft">
-        Hides the album from families. The photos stay exactly as they are —
-        they are still visible in each family&rsquo;s own photo list.
-      </p>
+      <p className="text-sm text-ink-soft">{t.withdrawNote}</p>
     </form>
   );
 }
@@ -364,9 +386,11 @@ export function UnpublishAlbumForm({ albumId }: { albumId: string }) {
 export function DeleteAlbumForm({
   albumId,
   title,
+  t,
 }: {
   albumId: string;
   title: string;
+  t: T;
 }) {
   const [state, action] = useActionState<AlbumFormState, FormData>(
     deleteAlbumAction,
@@ -382,17 +406,21 @@ export function DeleteAlbumForm({
 
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
+      {/* The album title is the staff member's own text and can be in either
+          script, so the label reads whichever way the title runs. */}
       <label
         htmlFor={`confirm-${albumId}`}
+        dir="auto"
         className="block text-sm font-bold text-ink"
       >
-        Type “{title}” to confirm
+        {fill(t.confirmType, { title })}
       </label>
       <input
         id={`confirm-${albumId}`}
         value={confirm}
         onChange={(event) => setConfirm(event.target.value)}
         autoComplete="off"
+        dir="auto"
         className="w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base focus:border-danger focus:outline-none"
       />
 
@@ -402,12 +430,9 @@ export function DeleteAlbumForm({
         disabled={!matches}
         className="border-danger/40 text-danger hover:border-danger hover:text-danger"
       >
-        Delete this album
+        {t.deleteAlbum}
       </Button>
-      <p className="text-sm text-ink-soft">
-        Removes the album only. Every photo in it stays in the nursery&rsquo;s
-        library and in the families&rsquo; own albums.
-      </p>
+      <p className="text-sm text-ink-soft">{t.deleteNote}</p>
     </form>
   );
 }

@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { DEFAULT_LOCALE, LOCALE_HEADER, LOCALES } from "@/lib/i18n/config";
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE,
+  LOCALE_HEADER,
+  LOCALES,
+} from "@/lib/i18n/config";
 
 /**
  * Proxy — formerly `middleware.ts`, renamed in Next.js 16.
@@ -50,6 +55,63 @@ function localePrefixOf(pathname: string): string | null {
   return (LOCALES as readonly string[]).includes(first) ? first : null;
 }
 
+/**
+ * Carry the language chosen on the public site into the app.
+ *
+ * The public site takes its language from the URL and the app takes its own from
+ * a cookie, so without this a visitor reading `/ar/...` would arrive at a sign-in
+ * page in English — the language they just chose forgotten at the door. Mirroring
+ * the URL locale into the cookie makes the choice follow them into sign-in, and
+ * from there `signInAction` carries it onto their account.
+ *
+ * Only for a signed-OUT visitor. Someone already signed in has a language saved
+ * on their account, and merely browsing the public site must not silently
+ * overwrite it — that would flip an Arabic parent to English for clicking the
+ * logo. The cookie is a display preference and grants nothing (see
+ * i18n/locale-cookie.ts); the worst a wrong value does is show the wrong words.
+ */
+const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
+
+function rememberPublicLocale(
+  response: NextResponse,
+  request: NextRequest,
+  locale: string | null,
+): NextResponse {
+  if (!locale) return response;
+
+  const signedIn = SESSION_COOKIE_NAMES.some((name) => request.cookies.has(name));
+  if (signedIn) return response;
+
+  /*
+   * Only a real page the person navigated to counts as "what they are reading".
+   *
+   * Next prefetches the links in view, so the sign-in page — whose logo points
+   * at the English home — quietly fetched `/` in the background, and that
+   * overwrote the Arabic the visitor had just chosen while they were looking at
+   * an Arabic page. A prefetch is the browser's idea, not the reader's, and must
+   * never restate a preference.
+   *
+   * `Sec-Fetch-Dest` is the browser's own answer to "what is this request for",
+   * and it says `document` only for a real navigation — a prefetch or an RSC
+   * fetch says `empty`. Framework headers (`RSC`, `Next-Router-Prefetch`) would
+   * be guessing at the same thing and change between releases. Absent entirely
+   * means a non-browser client, which is not a preference either way.
+   */
+  if (request.headers.get("sec-fetch-dest") !== "document") return response;
+
+  // Nothing to do if it already says this — avoids a Set-Cookie on every hit.
+  if (request.cookies.get(LOCALE_COOKIE)?.value === locale) return response;
+
+  response.cookies.set(LOCALE_COOKIE, locale, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: ONE_YEAR_SECONDS,
+  });
+  return response;
+}
+
 // Must stay in sync with SESSION_COOKIE_NAME in src/lib/auth/cookies.ts.
 // Both names are checked because the __Host- prefix requires HTTPS and so is
 // only used in production.
@@ -68,27 +130,49 @@ export function proxy(request: NextRequest): NextResponse {
   );
 
   /*
-   * Resolve the locale for everything EXCEPT the private app, and hand it over
-   * as a request header. The root layout cannot derive it alone: it sits above
-   * the `[lang]` segment and serves the portal and admin too.
+   * Resolve the locale for the public marketing pages ONLY, and hand it over as
+   * a request header. The root layout cannot derive it alone: it sits above the
+   * `[lang]` segment and serves the portal, admin and auth pages too.
    *
-   *  - Public site: the URL is the only authority. An unprefixed path IS the
-   *    English page, so a stale "ar" preference cookie must not flip it to RTL
-   *    and leave Arabic chrome around English copy.
-   *  - Everything else here — sign-in, invite, password-reset — stays on the
-   *    default until those pages are translated. Honouring the cookie there
-   *    would render English copy right-to-left, which is worse than either.
+   * On the public site the URL is the only authority. An unprefixed path IS the
+   * English page, so a stale "ar" preference cookie must not flip it to RTL and
+   * leave Arabic chrome around English copy.
    *
-   * The private app is deliberately left OUT. Its locale is a cookie the user
-   * can change from inside the app, and a header stamped here is frozen at the
-   * start of the request — so the re-render that follows "Save language" would
-   * still carry the *previous* language, and the change would only appear on the
-   * next navigation (the "press save twice" bug). Omitting the header tells the
-   * root layout to read the cookie at render time instead, where a value just
-   * written by the server action is already visible.
+   * Everything else is deliberately left OUT, so the root layout falls back to
+   * reading the cookie at render time:
+   *
+   *  - The private app's locale is a cookie the user changes from inside the
+   *    app. A header stamped here is frozen at the start of the request, so the
+   *    re-render that follows "Save language" would still carry the PREVIOUS
+   *    language and the change would only appear on the next navigation — the
+   *    "press save twice" bug.
+   *  - The auth pages have no locale in their URL, so the cookie is all there
+   *    is. A returning Arabic-speaking parent gets an Arabic sign-in page, and
+   *    anyone else can switch with the toggle in the auth header.
+   *
+   * Note this is computed from the allowlist, not from `!isPrivate`: a bare
+   * `!isPrivate` would also stamp 404s and every future non-marketing route.
+   *
+   * The incoming header is DELETED first, always. `requestHeaders` is a copy of
+   * what the client sent, so anything the app reads from it must be something
+   * this function put there — otherwise a request carrying its own `x-locale`
+   * would decide the language on every path we choose not to stamp, and the
+   * cookie the user actually set would be ignored. Nothing here is a security
+   * boundary (the worst outcome is the wrong language), but a header the app
+   * trusts and the client controls is the shape of a bug worth not having.
    */
-  if (!isPrivate) {
-    requestHeaders.set(LOCALE_HEADER, urlLocale ?? DEFAULT_LOCALE);
+  requestHeaders.delete(LOCALE_HEADER);
+
+  const marketingLocale = urlLocale
+    ? isMarketingPath(pathname.slice(`/${urlLocale}`.length) || "/")
+      ? urlLocale
+      : null
+    : isMarketingPath(pathname)
+      ? DEFAULT_LOCALE
+      : null;
+
+  if (marketingLocale) {
+    requestHeaders.set(LOCALE_HEADER, marketingLocale);
   }
 
   if (isPrivate) {
@@ -139,10 +223,18 @@ export function proxy(request: NextRequest): NextResponse {
   if (!isPrivate && !localePrefixOf(pathname) && isMarketingPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = `/${DEFAULT_LOCALE}${pathname === "/" ? "" : pathname}`;
-    return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+    return rememberPublicLocale(
+      NextResponse.rewrite(url, { request: { headers: requestHeaders } }),
+      request,
+      marketingLocale,
+    );
   }
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const response = rememberPublicLocale(
+    NextResponse.next({ request: { headers: requestHeaders } }),
+    request,
+    marketingLocale,
+  );
 
   if (isPrivate) {
     response.headers.set("Cache-Control", "no-store");

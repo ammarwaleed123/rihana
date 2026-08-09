@@ -49,7 +49,11 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper/85 pt-[env(safe-area-inset-top)] backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
-        <Wordmark href={localePath(locale, "/")} />
+        <Wordmark
+          href={localePath(locale, "/")}
+          name={dict.meta.siteName}
+          label={dict.meta.logoHome}
+        />
 
         {/* Desktop nav */}
         <nav aria-label={dict.nav.ariaLabel} className="hidden items-center gap-1 lg:flex">

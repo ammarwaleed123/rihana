@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 
 import { Alert } from "@/components/ui/form";
 import { getSession, homePathForRole } from "@/lib/auth/scope";
+import { getDictionary } from "@/lib/i18n";
+import { getAppLocale } from "@/lib/i18n/app-locale";
 
 import { SignInForm } from "./signin-form";
 
@@ -23,32 +25,24 @@ export default async function SignInPage({
   const session = await getSession();
   if (session) redirect(homePathForRole(session.user.role));
 
+  const dict = await getDictionary(await getAppLocale());
+  const t = dict.auth;
+
   return (
     <div className="rounded-2xl border border-ink/10 bg-card p-8 shadow-pin">
-      <h1 className="text-3xl font-semibold">Welcome back</h1>
-      <p className="mt-2 text-ink-soft">
-        Sign in to see your child&rsquo;s photos and updates.
-      </p>
+      <h1 className="text-3xl font-semibold">{t.signInTitle}</h1>
+      <p className="mt-2 text-ink-soft">{t.signInSubtitle}</p>
 
       <div className="mt-6 space-y-4">
-        {params.activated ? (
-          <Alert tone="success">
-            Your account is ready. Sign in with your new password.
-          </Alert>
-        ) : null}
+        {params.activated ? <Alert tone="success">{t.activated}</Alert> : null}
 
-        {params.reset ? (
-          <Alert tone="success">
-            Your password has been changed. Sign in with your new password.
-          </Alert>
-        ) : null}
+        {params.reset ? <Alert tone="success">{t.resetDone}</Alert> : null}
 
-        <SignInForm next={params.next} />
+        <SignInForm next={params.next} t={t} />
       </div>
 
       <p className="mt-8 border-t border-ink/10 pt-6 text-sm text-ink-faint">
-        Accounts are created by the nursery. If you do not have one yet, please
-        contact the office and we will send you an invitation.
+        {t.noAccountNote}
       </p>
     </div>
   );

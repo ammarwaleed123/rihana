@@ -15,7 +15,7 @@ import { getAppLocale } from "@/lib/i18n/app-locale";
 import { fill, plural } from "@/lib/i18n/plural";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listPeople } from "@/lib/data/people";
-import { ageGroupLabels, type AGE_GROUPS } from "@/lib/validation";
+import { type AGE_GROUPS } from "@/lib/validation";
 
 import {
   ArchiveClassButton,
@@ -58,12 +58,8 @@ export default async function ClassesPage() {
 
       {classes.length === 0 ? (
         <EmptyState
-          title={isOwner ? "No classes yet" : "You are not assigned to a class"}
-          description={
-            isOwner
-              ? "Create your first class, then add children to it."
-              : "Ask the nursery owner to assign you to a class."
-          }
+          title={isOwner ? t.emptyOwnerTitle : t.emptyTeacherTitle}
+          description={isOwner ? t.emptyOwnerBody : t.emptyTeacherBody}
         />
       ) : (
         <div className="grid gap-5 md:grid-cols-2">
@@ -85,7 +81,7 @@ export default async function ClassesPage() {
                       {klass.name}
                     </h2>
                     <p className="mt-1 text-sm text-ink-soft">
-                      {ageGroupLabels[
+                      {t.ageGroups[
                         klass.ageGroupKey as (typeof AGE_GROUPS)[number]
                       ] ?? klass.ageGroupKey}{" "}
                       · {klass.academicYear}
@@ -101,8 +97,7 @@ export default async function ClassesPage() {
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge tone="green">
-                    {klass._count.children}{" "}
-                    {klass._count.children === 1 ? "child" : "children"}
+                    {plural(t.childCount, klass._count.children, locale)}
                   </Badge>
                   <Badge tone="sky">
                     {plural(t.teacherCount, klass._count.teachers, locale)}

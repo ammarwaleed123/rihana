@@ -9,6 +9,7 @@ import { Badge, Card, PageHeader, SectionTitle } from "@/components/ui/shell";
 import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
+import { fill } from "@/lib/i18n/plural";
 import { getAppLocale } from "@/lib/i18n/app-locale";
 import { getAnnouncementForStaff } from "@/lib/data/announcements";
 import { listClassesForSession } from "@/lib/data/classes";
@@ -36,6 +37,7 @@ export default async function AnnouncementDetailPage({
   const query = await searchParams;
   const session = await requireStaff(`/admin/announcements/${id}`);
   const dict = await getDictionary(await getAppLocale());
+  const t = dict.admin.announcementForm;
 
   let announcement;
   try {
@@ -50,8 +52,10 @@ export default async function AnnouncementDetailPage({
   const published = announcement.status === "PUBLISHED";
   const audienceLabel =
     announcement.audience === "ALL_NURSERY"
-      ? "every family in the nursery"
-      : `the families in ${announcement.class?.name ?? "the class"}`;
+      ? t.audienceEveryone
+      : fill(t.audienceClass, {
+          class: announcement.class?.name ?? t.audienceFallbackClass,
+        });
 
   return (
     <div>
@@ -62,7 +66,10 @@ export default async function AnnouncementDetailPage({
           href="/admin/announcements"
           className="text-sm font-semibold text-leaf underline underline-offset-4"
         >
-          ← All announcements
+          <span aria-hidden className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {t.allAnnouncements}
         </Link>
       </p>
 
@@ -70,37 +77,41 @@ export default async function AnnouncementDetailPage({
         title={announcement.title}
         description={
           announcement.audience === "ALL_NURSERY"
-            ? "Whole nursery"
-            : (announcement.class?.name ?? "A class")
+            ? t.audienceWholeNursery
+            : (announcement.class?.name ?? t.aClass)
         }
         action={
-          published ? <Badge tone="green">Published</Badge> : <Badge tone="yellow">Draft</Badge>
+          published ? (
+            <Badge tone="green">{dict.admin.announcements.published}</Badge>
+          ) : (
+            <Badge tone="yellow">{dict.admin.announcements.draft}</Badge>
+          )
         }
       />
 
       {query.published ? (
         <div className="mb-6">
           <Alert tone="success">
-            Published, and a notification is on its way to {audienceLabel}.
+            {fill(t.publishedNotice, { audience: audienceLabel })}
           </Alert>
         </div>
       ) : null}
       {query.withdrawn ? (
         <div className="mb-6">
-          <Alert tone="success">Withdrawn from families&rsquo; portals.</Alert>
+          <Alert tone="success">{t.withdrawnNotice}</Alert>
         </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,20rem)]">
         <div className="space-y-6">
           <Card>
-            <SectionTitle>Preview</SectionTitle>
+            <SectionTitle>{t.preview}</SectionTitle>
             <AnnouncementBody markdown={announcement.body} />
           </Card>
 
           <Card>
-            <SectionTitle>Edit</SectionTitle>
-            <EditAnnouncementForm t={dict.admin.announcementForm}
+            <SectionTitle>{t.edit}</SectionTitle>
+            <EditAnnouncementForm t={t}
               announcement={announcement}
               classes={classes}
               canPostNursery={isOwner}
@@ -110,22 +121,27 @@ export default async function AnnouncementDetailPage({
 
         <div className="space-y-6">
           <Card>
-            <SectionTitle>{published ? "Live" : "Publish"}</SectionTitle>
+            <SectionTitle>{published ? t.live : t.publish}</SectionTitle>
             {published ? (
-              <UnpublishAnnouncementForm announcementId={announcement.id} />
+              <UnpublishAnnouncementForm
+                announcementId={announcement.id}
+                t={t}
+              />
             ) : (
               <PublishAnnouncementForm
                 announcementId={announcement.id}
                 audienceLabel={audienceLabel}
+                t={t}
               />
             )}
           </Card>
 
           <Card>
-            <SectionTitle>Delete</SectionTitle>
+            <SectionTitle>{t.delete}</SectionTitle>
             <DeleteAnnouncementForm
               announcementId={announcement.id}
               title={announcement.title}
+              t={t}
             />
           </Card>
         </div>

@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill } from "@/lib/i18n/plural";
 import { listChildren } from "@/lib/data/children";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listPeople } from "@/lib/data/people";
@@ -33,10 +35,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function statusBadge(status: "INVITED" | "ACTIVE" | "DISABLED") {
-  if (status === "ACTIVE") return <Badge tone="green">Active</Badge>;
-  if (status === "INVITED") return <Badge tone="yellow">Invite pending</Badge>;
-  return <Badge tone="coral">Disabled</Badge>;
+function statusBadge(
+  status: "INVITED" | "ACTIVE" | "DISABLED",
+  t: Dictionary["admin"]["people"],
+) {
+  if (status === "ACTIVE") return <Badge tone="green">{t.active}</Badge>;
+  if (status === "INVITED")
+    return <Badge tone="yellow">{t.invitePending}</Badge>;
+  return <Badge tone="coral">{t.disabled}</Badge>;
 }
 
 export default async function PeoplePage({
@@ -76,10 +82,15 @@ export default async function PeoplePage({
         <InviteTeacherForm t={dict.admin.peopleForm} classes={classes} />
       </div>
 
-      <LiveSearch basePath="/admin/people" placeholder={t.searchPlaceholder} />
+      <LiveSearch
+        basePath="/admin/people"
+        label={t.searchLabel}
+        placeholder={t.searchPlaceholder}
+        searching={t.searching}
+      />
 
       <section className="mb-10">
-        <SectionTitle>Staff ({staff.length})</SectionTitle>
+        <SectionTitle>{fill(t.staffCount, { n: staff.length })}</SectionTitle>
 
         {staff.length === 0 ? (
           <EmptyState
@@ -109,21 +120,21 @@ export default async function PeoplePage({
                   </Td>
                   <Td>
                     <Badge tone={person.role === "OWNER" ? "sky" : "neutral"}>
-                      {person.role === "OWNER" ? "Owner" : "Teacher"}
+                      {person.role === "OWNER" ? t.roleOwner : t.roleTeacher}
                     </Badge>
                   </Td>
                   <Td className="text-sm text-ink-soft">
                     {person.classes.length > 0
                       ? person.classes.map((c) => c.name).join(", ")
                       : person.role === "OWNER"
-                        ? "All classes"
-                        : "None yet"}
+                        ? t.allClasses
+                        : t.noneYet}
                   </Td>
-                  <Td>{statusBadge(person.status)}</Td>
+                  <Td>{statusBadge(person.status, t)}</Td>
                   <Td className="text-sm text-ink-soft">
                     {person.lastLoginAt
                       ? person.lastLoginAt.toISOString().slice(0, 10)
-                      : "Never"}
+                      : t.never}
                   </Td>
                   <Td>
                     <div className="space-y-2">
@@ -152,12 +163,12 @@ export default async function PeoplePage({
             <CardListItem
               key={person.id}
               title={person.name}
-              badges={statusBadge(person.status)}
+              badges={statusBadge(person.status, t)}
               fields={[
                 { label: "Email", value: person.email },
                 {
                   label: "Role",
-                  value: person.role === "OWNER" ? "Owner" : "Teacher",
+                  value: person.role === "OWNER" ? t.roleOwner : t.roleTeacher,
                 },
                 {
                   label: "Classes",
@@ -165,8 +176,8 @@ export default async function PeoplePage({
                     person.classes.length > 0
                       ? person.classes.map((c) => c.name).join(", ")
                       : person.role === "OWNER"
-                        ? "All classes"
-                        : "None yet",
+                        ? t.allClasses
+                        : t.noneYet,
                 },
               ]}
               action={
@@ -191,7 +202,9 @@ export default async function PeoplePage({
       </section>
 
       <section>
-        <SectionTitle>Parents ({parents.length})</SectionTitle>
+        <SectionTitle>
+          {fill(t.parentsCount, { n: parents.length })}
+        </SectionTitle>
 
         {parents.length === 0 ? (
           <EmptyState
@@ -228,11 +241,11 @@ export default async function PeoplePage({
                       <Badge tone="yellow">{t.noChildrenLinked}</Badge>
                     )}
                   </Td>
-                  <Td>{statusBadge(person.status)}</Td>
+                  <Td>{statusBadge(person.status, t)}</Td>
                   <Td className="text-sm text-ink-soft">
                     {person.lastLoginAt
                       ? person.lastLoginAt.toISOString().slice(0, 10)
-                      : "Never"}
+                      : t.never}
                   </Td>
                   <Td>
                     <div className="space-y-2">
@@ -257,7 +270,7 @@ export default async function PeoplePage({
             <CardListItem
               key={person.id}
               title={person.name}
-              badges={statusBadge(person.status)}
+              badges={statusBadge(person.status, t)}
               fields={[
                 { label: "Email", value: person.email },
                 {

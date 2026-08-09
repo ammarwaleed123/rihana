@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
+import { LOCALE_INTL } from "@/lib/i18n/config";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill } from "@/lib/i18n/plural";
 import { listAnnouncementsForStaff } from "@/lib/data/announcements";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -23,12 +25,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
 export default async function AnnouncementsPage({
   searchParams,
 }: {
@@ -36,7 +32,14 @@ export default async function AnnouncementsPage({
 }) {
   const query = await searchParams;
   const session = await requireStaff("/admin/announcements");
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
   const t = dict.admin.announcements;
 
   const [announcements, classes] = await Promise.all([
@@ -57,7 +60,9 @@ export default async function AnnouncementsPage({
 
       {query.deleted ? (
         <div className="mb-6">
-          <Alert tone="success">Deleted the announcement “{query.deleted}”.</Alert>
+          <Alert tone="success">
+            {fill(t.deleted, { title: query.deleted })}
+          </Alert>
         </div>
       ) : null}
 
@@ -77,10 +82,7 @@ export default async function AnnouncementsPage({
           <SectionTitle>{t.allAnnouncements}</SectionTitle>
 
           {announcements.length === 0 ? (
-            <EmptyState
-              title="No announcements yet"
-              description="Closures, reminders, events — anything the whole nursery or a class should know."
-            />
+            <EmptyState title={t.emptyTitle} description={t.emptyBody} />
           ) : (
             <ul className="space-y-3">
               {announcements.map((a) => (
@@ -102,8 +104,8 @@ export default async function AnnouncementsPage({
                       </div>
                       <p className="mt-0.5 text-sm text-ink-soft">
                         {a.audience === "ALL_NURSERY"
-                          ? "Whole nursery"
-                          : (a.class?.name ?? "A class")}{" "}
+                          ? t.wholeNursery
+                          : (a.class?.name ?? t.aClass)}{" "}
                         · {dateFormat.format(a.createdAt)}
                       </p>
                     </div>

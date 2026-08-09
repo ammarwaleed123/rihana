@@ -57,10 +57,12 @@ export function SproutMark({ className }: { className?: string }) {
 export function Wordmark({
   className,
   href = "/",
+  name = "Rihana Montessori Academy",
   label = "Rihana Montessori Academy — home",
 }: {
   className?: string;
   href?: string;
+  name?: string;
   label?: string;
 }) {
   return (
@@ -71,7 +73,7 @@ export function Wordmark({
     >
       <Image
         src="/logo.png"
-        alt="Rihana Montessori Academy"
+        alt={name}
         width={507}
         height={492}
         priority

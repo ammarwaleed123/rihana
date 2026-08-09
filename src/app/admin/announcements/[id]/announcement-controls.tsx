@@ -10,6 +10,10 @@ import {
   unpublishAnnouncementAction,
   type AnnouncementState,
 } from "@/lib/admin/announcement-actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
+
+type T = Dictionary["admin"]["announcementForm"];
 
 function Pending({
   label,
@@ -27,9 +31,11 @@ function Pending({
 export function PublishAnnouncementForm({
   announcementId,
   audienceLabel,
+  t,
 }: {
   announcementId: string;
   audienceLabel: string;
+  t: T;
 }) {
   const [state, action] = useActionState<AnnouncementState, FormData>(
     publishAnnouncementAction,
@@ -40,9 +46,9 @@ export function PublishAnnouncementForm({
     <form action={action} className="space-y-3">
       <input type="hidden" name="announcementId" value={announcementId} />
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      <Pending label="Publish & notify" pendingLabel="Publishing…" />
+      <Pending label={t.publishAndNotify} pendingLabel={t.publishing} />
       <p className="text-sm text-ink-soft">
-        Sends a notification to {audienceLabel} and shows it in their portal.
+        {fill(t.publishNote, { audience: audienceLabel })}
       </p>
     </form>
   );
@@ -50,8 +56,10 @@ export function PublishAnnouncementForm({
 
 export function UnpublishAnnouncementForm({
   announcementId,
+  t,
 }: {
   announcementId: string;
+  t: T;
 }) {
   const [state, action] = useActionState<AnnouncementState, FormData>(
     unpublishAnnouncementAction,
@@ -62,11 +70,12 @@ export function UnpublishAnnouncementForm({
     <form action={action} className="space-y-3">
       <input type="hidden" name="announcementId" value={announcementId} />
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      <Pending label="Withdraw" pendingLabel="Withdrawing…" variant="secondary" />
-      <p className="text-sm text-ink-soft">
-        Removes it from families&rsquo; portals. Notifications already sent are
-        not recalled.
-      </p>
+      <Pending
+        label={t.withdraw}
+        pendingLabel={t.withdrawing}
+        variant="secondary"
+      />
+      <p className="text-sm text-ink-soft">{t.withdrawNote}</p>
     </form>
   );
 }
@@ -74,9 +83,11 @@ export function UnpublishAnnouncementForm({
 export function DeleteAnnouncementForm({
   announcementId,
   title,
+  t,
 }: {
   announcementId: string;
   title: string;
+  t: T;
 }) {
   const [state, action] = useActionState<AnnouncementState, FormData>(
     deleteAnnouncementAction,
@@ -92,15 +103,17 @@ export function DeleteAnnouncementForm({
 
       <label
         htmlFor={`confirm-${announcementId}`}
+        dir="auto"
         className="block text-sm font-bold text-ink"
       >
-        Type &ldquo;{title}&rdquo; to confirm
+        {fill(t.confirmType, { title })}
       </label>
       <input
         id={`confirm-${announcementId}`}
         value={confirm}
         onChange={(event) => setConfirm(event.target.value)}
         autoComplete="off"
+        dir="auto"
         className="w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base focus:border-danger focus:outline-none"
       />
       <Button
@@ -109,7 +122,7 @@ export function DeleteAnnouncementForm({
         disabled={!matches}
         className="border-danger/40 text-danger hover:border-danger hover:text-danger"
       >
-        Delete announcement
+        {t.deleteAnnouncement}
       </Button>
     </form>
   );

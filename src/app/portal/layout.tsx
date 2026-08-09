@@ -48,7 +48,11 @@ export default async function PortalLayout({
       <header className="border-b border-ink/10 bg-card pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-4">
           <div className="flex min-w-0 items-center gap-6">
-            <BrandLogo href="/portal" />
+            <BrandLogo
+              href="/portal"
+              name={dict.meta.siteName}
+              label={dict.meta.logoHome}
+            />
             <PortalNavDesktop t={dict.portal.nav} />
           </div>
 
@@ -72,7 +76,7 @@ export default async function PortalLayout({
         id="main"
         className="mx-auto w-full max-w-4xl flex-1 px-5 py-8 pb-28 sm:pb-8"
       >
-        <InstallHint userId={session.user.id} />
+        <InstallHint userId={session.user.id} t={dict.portal.install} />
         {children}
       </main>
 

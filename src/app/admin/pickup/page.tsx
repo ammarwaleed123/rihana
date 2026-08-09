@@ -5,6 +5,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
+import { LOCALE_INTL } from "@/lib/i18n/config";
 import { getAppLocale } from "@/lib/i18n/app-locale";
 import { listClassesForSession } from "@/lib/data/classes";
 import { countPendingPickupApprovals, getDoorBoard } from "@/lib/data/pickup";
@@ -14,18 +15,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-});
-
 export default async function PickupBoardPage({
   searchParams,
 }: {
   searchParams: Promise<{ classId?: string }>;
 }) {
   const session = await requireStaff("/admin/pickup");
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "short",
+  });
   const t = dict.admin.pickupBoard;
   const { classId } = await searchParams;
   const isOwner = session.user.role === "OWNER";

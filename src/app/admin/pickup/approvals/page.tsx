@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/form";
 import { Card, EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireOwner } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
+import { LOCALE_INTL } from "@/lib/i18n/config";
 import { getAppLocale } from "@/lib/i18n/app-locale";
 import { getPendingPickupApprovals } from "@/lib/data/pickup";
 import {
@@ -18,19 +19,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
 export default async function PickupApprovalsPage({
   searchParams,
 }: {
   searchParams: Promise<{ approved?: string; rejected?: string; gone?: string }>;
 }) {
   const session = await requireOwner("/admin/pickup/approvals");
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
   const t = dict.admin.approvals;
   const query = await searchParams;
   const pending = await getPendingPickupApprovals(session);
@@ -123,7 +125,7 @@ export default async function PickupApprovalsPage({
                         <Row
                           label={t.onlyUntil}
                           value={
-                            (person.isExpired ? "Expired — " : "") +
+                            (person.isExpired ? t.expiredPrefix : "") +
                             dateFormat.format(person.expiresAt)
                           }
                         />
@@ -132,8 +134,7 @@ export default async function PickupApprovalsPage({
 
                     {person.isExpired ? (
                       <p className="mt-3 rounded-lg bg-sun-soft px-3 py-2 text-sm font-semibold text-warning">
-                        The end date on this request has already passed — check
-                        with the parent before approving.
+                        {t.expiredWarning}
                       </p>
                     ) : null}
 

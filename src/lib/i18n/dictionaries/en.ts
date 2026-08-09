@@ -22,6 +22,8 @@ const en = {
     /** Appended to page titles by the layout's title.template. */
     siteName: "Rihana Montessori Academy",
     tagline: "A warm nursery in Maadi, Cairo for ages 1–5",
+    /** The logo's accessible name. The image itself is the wordmark. */
+    logoHome: "Rihana Montessori Academy — home",
   },
 
   nav: {
@@ -425,6 +427,70 @@ const en = {
       filter: "Filter",
       consentWarning:
         "Turning this off removes the child from every photo they are already tagged in, and stops them being tagged in new ones. Photos that showed only this child stop being visible to anyone, including their own family.",
+      includeLeft: "Include children who have left",
+
+      // The detail page.
+      allChildren: "All children",
+      notAssignedToClass: "Not assigned to a class",
+      born: "born {date}",
+      leftTheNursery: "Left the nursery",
+      enrolled: "Enrolled",
+      photoConsentWithdrawn: "Photo consent withdrawn",
+      allergiesTitle: "Allergies and notes",
+      guardians: "Guardians",
+      guardiansNote: "Only these people can see {name}’s photos.",
+      noGuardianLinked:
+        "No guardian is linked yet, so nobody receives {name}’s photos.",
+      primary: "Primary",
+      invitePending: "Invite pending",
+      detailsTitle: "Details",
+      eraseTitle: "Erase this record",
+      eraseNote:
+        "Use this when a family asks for their data to be deleted. If the child has simply left, mark them as left instead — that keeps their photos available to their guardians.",
+
+      // Add and edit.
+      firstName: "First name",
+      lastName: "Last name",
+      dateOfBirth: "Date of birth",
+      classLabel: "Class",
+      notAssignedYet: "Not assigned yet",
+      allergiesLabel: "Allergies and notes",
+      allergiesHint: "Visible to staff only.",
+      addChild: "Add a child",
+      addChildSubmit: "Add child",
+      adding: "Adding…",
+      saveChanges: "Save changes",
+      saving: "Saving…",
+      restore: "Restore {name}",
+      markLeft: "Mark {name} as left",
+
+      // Guardians.
+      allParentsLinked:
+        "Every parent account is already linked to {name}. Invite a new parent from the Parents & staff page.",
+      linkGuardian: "Link a guardian",
+      parentAccount: "Parent account",
+      relationshipLabel: "Relationship",
+      primaryContact: "Primary contact",
+      linkNote:
+        "This gives them access to every photo of {name}, including class albums for {name}’s class.",
+      linkSubmit: "Link guardian",
+      linking: "Linking…",
+      removeAccess: "Remove access",
+      removeAccessAria: "Remove {name}’s access",
+      deletePermanently: "Delete permanently",
+      deleteWarning:
+        "This erases {name}’s record, every guardian link, their pickup list, and any photo that shows only {name}. Photos that also show other children are kept. This cannot be undone.",
+      confirmType: "Type “{name}” to confirm",
+      deleteSubmit: "Permanently delete {name}",
+    },
+
+    // Same four values as the portal's, kept beside the admin copy so each
+    // section reads on its own — the pattern the rest of this file follows.
+    relationship: {
+      MOTHER: "Mother",
+      FATHER: "Father",
+      GUARDIAN: "Guardian",
+      OTHER: "Other",
     },
 
     classes: {
@@ -451,6 +517,16 @@ const en = {
       noTeacherAssigned:
         "No teacher assigned yet — nobody can upload photos for this class.",
       viewChildrenIn: "View children in {name}",
+      emptyOwnerTitle: "No classes yet",
+      emptyOwnerBody: "Create your first class, then add children to it.",
+      emptyTeacherTitle: "You are not assigned to a class",
+      emptyTeacherBody: "Ask the nursery owner to assign you to a class.",
+      childCount: { one: "{n} child", other: "{n} children" } as Plural,
+      ageGroups: {
+        toddlers: "Toddlers (1–2 years)",
+        preschool: "Preschool (2–4 years)",
+        prek: "Pre-K (4–5 years)",
+      },
     },
 
     albums: {
@@ -465,6 +541,9 @@ const en = {
       allAlbums: "All albums",
       published: "Published",
       draft: "Draft",
+      wholeNursery: "Whole nursery",
+      photoCount: { one: "{n} photo", other: "{n} photos" } as Plural,
+      deleted: "Deleted the album “{title}”. The photos in it were not touched.",
     },
 
     photos: {
@@ -478,6 +557,10 @@ const en = {
       recentUploads: "Recent uploads",
       published: "Published",
       notPublished: "Not published",
+      noClass: "No class",
+      photoCount: { one: "{n} photo", other: "{n} photos" } as Plural,
+      viewPhotos: "View photos",
+      tagAndPublish: "Tag and publish",
     },
 
     announcements: {
@@ -492,6 +575,22 @@ const en = {
       allAnnouncements: "All announcements",
       published: "Published",
       draft: "Draft",
+      wholeNursery: "Whole nursery",
+      aClass: "A class",
+      deleted: "Deleted the announcement “{title}”.",
+    },
+
+    notifications: {
+      title: "Notifications",
+      description:
+        "Pickup requests to review and other updates that need your attention.",
+      markAllRead: "Mark all as read",
+      installTitle: "Install the app",
+      pushTitle: "Notifications on this device",
+      emptyTitle: "Nothing yet",
+      emptyBody:
+        "When a parent asks to authorize someone for pickup, it will show up here.",
+      loadOlder: "Load older",
     },
 
     activity: {
@@ -524,6 +623,15 @@ const en = {
       colClasses: "Classes",
       colStatus: "Status",
       colLastSignedIn: "Last signed in",
+      roleOwner: "Owner",
+      roleTeacher: "Teacher",
+      searchLabel: "Search",
+      searching: "Searching…",
+      staffCount: "Staff ({n})",
+      parentsCount: "Parents ({n})",
+      allClasses: "All classes",
+      noneYet: "None yet",
+      never: "Never",
       thisIsYou: "This is you",
       children: "Children",
       noChildrenLinked: "No children linked",
@@ -548,6 +656,31 @@ const en = {
       saveChanges: "Save changes",
       saving: "Saving…",
       draftNote: "Nothing is sent until you publish it on the next screen.",
+
+      // The detail page and its publish / withdraw / delete controls.
+      allAnnouncements: "All announcements",
+      audienceWholeNursery: "Whole nursery",
+      aClass: "A class",
+      audienceEveryone: "every family in the nursery",
+      audienceClass: "the families in {class}",
+      audienceFallbackClass: "the class",
+      publishedNotice: "Published, and a notification is on its way to {audience}.",
+      withdrawnNotice: "Withdrawn from families’ portals.",
+      preview: "Preview",
+      edit: "Edit",
+      live: "Live",
+      publish: "Publish",
+      delete: "Delete",
+      publishAndNotify: "Publish & notify",
+      publishing: "Publishing…",
+      publishNote:
+        "Sends a notification to {audience} and shows it in their portal.",
+      withdraw: "Withdraw",
+      withdrawing: "Withdrawing…",
+      withdrawNote:
+        "Removes it from families’ portals. Notifications already sent are not recalled.",
+      confirmType: "Type “{title}” to confirm",
+      deleteAnnouncement: "Delete announcement",
     },
 
     albumForm: {
@@ -609,6 +742,166 @@ const en = {
       uploadN: { one: "Upload {n} photo", other: "Upload {n} photos" } as Plural,
       addedN: { one: "Added {n} photo.", other: "Added {n} photos." } as Plural,
       noneAdded: "No photos were added.",
+      selectedN: { one: "{n} photo", other: "{n} photos" } as Plural,
+      sizeMb: "{size} MB",
+      sentInBatches: {
+        one: "sent in {n} batch",
+        other: "sent in {n} batches",
+      } as Plural,
+      oversizedN: {
+        one: "{n} file is larger than {limit} MB and will be skipped: {files}",
+        other: "{n} files are larger than {limit} MB and will be skipped: {files}",
+      } as Plural,
+      uploadedProgress: "Uploaded {n} of {total}…",
+      rejectedN: {
+        one: "{n} file could not be used:",
+        other: "{n} files could not be used:",
+      } as Plural,
+      uploadedBeforeError: {
+        one: "{n} photo was uploaded before this happened.",
+        other: "{n} photos were uploaded before this happened.",
+      } as Plural,
+    },
+
+    albumEditor: {
+      // The album detail page.
+      allAlbums: "All albums",
+      wholeNursery: "Whole nursery",
+      photoCount: { one: "{n} photo", other: "{n} photos" } as Plural,
+      publishedNotice: "Album published.",
+      publishedNoneReachable:
+        "No photos in it have been shared with families yet, so nobody can see it.",
+      publishedReachable: {
+        one: "Families can see the {n} shared photo their own child appears in.",
+        other: "Families can see the {n} shared photos their own child appears in.",
+      } as Plural,
+      withdrawnNotice:
+        "Album withdrawn. The photos themselves are unchanged and still visible in each family’s own album.",
+      viewOnlyClass:
+        "You can view this album. Only the {class} teacher can edit it.",
+      viewOnlyNursery: "You can view this album. Only the owner can edit it.",
+      photosInAlbum: "Photos in this album",
+      emptyManage: "Nothing here yet. Choose some photos below.",
+      empty: "Nothing here yet.",
+      unsharedCount: {
+        one: "{n} of these has not been shared with families yet. Adding a photo to an album does not share it — publish it from the Photos page.",
+        other:
+          "{n} of these have not been shared with families yet. Adding a photo to an album does not share it — publish it from the Photos page.",
+      } as Plural,
+      addPhotos: "Add photos",
+      classScopeNote:
+        "Showing {class} photos only — both tagged and class photos — so this album can’t accidentally include another class’s pictures.",
+      nurseryScopeNote:
+        "This is a whole-nursery album, so photos from every class can be added.",
+      shareTitle: "Share this album",
+      withdrawTitle: "Withdraw from families",
+      albumDetails: "Album details",
+      deleteTitle: "Delete album",
+
+      // The picker and the tiles.
+      allAdded: "Every photo you can reach is already in this album.",
+      photoTakenAlt: "Photo taken {date}",
+      showOlder: "Show older photos",
+      adding: "Adding…",
+      selectToAdd: "Select photos to add",
+      addN: { one: "Add {n} photo", other: "Add {n} photos" } as Plural,
+      photoInAlbumAlt: "Photo in this album",
+      cover: "Cover",
+      notSharedYet: "Not shared yet",
+      albumCover: "Album cover",
+      makeCover: "Make cover",
+      remove: "Remove",
+
+      // Publish, withdraw, delete.
+      noneShared:
+        "None of these photos have been shared with families yet, so publishing the album will not show anything. Publish the photos from the Photos page first.",
+      publishAlbum: "Publish album",
+      publishing: "Publishing…",
+      publishNote:
+        "Each family sees only the photos of their own child. An album never shows anyone a photo they could not already see.",
+      withdrawAlbum: "Withdraw album",
+      withdrawing: "Withdrawing…",
+      withdrawNote:
+        "Hides the album from families. The photos stay exactly as they are — they are still visible in each family’s own photo list.",
+      confirmType: "Type “{title}” to confirm",
+      deleteAlbum: "Delete this album",
+      deleteNote:
+        "Removes the album only. Every photo in it stays in the nursery’s library and in the families’ own albums.",
+    },
+
+    photoCard: {
+      // The tagging page.
+      allUploads: "All uploads",
+      titlePublished: "Published photos",
+      titleTag: "Tag these photos",
+      descPublished: "{class} · families can see these now.",
+      descTag: "{class} · choose who appears in each photo, then publish.",
+      withdrawnNotice: {
+        one: "Withdrawn. {n} photo is no longer visible to families. Their tags are kept, so you can correct them and publish again.",
+        other:
+          "Withdrawn. {n} photos are no longer visible to families. Their tags are kept, so you can correct them and publish again.",
+      } as Plural,
+      publishedNotice: {
+        one: "Published {n} photo. Families can see it now.",
+        other: "Published {n} photos. Families can see them now.",
+      } as Plural,
+      unreachableSuffix: {
+        one: "{n} was left unpublished because nobody is tagged in it.",
+        other: "{n} were left unpublished because nobody is tagged in them.",
+      } as Plural,
+      emptyTitle: "No photos in this upload",
+      emptyBody: "Add some photos to get started.",
+      newPhotosToShare: "New photos to share",
+      readyToShare: "Ready to share?",
+      newPhotosNote:
+        "Photos tagged after this upload was published are not visible to families until you share them.",
+      readyNote:
+        "Publishing makes these visible in the family portal and notifies the parents of every tagged child — one message per family, not one per photo.",
+      withdrawTitle: "Withdraw these photos",
+
+      // One photo card.
+      awaitingTagsAlt: "Uploaded photo awaiting tags",
+      processingFailed:
+        "This file could not be processed and will not be shared.",
+      processing: "Processing",
+      rejected: "Rejected",
+      wholeClass: "Whole class",
+      published: "Published",
+      nobodyTagged: "Nobody is tagged, so no family will see this.",
+      whoIsInPhoto: "Who is in this photo?",
+      noConsentTitle: "{name} cannot be tagged — photo consent withdrawn",
+      noConsentSuffix: " (no consent)",
+      saveTags: "Save tags",
+      save: "Save",
+      saving: "Saving…",
+      stopSharingClass: "Stop sharing with the whole class",
+      shareWithClass: "Share with the whole class",
+      classVisibleNote: "Every family in this class can see it, tagged or not.",
+      taggedVisibleNote: "Only the families of tagged children can see it.",
+      caption: "Caption",
+      captionPlaceholder: "Painting in the garden",
+      deletePermanently: "Delete this photo permanently",
+      removePhoto: "Remove this photo",
+      deleteNotePublished:
+        "Removes it from every family’s album and from storage.",
+      deleteNoteUnpublished: "It has not been shared with anyone yet.",
+
+      // Publishing the whole upload.
+      untaggedWarning: {
+        one: "{n} of {total} photos has nobody tagged. It will stay unpublished until someone is tagged, or you share it with the whole class.",
+        other:
+          "{n} of {total} photos have nobody tagged. They will stay unpublished until someone is tagged, or you share them with the whole class.",
+      } as Plural,
+      publishing: "Publishing…",
+      publishN: {
+        one: "Publish {n} photo to families",
+        other: "Publish {n} photos to families",
+      } as Plural,
+      askOwner:
+        "Ask the nursery owner if these need to be withdrawn from families.",
+      withdrawFromFamilies: "Withdraw from families",
+      withdrawNote:
+        "Hides every photo in this upload from the family portal. The photos and their tags are kept, so you can correct them and publish again.",
     },
 
     inquiryStatus: {
@@ -651,6 +944,10 @@ const en = {
       statusTitle: "Status",
       statusHelp: "Move this family along as you follow up.",
       current: "current",
+      notesPlaceholder:
+        "Private notes — who you spoke to, what was agreed, next steps…",
+      saveNotes: "Save notes",
+      savingNotes: "Saving…",
     },
 
     pickupBoard: {
@@ -694,6 +991,9 @@ const en = {
       approve: "Approve",
       reasonOptional: "Reason (optional)",
       reject: "Reject",
+      expiredPrefix: "Expired — ",
+      expiredWarning:
+        "The end date on this request has already passed — check with the parent before approving.",
     },
 
 
@@ -744,6 +1044,114 @@ const en = {
   },
 
   /* ─────────────────────────────────────────────── private app: the portal ── */
+  auth: {
+    // The shell.
+    needHelp: "Need help? Contact the nursery office.",
+    languageLabel: "Language",
+
+    // Sign in.
+    signInTitle: "Welcome back",
+    signInSubtitle: "Sign in to see your child’s photos and updates.",
+    activated: "Your account is ready. Sign in with your new password.",
+    resetDone: "Your password has been changed. Sign in with your new password.",
+    noAccountNote:
+      "Accounts are created by the nursery. If you do not have one yet, please contact the office and we will send you an invitation.",
+    email: "Email",
+    password: "Password",
+    signIn: "Sign in",
+    signingIn: "Signing in…",
+    forgotPassword: "Forgot your password?",
+
+    // Forgot password.
+    forgotTitle: "Reset your password",
+    forgotSubtitle:
+      "Enter your email address and we will send you a link to choose a new password.",
+    sendResetLink: "Send reset link",
+    sending: "Sending…",
+    backToSignIn: "Back to sign in",
+
+    // Reset password.
+    resetInvalidTitle: "This link is no longer valid",
+    resetInvalidBody: "Reset links expire after one hour, and can only be used once.",
+    requestNewLink: "Request a new reset link",
+    resetTitle: "Choose a new password",
+    forEmail: "For",
+    newPassword: "New password",
+    confirmNewPassword: "Confirm new password",
+    passwordHint: "At least {n} characters.",
+    signsYouOutNote:
+      "Changing your password will sign you out on all your other devices.",
+    saveNewPassword: "Save new password",
+    saving: "Saving…",
+
+    // Invitation.
+    inviteInvalidTitle: "This link is no longer valid",
+    inviteInvalidBody:
+      "Invitation links expire after 14 days, and can only be used once.",
+    inviteInvalidHelp:
+      "Please contact the nursery office and ask them to send you a new invitation.",
+    welcomeName: "Welcome, {name}",
+    inviteSubtitleBefore: "Choose a password to finish setting up your account for",
+    choosePassword: "Choose a password",
+    choosePasswordHint:
+      "At least {n} characters. A short phrase you will remember works well.",
+    confirmPassword: "Confirm password",
+    setPasswordAndContinue: "Set password and continue",
+    settingUp: "Setting up…",
+  },
+
+  /**
+   * Notification copy.
+   *
+   * A notification row stores a message KEY plus its ingredients in `payload`,
+   * and the sentence is built here at reading time — so the same row reads in
+   * whichever language the reader has chosen. Rows written before this existed
+   * carry no key; those fall back to the English sentence stored on the row,
+   * which is why no backfill was needed.
+   *
+   * Names are never translated. A child, a class, an album title and a parent's
+   * reason are data, and only the sentence around them is ours to write.
+   */
+  notify: {
+    photosChildTitle: {
+      one: "{n} new photo of {name}",
+      other: "{n} new photos of {name}",
+    } as Plural,
+    photosChildBody: {
+      one: "{n} new photo of {name} is ready to see.",
+      other: "{n} new photos of {name} are ready to see.",
+    } as Plural,
+    photosClassTitle: {
+      one: "{n} new class photo in {class}",
+      other: "{n} new class photos in {class}",
+    } as Plural,
+    photosClassBody: {
+      one: "{n} new photo shared with {class}.",
+      other: "{n} new photos shared with {class}.",
+    } as Plural,
+
+    albumTitle: "New album: {album}",
+    albumBody: "The nursery shared a new album, “{album}”.",
+
+    announcementTitle: "New announcement",
+
+    pickupReviewTitle: "Pickup approval needed",
+    pickupReviewBody:
+      "{requestedBy} asked to authorize {person} to collect {child}.",
+    pickupApprovedTitle: "Pickup authorized",
+    pickupApprovedBody: "{person} can now collect {child} from the nursery.",
+    pickupRejectedTitle: "Pickup not approved",
+    pickupRejectedBody:
+      "Your request to authorize {person} to collect {child} was not approved. Please contact the nursery.",
+    pickupRejectedBodyReason:
+      "Your request to authorize {person} for {child} was not approved: {reason}",
+
+    /** Stand-ins for a name the fan-out could not resolve. */
+    aChild: "your child",
+    aClass: "your child’s class",
+    aParent: "A parent",
+  },
+
   portal: {
     nav: {
       ariaLabel: "Portal sections",
@@ -950,6 +1358,14 @@ const en = {
       menuHintBefore: "To install, open your browser menu and choose",
       menuHintStrong: "Install Rihana…",
       menuHintAfter: "(under “Cast, save, and share” in Chrome).",
+
+      // The home-screen nudge.
+      hintTitle: "Get the Rihana app",
+      hintBody:
+        "Add it to your home screen for one-tap access and notifications when new photos and updates arrive — just like a real app.",
+      hintIosBefore: "Tap the Share button",
+      hintIosAfter: "in your browser bar, then choose",
+      hintDismiss: "Not now",
     },
 
     bell: {
@@ -965,6 +1381,10 @@ const en = {
       onDescription:
         "On for this device — you’ll get a push for new photos, announcements and pickup updates.",
       offDescription: "Get a push on this device when something new arrives.",
+      unsupported:
+        "Lock-screen notifications aren’t available in this browser. The bell above still shows everything.",
+      denied:
+        "Notifications are blocked for this site in your browser settings. Allow them there to turn on push, or use the bell above.",
     },
 
     relationship: {
@@ -1002,6 +1422,7 @@ const en = {
       photo: "Photo (optional)",
       photoHint:
         "A clear photo of their face helps staff recognise them at the door.",
+      photoCurrent: "Current photo. Choose a new file to replace it.",
 
       confirmPassword: "Confirm your password",
       confirmPasswordHint:

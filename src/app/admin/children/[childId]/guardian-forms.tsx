@@ -11,10 +11,12 @@ import {
   unlinkGuardianAction,
   type FormState,
 } from "@/lib/admin/actions";
-import {
-  GUARDIAN_RELATIONSHIPS,
-  guardianRelationshipLabels,
-} from "@/lib/validation";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
+import { GUARDIAN_RELATIONSHIPS } from "@/lib/validation";
+
+type T = Dictionary["admin"]["children"];
+type Relationships = Dictionary["admin"]["relationship"];
 
 const selectClass =
   "w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base text-ink focus:border-leaf focus:outline-none";
@@ -32,10 +34,14 @@ export function LinkGuardianForm({
   childId,
   childName,
   parents,
+  t,
+  relationships,
 }: {
   childId: string;
   childName: string;
   parents: Array<{ id: string; name: string; email: string }>;
+  t: T;
+  relationships: Relationships;
 }) {
   const [state, action] = useActionState<FormState, FormData>(
     linkGuardianAction,
@@ -45,21 +51,20 @@ export function LinkGuardianForm({
   if (parents.length === 0) {
     return (
       <p className="text-sm text-ink-faint">
-        Every parent account is already linked to {childName}. Invite a new
-        parent from the Parents &amp; staff page.
+        {fill(t.allParentsLinked, { name: childName })}
       </p>
     );
   }
 
   return (
-    <Disclosure label="Link a guardian">
+    <Disclosure label={t.linkGuardian}>
       <form action={action} className="space-y-4">
         <input type="hidden" name="childId" value={childId} />
 
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
         {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
-        <Field label="Parent account" htmlFor="parentUserId">
+        <Field label={t.parentAccount} htmlFor="parentUserId">
           <select id="parentUserId" name="parentUserId" className={selectClass}>
             {parents.map((p) => (
               <option key={p.id} value={p.id}>
@@ -69,7 +74,7 @@ export function LinkGuardianForm({
           </select>
         </Field>
 
-        <Field label="Relationship" htmlFor="relationship">
+        <Field label={t.relationshipLabel} htmlFor="relationship">
           <select
             id="relationship"
             name="relationship"
@@ -78,7 +83,7 @@ export function LinkGuardianForm({
           >
             {GUARDIAN_RELATIONSHIPS.map((r) => (
               <option key={r} value={r}>
-                {guardianRelationshipLabels[r]}
+                {relationships[r]}
               </option>
             ))}
           </select>
@@ -90,15 +95,14 @@ export function LinkGuardianForm({
             name="isPrimary"
             className="size-4 accent-[color:var(--color-leaf)]"
           />
-          Primary contact
+          {t.primaryContact}
         </label>
 
         <p className="rounded-xl bg-sun-soft px-4 py-3 text-sm">
-          This gives them access to every photo of {childName}, including class
-          albums for {childName}&rsquo;s class.
+          {fill(t.linkNote, { name: childName })}
         </p>
 
-        <Submit label="Link guardian" pendingLabel="Linking…" />
+        <Submit label={t.linkSubmit} pendingLabel={t.linking} />
       </form>
     </Disclosure>
   );
@@ -108,10 +112,12 @@ export function UnlinkGuardianButton({
   childId,
   parentUserId,
   parentName,
+  t,
 }: {
   childId: string;
   parentUserId: string;
   parentName: string;
+  t: T;
 }) {
   const [state, action] = useActionState<FormState, FormData>(
     unlinkGuardianAction,
@@ -128,9 +134,9 @@ export function UnlinkGuardianButton({
       <button
         type="submit"
         className="text-sm font-semibold text-danger underline underline-offset-2 hover:text-coral-dark"
-        aria-label={`Remove ${parentName}'s access`}
+        aria-label={fill(t.removeAccessAria, { name: parentName })}
       >
-        Remove access
+        {t.removeAccess}
       </button>
     </form>
   );
@@ -146,9 +152,11 @@ export function UnlinkGuardianButton({
 export function DeleteChildForm({
   childId,
   childName,
+  t,
 }: {
   childId: string;
   childName: string;
+  t: T;
 }) {
   const [state, action] = useActionState<FormState, FormData>(
     deleteChildAction,
@@ -156,21 +164,17 @@ export function DeleteChildForm({
   );
 
   return (
-    <Disclosure label="Delete permanently" variant="secondary">
+    <Disclosure label={t.deletePermanently} variant="secondary">
       <form action={action} className="space-y-4">
         <input type="hidden" name="childId" value={childId} />
 
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
         {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
-        <Alert tone="error">
-          This erases {childName}&rsquo;s record, every guardian link, their
-          pickup list, and any photo that shows only {childName}. Photos that
-          also show other children are kept. This cannot be undone.
-        </Alert>
+        <Alert tone="error">{fill(t.deleteWarning, { name: childName })}</Alert>
 
         <Field
-          label={`Type "${childName}" to confirm`}
+          label={fill(t.confirmType, { name: childName })}
           htmlFor="confirmName"
           error={state.errors?.confirmName}
         >
@@ -187,7 +191,7 @@ export function DeleteChildForm({
           type="submit"
           className="bg-danger text-white hover:bg-coral-dark"
         >
-          Permanently delete {childName}
+          {fill(t.deleteSubmit, { name: childName })}
         </Button>
       </form>
     </Disclosure>

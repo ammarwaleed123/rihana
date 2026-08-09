@@ -8,18 +8,21 @@ import {
   requestPasswordResetAction,
   type ActionState,
 } from "@/lib/auth/actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
-function SubmitButton() {
+type T = Dictionary["auth"];
+
+function SubmitButton({ t }: { t: T }) {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Sending…" : "Send reset link"}
+      {pending ? t.sending : t.sendResetLink}
     </Button>
   );
 }
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ t }: { t: T }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
     requestPasswordResetAction,
     {},
@@ -33,7 +36,7 @@ export function ForgotPasswordForm() {
 
   return (
     <form action={formAction} className="space-y-5" noValidate>
-      <Field label="Email" htmlFor="email">
+      <Field label={t.email} htmlFor="email">
         <Input
           id="email"
           name="email"
@@ -42,10 +45,11 @@ export function ForgotPasswordForm() {
           inputMode="email"
           required
           autoFocus
+          dir="ltr"
         />
       </Field>
 
-      <SubmitButton />
+      <SubmitButton t={t} />
     </form>
   );
 }

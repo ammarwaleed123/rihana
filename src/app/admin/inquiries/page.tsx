@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/shell";
 import { requireOwner } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
+import { LOCALE_INTL } from "@/lib/i18n/config";
 import { getAppLocale } from "@/lib/i18n/app-locale";
 import {
   listInquiries,
@@ -26,12 +27,6 @@ export const metadata: Metadata = {
   title: "Inquiries",
   robots: { index: false, follow: false },
 };
-
-const when = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
 
 const statusTone: Record<InquiryStatusValue, Parameters<typeof Badge>[0]["tone"]> = {
   NEW: "coral",
@@ -71,7 +66,15 @@ export default async function InquiriesPage({
   searchParams: Promise<{ status?: string; cursor?: string }>;
 }) {
   const session = await requireOwner("/admin/inquiries");
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+
+  // Per request, not at module scope: the formatter depends on the reader.
+  const when = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
   const t = dict.admin.inquiries;
   const params = await searchParams;
   const activeStatus = params.status ?? null;

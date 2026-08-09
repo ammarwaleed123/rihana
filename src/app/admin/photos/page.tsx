@@ -13,6 +13,7 @@ import {
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { plural } from "@/lib/i18n/plural";
 import { listClassesForSession } from "@/lib/data/classes";
 import { listUploadSessions } from "@/lib/data/photos";
 
@@ -70,10 +71,7 @@ export default async function PhotosPage({
           <SectionTitle>{t.recentUploads}</SectionTitle>
 
           {uploads.length === 0 ? (
-            <EmptyState
-              title="No uploads yet"
-              description="Upload your first batch of photos and tag who appears in each one."
-            />
+            <EmptyState title={t.emptyTitle} description={t.emptyBody} />
           ) : (
             <ul className="space-y-3">
               {uploads.map((upload) => {
@@ -87,12 +85,11 @@ export default async function PhotosPage({
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="font-display text-lg font-semibold">
-                          {upload.class?.name ?? "No class"}
+                          {upload.class?.name ?? t.noClass}
                         </p>
                         <p className="text-sm text-ink-soft">
-                          {upload._count.photos} photo
-                          {upload._count.photos === 1 ? "" : "s"} ·{" "}
-                          {upload.uploader.name} ·{" "}
+                          {plural(t.photoCount, upload._count.photos, locale)}{" "}
+                          · {upload.uploader.name} ·{" "}
                           {upload.createdAt.toISOString().slice(0, 10)}
                         </p>
                       </div>
@@ -109,7 +106,7 @@ export default async function PhotosPage({
                         href={`/admin/photos/${upload.id}`}
                         className="font-semibold text-leaf underline underline-offset-4"
                       >
-                        {published ? "View photos" : "Tag and publish"}
+                        {published ? t.viewPhotos : t.tagAndPublish}
                       </Link>
                     </p>
                   </li>

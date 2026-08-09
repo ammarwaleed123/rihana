@@ -12,7 +12,7 @@ import {
   unassignTeacherAction,
   type FormState,
 } from "@/lib/admin/actions";
-import { AGE_GROUPS, ageGroupLabels } from "@/lib/validation";
+import { AGE_GROUPS } from "@/lib/validation";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import { fill } from "@/lib/i18n/plural";
 
@@ -70,7 +70,7 @@ export function CreateClassForm({ t }: { t: ClassStrings }) {
           <Select id="ageGroupKey" name="ageGroupKey">
             {AGE_GROUPS.map((key) => (
               <option key={key} value={key}>
-                {ageGroupLabels[key]}
+                {t.ageGroups[key]}
               </option>
             ))}
           </Select>

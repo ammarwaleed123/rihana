@@ -110,10 +110,10 @@ export function InviteParentForm({
         {childOptions.length > 0 ? (
           <fieldset>
             <legend className="mb-1.5 text-sm font-bold">
-              Link to children
+              {t.linkToChildren}
             </legend>
             <p className="mb-2 text-sm text-ink-faint">
-              They will see photos of everyone selected here.
+              {t.linkToChildrenHint}
             </p>
             <div className={checkboxListClass}>
               {childOptions.map((c) => (
@@ -178,9 +178,11 @@ export function InviteTeacherForm({
 
         {classes.length > 0 ? (
           <fieldset>
-            <legend className="mb-1.5 text-sm font-bold">Assign to classes</legend>
+            <legend className="mb-1.5 text-sm font-bold">
+              {t.assignToClasses}
+            </legend>
             <p className="mb-2 text-sm text-ink-faint">
-              They will see every child in the classes selected here.
+              {t.assignToClassesHint}
             </p>
             <div className={checkboxListClass}>
               {classes.map((c) => (
@@ -224,7 +226,7 @@ export function ReissueInviteButton({
           type="submit"
           className="text-sm font-semibold text-leaf underline underline-offset-2"
         >
-          New invite link
+          {t.newInviteLink}
         </button>
       </form>
       {state.inviteUrl ? (

@@ -15,6 +15,11 @@ import {
   type PhotoFormState,
 } from "@/lib/admin/photo-actions";
 import { cn } from "@/lib/cn";
+import { LOCALE_INTL, type Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill, plural } from "@/lib/i18n/plural";
+
+type T = Dictionary["admin"]["photoCard"];
 
 type Child = {
   id: string;
@@ -32,11 +37,11 @@ type Photo = {
   taggedChildren: Array<{ id: string; firstName: string }>;
 };
 
-function SaveButton({ label = "Save tags" }: { label?: string }) {
+function SaveButton({ label, saving }: { label: string; saving: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} className="px-4 py-2 text-sm">
-      {pending ? "Saving…" : label}
+      {pending ? saving : label}
     </Button>
   );
 }
@@ -56,11 +61,13 @@ export function PhotoCard({
   taggableChildren,
   uploadSessionId,
   published,
+  t,
 }: {
   photo: Photo;
   taggableChildren: Child[];
   uploadSessionId: string;
   published: boolean;
+  t: T;
 }) {
   const [tagState, tagAction] = useActionState<PhotoFormState, FormData>(
     setTagsAction,
@@ -130,25 +137,25 @@ export function PhotoCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={`/api/img/${photo.id}?v=thumb`}
-            alt={photo.caption ?? "Uploaded photo awaiting tags"}
+            alt={photo.caption ?? t.awaitingTagsAlt}
             className="h-full w-full object-cover"
             loading="lazy"
           />
         ) : (
           <div className="flex h-full items-center justify-center p-4 text-center text-sm font-semibold text-danger">
-            This file could not be processed and will not be shared.
+            {t.processingFailed}
           </div>
         )}
 
-        <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
+        <div className="absolute start-2 top-2 flex flex-wrap gap-1.5">
           {photo.status === "PROCESSING" ? (
-            <Badge tone="yellow">Processing</Badge>
+            <Badge tone="yellow">{t.processing}</Badge>
           ) : null}
           {photo.status === "QUARANTINED" ? (
-            <Badge tone="coral">Rejected</Badge>
+            <Badge tone="coral">{t.rejected}</Badge>
           ) : null}
-          {isClassAlbum ? <Badge tone="sky">Whole class</Badge> : null}
-          {published ? <Badge tone="green">Published</Badge> : null}
+          {isClassAlbum ? <Badge tone="sky">{t.wholeClass}</Badge> : null}
+          {published ? <Badge tone="green">{t.published}</Badge> : null}
         </div>
       </div>
 
@@ -157,7 +164,7 @@ export function PhotoCard({
           // The most useful warning on this screen: an untagged photo is
           // invisible to every family, and nothing else would say so.
           <p className="rounded-lg bg-sun-soft px-3 py-2 text-sm font-semibold">
-            Nobody is tagged, so no family will see this.
+            {t.nobodyTagged}
           </p>
         ) : null}
 
@@ -166,7 +173,7 @@ export function PhotoCard({
           <input type="hidden" name="uploadSessionId" value={uploadSessionId} />
 
           <fieldset>
-            <legend className="mb-2 text-sm font-bold">Who is in this photo?</legend>
+            <legend className="mb-2 text-sm font-bold">{t.whoIsInPhoto}</legend>
 
             <div className="flex flex-wrap gap-2">
               {taggableChildren.map((child) => {
@@ -186,7 +193,7 @@ export function PhotoCard({
                     )}
                     title={
                       blocked
-                        ? `${child.firstName} cannot be tagged — photo consent withdrawn`
+                        ? fill(t.noConsentTitle, { name: child.firstName })
                         : undefined
                     }
                   >
@@ -199,8 +206,10 @@ export function PhotoCard({
                       onChange={() => toggle(child.id)}
                       className="sr-only"
                     />
-                    {child.firstName}
-                    {blocked ? " (no consent)" : ""}
+                    {/* A child's name is data, never translated — it stays in
+                        whichever script it was entered in. */}
+                    <span dir="auto">{child.firstName}</span>
+                    {blocked ? t.noConsentSuffix : ""}
                   </label>
                 );
               })}
@@ -208,7 +217,7 @@ export function PhotoCard({
           </fieldset>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <SaveButton />
+            <SaveButton label={t.saveTags} saving={t.saving} />
             {tagState.success ? (
               <span className="text-sm font-semibold text-leaf-dark">
                 {tagState.success}
@@ -234,14 +243,10 @@ export function PhotoCard({
             type="submit"
             className="text-sm font-semibold text-leaf underline underline-offset-4"
           >
-            {isClassAlbum
-              ? "Stop sharing with the whole class"
-              : "Share with the whole class"}
+            {isClassAlbum ? t.stopSharingClass : t.shareWithClass}
           </button>
           <p className="mt-1 text-xs text-ink-faint">
-            {isClassAlbum
-              ? "Every family in this class can see it, tagged or not."
-              : "Only the families of tagged children can see it."}
+            {isClassAlbum ? t.classVisibleNote : t.taggedVisibleNote}
           </p>
           {/*
             Confirmed explicitly rather than left to the button label flipping.
@@ -267,7 +272,7 @@ export function PhotoCard({
             htmlFor={`caption-${photo.id}`}
             className="mb-1.5 block text-sm font-bold"
           >
-            Caption
+            {t.caption}
           </label>
           <div className="flex gap-2">
             <input
@@ -277,10 +282,13 @@ export function PhotoCard({
               onChange={(event) => setCaption(event.target.value)}
               onBlur={handleCaptionBlur}
               maxLength={300}
-              placeholder="Painting in the garden"
+              placeholder={t.captionPlaceholder}
+              // Staff write captions in whichever language suits the photo, so
+              // the field follows the text rather than the interface.
+              dir="auto"
               className="min-w-0 flex-1 rounded-xl border-2 border-ink/15 bg-card px-3 py-2 text-sm focus:border-leaf focus:outline-none"
             />
-            <SaveButton label="Save" />
+            <SaveButton label={t.save} saving={t.saving} />
           </div>
           <div aria-live="polite">
             {capState.success ? (
@@ -308,12 +316,10 @@ export function PhotoCard({
               when you most need to remove it, and hiding the control then was
               the wrong instinct.
             */}
-            {published ? "Delete this photo permanently" : "Remove this photo"}
+            {published ? t.deletePermanently : t.removePhoto}
           </button>
           <p className="mt-1 text-xs text-ink-faint">
-            {published
-              ? "Removes it from every family's album and from storage."
-              : "It has not been shared with anyone yet."}
+            {published ? t.deleteNotePublished : t.deleteNoteUnpublished}
           </p>
           {delState.error ? (
             <p className="mt-1 text-sm font-semibold text-danger">
@@ -332,11 +338,15 @@ export function PublishForm({
   photoCount,
   untaggedCount,
   unpublishedCount,
+  t,
+  locale,
 }: {
   uploadSessionId: string;
   photoCount: number;
   untaggedCount: number;
   unpublishedCount: number;
+  t: T;
+  locale: Locale;
 }) {
   const [state, action] = useActionState<PhotoFormState, FormData>(
     publishAction,
@@ -352,13 +362,15 @@ export function PublishForm({
 
       {untaggedCount > 0 ? (
         <Alert tone="info">
-          {untaggedCount} of {photoCount} photos have nobody tagged. They will
-          stay unpublished until someone is tagged, or you share them with the
-          whole class.
+          {/* `plural` fills {n}; the total is a second number, so it is
+              formatted for the locale here and filled separately. */}
+          {fill(plural(t.untaggedWarning, untaggedCount, locale), {
+            total: new Intl.NumberFormat(LOCALE_INTL[locale]).format(photoCount),
+          })}
         </Alert>
       ) : null}
 
-      <PublishButton count={unpublishedCount} />
+      <PublishButton count={unpublishedCount} t={t} locale={locale} />
     </form>
   );
 }
@@ -372,9 +384,11 @@ export function PublishForm({
 export function UnpublishForm({
   uploadSessionId,
   isOwner,
+  t,
 }: {
   uploadSessionId: string;
   isOwner: boolean;
+  t: T;
 }) {
   const [state, action] = useActionState<PhotoFormState, FormData>(
     unpublishAction,
@@ -382,11 +396,7 @@ export function UnpublishForm({
   );
 
   if (!isOwner) {
-    return (
-      <p className="text-sm text-ink-faint">
-        Ask the nursery owner if these need to be withdrawn from families.
-      </p>
-    );
+    return <p className="text-sm text-ink-faint">{t.askOwner}</p>;
   }
 
   return (
@@ -397,23 +407,26 @@ export function UnpublishForm({
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
       <Button type="submit" variant="secondary">
-        Withdraw from families
+        {t.withdrawFromFamilies}
       </Button>
-      <p className="text-sm text-ink-soft">
-        Hides every photo in this upload from the family portal. The photos and
-        their tags are kept, so you can correct them and publish again.
-      </p>
+      <p className="text-sm text-ink-soft">{t.withdrawNote}</p>
     </form>
   );
 }
 
-function PublishButton({ count }: { count: number }) {
+function PublishButton({
+  count,
+  t,
+  locale,
+}: {
+  count: number;
+  t: T;
+  locale: Locale;
+}) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending || count === 0}>
-      {pending
-        ? "Publishing…"
-        : `Publish ${count} photo${count === 1 ? "" : "s"} to families`}
+      {pending ? t.publishing : plural(t.publishN, count, locale)}
     </Button>
   );
 }

@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
+import { LOCALE_INTL } from "@/lib/i18n/config";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill, plural } from "@/lib/i18n/plural";
 import { listAlbumsForStaff } from "@/lib/data/albums";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -23,12 +25,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
 export default async function AlbumsPage({
   searchParams,
 }: {
@@ -36,8 +32,16 @@ export default async function AlbumsPage({
 }) {
   const query = await searchParams;
   const session = await requireStaff("/admin/albums");
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
   const t = dict.admin.albums;
+
+  // Per request, not at module scope: the formatter depends on the reader.
+  const dateFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 
   // Both scoped: a teacher sees, and can create albums for, their own classes.
   const [albums, classes] = await Promise.all([
@@ -59,8 +63,7 @@ export default async function AlbumsPage({
       {query.deleted ? (
         <div className="mb-6">
           <Alert tone="success">
-            Deleted the album “{query.deleted}”. The photos in it were not
-            touched.
+            {fill(t.deleted, { title: query.deleted })}
           </Alert>
         </div>
       ) : null}
@@ -81,10 +84,7 @@ export default async function AlbumsPage({
           <SectionTitle>{t.allAlbums}</SectionTitle>
 
           {albums.length === 0 ? (
-            <EmptyState
-              title="No albums yet"
-              description="Albums are a nice way to hand families a whole event at once — sports day, a trip, the last day of term."
-            />
+            <EmptyState title={t.emptyTitle} description={t.emptyBody} />
           ) : (
             <ul className="space-y-3">
               {albums.map((album) => (
@@ -118,12 +118,15 @@ export default async function AlbumsPage({
                       </div>
 
                       <p className="mt-0.5 text-sm text-ink-soft">
-                        {album.class?.name ?? "Whole nursery"} ·{" "}
-                        {album._count.photos} photo
-                        {album._count.photos === 1 ? "" : "s"}
-                        {album.eventDate
-                          ? ` · ${dateFormat.format(album.eventDate)}`
-                          : ""}
+                        {[
+                          album.class?.name ?? t.wholeNursery,
+                          plural(t.photoCount, album._count.photos, locale),
+                          album.eventDate
+                            ? dateFormat.format(album.eventDate)
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     </div>
 

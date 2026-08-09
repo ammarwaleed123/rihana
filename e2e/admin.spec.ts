@@ -298,7 +298,7 @@ test.describe("destructive actions", () => {
     await manageLink(page, "Laila Saeed").click();
 
     await page.getByRole("button", { name: "Delete permanently" }).click();
-    await page.getByLabel(/Type "Laila Saeed" to confirm/).fill("wrong name");
+    await page.getByLabel(/Type .Laila Saeed. to confirm/).fill("wrong name");
     await page
       .getByRole("button", { name: /Permanently delete Laila Saeed/ })
       .click();

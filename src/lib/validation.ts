@@ -29,12 +29,6 @@ export const personName = text(1, 80, "Name");
 
 export const AGE_GROUPS = ["toddlers", "preschool", "prek"] as const;
 
-export const ageGroupLabels: Record<(typeof AGE_GROUPS)[number], string> = {
-  toddlers: "Toddlers (1–2 years)",
-  preschool: "Preschool (2–4 years)",
-  prek: "Pre-K (4–5 years)",
-};
-
 export const classInput = z.object({
   name: text(1, 60, "Class name"),
   ageGroupKey: z.enum(AGE_GROUPS),
@@ -193,16 +187,6 @@ export const GUARDIAN_RELATIONSHIPS = [
   "GUARDIAN",
   "OTHER",
 ] as const;
-
-export const guardianRelationshipLabels: Record<
-  (typeof GUARDIAN_RELATIONSHIPS)[number],
-  string
-> = {
-  MOTHER: "Mother",
-  FATHER: "Father",
-  GUARDIAN: "Guardian",
-  OTHER: "Other",
-};
 
 export const guardianshipInput = z.object({
   parentUserId: cuid,

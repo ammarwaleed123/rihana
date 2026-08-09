@@ -127,9 +127,7 @@ function PersonFields({
               alt=""
               className="size-16 rounded-full object-cover"
             />
-            <span className="text-sm text-ink-soft">
-              Current photo. Choose a new file to replace it.
-            </span>
+            <span className="text-sm text-ink-soft">{t.photoCurrent}</span>
           </div>
         ) : null}
         <Input

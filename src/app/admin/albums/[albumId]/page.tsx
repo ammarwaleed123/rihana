@@ -9,6 +9,7 @@ import { NotFoundError } from "@/lib/auth/errors";
 import { requireStaff } from "@/lib/auth/scope";
 import { getDictionary } from "@/lib/i18n";
 import { getAppLocale } from "@/lib/i18n/app-locale";
+import { fill, plural } from "@/lib/i18n/plural";
 import { getAlbumForStaff, getPhotosAvailableForAlbum } from "@/lib/data/albums";
 import { listClassesForSession } from "@/lib/data/classes";
 
@@ -42,7 +43,9 @@ export default async function AlbumDetailPage({
   const { albumId } = await params;
   const query = await searchParams;
   const session = await requireStaff(`/admin/albums/${albumId}`);
-  const dict = await getDictionary(await getAppLocale());
+  const locale = await getAppLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.admin.albumEditor;
 
   let album;
   try {
@@ -71,6 +74,7 @@ export default async function AlbumDetailPage({
   // Photos in the album that families can actually see. The gap between this
   // and the album's size is the thing staff most need to understand.
   const reachable = album.photos.filter((photo) => photo.publishedAt).length;
+  const unshared = album.photos.length - reachable;
 
   return (
     <div>
@@ -81,43 +85,48 @@ export default async function AlbumDetailPage({
           href="/admin/albums"
           className="text-sm font-semibold text-leaf underline underline-offset-4"
         >
-          ← All albums
+          <span aria-hidden className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {t.allAlbums}
         </Link>
       </p>
 
       <PageHeader
         title={album.title}
-        description={`${album.class?.name ?? "Whole nursery"} · ${album.photos.length} photo${album.photos.length === 1 ? "" : "s"}`}
+        description={`${album.class?.name ?? t.wholeNursery} · ${plural(t.photoCount, album.photos.length, locale)}`}
         action={
-          published ? <Badge tone="green">Published</Badge> : <Badge tone="yellow">Draft</Badge>
+          published ? (
+            <Badge tone="green">{dict.admin.albums.published}</Badge>
+          ) : (
+            <Badge tone="yellow">{dict.admin.albums.draft}</Badge>
+          )
         }
       />
 
       {query.published ? (
         <div className="mb-6">
           <Alert tone="success">
-            Album published.{" "}
+            {t.publishedNotice}{" "}
             {Number(query.reachable) === 0
-              ? "No photos in it have been shared with families yet, so nobody can see it."
-              : `Families can see the ${query.reachable} shared photo${query.reachable === "1" ? "" : "s"} their own child appears in.`}
+              ? t.publishedNoneReachable
+              : plural(t.publishedReachable, Number(query.reachable), locale)}
           </Alert>
         </div>
       ) : null}
 
       {query.withdrawn ? (
         <div className="mb-6">
-          <Alert tone="success">
-            Album withdrawn. The photos themselves are unchanged and still
-            visible in each family&rsquo;s own album.
-          </Alert>
+          <Alert tone="success">{t.withdrawnNotice}</Alert>
         </div>
       ) : null}
 
       {!canManage ? (
         <div className="mb-6">
           <Alert tone="info">
-            You can view this album. Only the {album.class?.name ?? "nursery"}{" "}
-            {album.class ? "teacher" : "owner"} can edit it.
+            {album.class
+              ? fill(t.viewOnlyClass, { class: album.class.name })
+              : t.viewOnlyNursery}
           </Alert>
         </div>
       ) : null}
@@ -125,22 +134,18 @@ export default async function AlbumDetailPage({
       <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,20rem)]">
         <div className="space-y-6 lg:order-1">
           <Card>
-            <SectionTitle>Photos in this album</SectionTitle>
+            <SectionTitle>{t.photosInAlbum}</SectionTitle>
 
             {album.photos.length === 0 ? (
               <p className="text-sm text-ink-soft">
-                {canManage
-                  ? "Nothing here yet. Choose some photos below."
-                  : "Nothing here yet."}
+                {canManage ? t.emptyManage : t.empty}
               </p>
             ) : (
               <>
-                {canManage && reachable < album.photos.length ? (
+                {canManage && unshared > 0 ? (
                   <div className="mb-4">
                     <Alert tone="info">
-                      {album.photos.length - reachable} of these have not been
-                      shared with families yet. Adding a photo to an album does
-                      not share it — publish it from the Photos page.
+                      {plural(t.unsharedCount, unshared, locale)}
                     </Alert>
                   </div>
                 ) : null}
@@ -153,6 +158,7 @@ export default async function AlbumDetailPage({
                         photo={photo}
                         isCover={album.coverPhotoId === photo.id}
                         canManage={canManage}
+                        t={t}
                       />
                     </li>
                   ))}
@@ -163,16 +169,18 @@ export default async function AlbumDetailPage({
 
           {canManage && available ? (
             <Card>
-              <SectionTitle>Add photos</SectionTitle>
+              <SectionTitle>{t.addPhotos}</SectionTitle>
               <p className="mb-4 text-sm text-ink-soft">
                 {album.class
-                  ? `Showing ${album.class.name} photos only — both tagged and class photos — so this album can't accidentally include another class's pictures.`
-                  : "This is a whole-nursery album, so photos from every class can be added."}
+                  ? fill(t.classScopeNote, { class: album.class.name })
+                  : t.nurseryScopeNote}
               </p>
               <AddPhotosPicker
                 albumId={album.id}
                 photos={available.items}
                 nextCursor={available.nextCursor}
+                t={t}
+                locale={locale}
               />
             </Card>
           ) : null}
@@ -182,21 +190,22 @@ export default async function AlbumDetailPage({
           <div className="space-y-6 lg:order-2">
             <Card>
               <SectionTitle>
-                {published ? "Withdraw from families" : "Share this album"}
+                {published ? t.withdrawTitle : t.shareTitle}
               </SectionTitle>
               {published ? (
-                <UnpublishAlbumForm albumId={album.id} />
+                <UnpublishAlbumForm albumId={album.id} t={t} />
               ) : (
                 <PublishAlbumForm
                   albumId={album.id}
                   reachable={reachable}
                   total={album.photos.length}
+                  t={t}
                 />
               )}
             </Card>
 
             <Card>
-              <SectionTitle>Album details</SectionTitle>
+              <SectionTitle>{t.albumDetails}</SectionTitle>
               <EditAlbumForm t={dict.admin.albumForm}
                 album={album}
                 classes={classes}
@@ -205,8 +214,8 @@ export default async function AlbumDetailPage({
             </Card>
 
             <Card>
-              <SectionTitle>Delete album</SectionTitle>
-              <DeleteAlbumForm albumId={album.id} title={album.title} />
+              <SectionTitle>{t.deleteTitle}</SectionTitle>
+              <DeleteAlbumForm albumId={album.id} title={album.title} t={t} />
             </Card>
           </div>
         ) : null}

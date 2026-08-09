@@ -124,7 +124,11 @@ export default async function InquiryDetailPage({
 
           <Card>
             <SectionTitle>{t.internalNotes}</SectionTitle>
-            <NotesForm inquiryId={inquiry.id} initialNotes={inquiry.internalNotes ?? ""} />
+            <NotesForm
+              inquiryId={inquiry.id}
+              initialNotes={inquiry.internalNotes ?? ""}
+              t={t}
+            />
           </Card>
         </div>
 

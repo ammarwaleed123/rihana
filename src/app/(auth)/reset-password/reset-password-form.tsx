@@ -9,18 +9,22 @@ import {
   type ActionState,
 } from "@/lib/auth/actions";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password-constants";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
 
-function SubmitButton() {
+type T = Dictionary["auth"];
+
+function SubmitButton({ t }: { t: T }) {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Saving…" : "Save new password"}
+      {pending ? t.saving : t.saveNewPassword}
     </Button>
   );
 }
 
-export function ResetPasswordForm({ token }: { token: string }) {
+export function ResetPasswordForm({ token, t }: { token: string; t: T }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
     completePasswordResetAction,
     {},
@@ -33,9 +37,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
       <Field
-        label="New password"
+        label={t.newPassword}
         htmlFor="password"
-        hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+        hint={fill(t.passwordHint, { n: PASSWORD_MIN_LENGTH })}
       >
         <Input
           id="password"
@@ -45,24 +49,24 @@ export function ResetPasswordForm({ token }: { token: string }) {
           minLength={PASSWORD_MIN_LENGTH}
           required
           autoFocus
+          dir="ltr"
         />
       </Field>
 
-      <Field label="Confirm new password" htmlFor="confirmPassword">
+      <Field label={t.confirmNewPassword} htmlFor="confirmPassword">
         <Input
           id="confirmPassword"
           name="confirmPassword"
           type="password"
           autoComplete="new-password"
           required
+          dir="ltr"
         />
       </Field>
 
-      <p className="text-sm text-ink-faint">
-        Changing your password will sign you out on all your other devices.
-      </p>
+      <p className="text-sm text-ink-faint">{t.signsYouOutNote}</p>
 
-      <SubmitButton />
+      <SubmitButton t={t} />
     </form>
   );
 }

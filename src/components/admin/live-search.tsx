@@ -12,12 +12,14 @@ import { useEffect, useRef, useState, useTransition } from "react";
  */
 export function LiveSearch({
   basePath,
-  label = "Search",
+  label,
   placeholder,
+  searching,
 }: {
   basePath: string;
-  label?: string;
+  label: string;
   placeholder?: string;
+  searching: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -73,7 +75,7 @@ export function LiveSearch({
             isPending ? "opacity-100" : "opacity-0"
           }`}
         >
-          Searching…
+          {searching}
         </p>
       </div>
     </form>

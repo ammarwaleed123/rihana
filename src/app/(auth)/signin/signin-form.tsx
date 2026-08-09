@@ -6,7 +6,10 @@ import { useFormStatus } from "react-dom";
 
 import { Alert, Button, Field, Input } from "@/components/ui/form";
 import { signInAction, type ActionState } from "@/lib/auth/actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import { PORTAL_ACTIVE_KEY, PORTAL_WARM_KEY } from "@/lib/pwa/portal-lock";
+
+type T = Dictionary["auth"];
 
 /**
  * Mark this browser instance as authenticated here, so the portal's auto-lock
@@ -22,17 +25,17 @@ function markSignedIn() {
   }
 }
 
-function SubmitButton() {
+function SubmitButton({ t }: { t: T }) {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Signing in…" : "Sign in"}
+      {pending ? t.signingIn : t.signIn}
     </Button>
   );
 }
 
-export function SignInForm({ next }: { next?: string }) {
+export function SignInForm({ next, t }: { next?: string; t: T }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
     signInAction,
     {},
@@ -49,7 +52,7 @@ export function SignInForm({ next }: { next?: string }) {
 
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
-      <Field label="Email" htmlFor="email">
+      <Field label={t.email} htmlFor="email">
         <Input
           id="email"
           name="email"
@@ -58,29 +61,32 @@ export function SignInForm({ next }: { next?: string }) {
           inputMode="email"
           required
           autoFocus
+          // An address is left-to-right even on an Arabic page.
+          dir="ltr"
           aria-invalid={state.error ? true : undefined}
         />
       </Field>
 
-      <Field label="Password" htmlFor="password">
+      <Field label={t.password} htmlFor="password">
         <Input
           id="password"
           name="password"
           type="password"
           autoComplete="current-password"
           required
+          dir="ltr"
           aria-invalid={state.error ? true : undefined}
         />
       </Field>
 
-      <SubmitButton />
+      <SubmitButton t={t} />
 
       <p className="text-center text-sm">
         <Link
           href="/forgot-password"
           className="font-semibold text-leaf underline underline-offset-4"
         >
-          Forgot your password?
+          {t.forgotPassword}
         </Link>
       </p>
     </form>

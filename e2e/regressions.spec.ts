@@ -147,7 +147,9 @@ test.describe("permanent deletion actually erases", () => {
       .click();
 
     await page.getByRole("button", { name: "Delete permanently" }).click();
-    await page.getByLabel(`Type "${fullName}" to confirm`).fill(fullName);
+    await page
+      .getByLabel(new RegExp(`Type .${fullName}. to confirm`))
+      .fill(fullName);
     await page
       .getByRole("button", { name: `Permanently delete ${fullName}` })
       .click();

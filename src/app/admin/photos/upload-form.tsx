@@ -10,9 +10,9 @@ import {
   uploadBatchAction,
 } from "@/lib/admin/photo-actions";
 import { beginBusy, endBusy } from "@/lib/pwa/portal-lock";
-import type { Locale } from "@/lib/i18n/config";
+import { LOCALE_INTL, type Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
-import { plural } from "@/lib/i18n/plural";
+import { fill, plural } from "@/lib/i18n/plural";
 
 /**
  * While an upload is running, hold off the admin auto-lock so a long batch is
@@ -73,13 +73,18 @@ function planBatches(files: File[]): File[][] {
   return batches;
 }
 
-function RejectedList({ rejected }: { rejected: Rejection[] }) {
+function RejectedList({
+  rejected,
+  t,
+  locale,
+}: {
+  rejected: Rejection[];
+  t: Dictionary["admin"]["uploadForm"];
+  locale: Locale;
+}) {
   return (
     <Alert tone="error">
-      <p className="mb-1">
-        {rejected.length} file{rejected.length === 1 ? "" : "s"} could not be
-        used:
-      </p>
+      <p className="mb-1">{plural(t.rejectedN, rejected.length, locale)}</p>
       <ul className="list-inside list-disc">
         {rejected.map((r, i) => (
           <li key={`${r.filename}-${i}`}>
@@ -156,7 +161,7 @@ export function UploadForm({
         // Stop rather than hammering a server that is already refusing. Photos
         // already stored stay stored — the session is still usable.
         setError(
-          `${result.error} ${accepted} photo${accepted === 1 ? "" : "s"} were uploaded before this happened.`,
+          `${result.error} ${plural(t.uploadedBeforeError, accepted, locale)}`,
         );
         setBusy(false);
         if (accepted > 0) router.push(`/admin/photos/${sessionId}`);
@@ -184,7 +189,7 @@ export function UploadForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error ? <Alert tone="error">{error}</Alert> : null}
-      {rejected.length > 0 ? <RejectedList rejected={rejected} /> : null}
+      {rejected.length > 0 ? <RejectedList rejected={rejected} t={t} locale={locale} /> : null}
 
       <Field label={t.classLabel} htmlFor="classId">
         <select
@@ -227,17 +232,30 @@ export function UploadForm({
 
       {files.length > 0 && !busy ? (
         <p className="text-sm text-ink-soft">
-          {files.length} photo{files.length === 1 ? "" : "s"} ·{" "}
-          {(totalBytes / 1024 / 1024).toFixed(1)} MB
-          {batchCount > 1 ? ` · sent in ${batchCount} batches` : ""}
+          {[
+            plural(t.selectedN, files.length, locale),
+            fill(t.sizeMb, {
+              size: new Intl.NumberFormat(LOCALE_INTL[locale], {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              }).format(totalBytes / 1024 / 1024),
+            }),
+            batchCount > 1 ? plural(t.sentInBatches, batchCount, locale) : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
       ) : null}
 
       {oversized.length > 0 ? (
         <Alert tone="error">
-          {oversized.length} file{oversized.length === 1 ? " is" : "s are"}{" "}
-          larger than 15 MB and will be skipped:{" "}
-          {oversized.map((f) => f.name).join(", ")}
+          {fill(plural(t.oversizedN, oversized.length, locale), {
+            limit: new Intl.NumberFormat(LOCALE_INTL[locale]).format(
+              MAX_FILE_BYTES / 1024 / 1024,
+            ),
+            // File names are the user's own, never translated.
+            files: oversized.map((f) => f.name).join(", "),
+          })}
         </Alert>
       ) : null}
 
@@ -257,7 +275,7 @@ export function UploadForm({
             />
           </div>
           <p aria-live="polite" className="mt-2 text-sm font-semibold text-ink-soft">
-            Uploaded {uploaded} of {files.length}…
+            {fill(t.uploadedProgress, { n: uploaded, total: files.length })}
           </p>
         </div>
       ) : null}
@@ -340,10 +358,10 @@ export function AddPhotosForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       {error ? <Alert tone="error">{error}</Alert> : null}
       {success ? <Alert tone="success">{success}</Alert> : null}
-      {rejected.length > 0 ? <RejectedList rejected={rejected} /> : null}
+      {rejected.length > 0 ? <RejectedList rejected={rejected} t={t} locale={locale} /> : null}
 
       <label htmlFor="more-photos" className="block text-sm font-bold">
-        Add more photos
+        {t.addMorePhotos}
       </label>
       <input
         id="more-photos"
@@ -357,7 +375,7 @@ export function AddPhotosForm({
 
       {busy ? (
         <p aria-live="polite" className="text-sm font-semibold text-ink-soft">
-          Uploaded {uploaded} of {files.length}…
+          {fill(t.uploadedProgress, { n: uploaded, total: files.length })}
         </p>
       ) : null}
 

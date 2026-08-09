@@ -13,6 +13,7 @@ import {
   type FormState,
 } from "@/lib/admin/actions";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
 
 type ClassOption = { id: string; name: string };
 
@@ -75,7 +76,7 @@ function ChildFields({
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="First name" htmlFor={id("firstName")} error={errors?.firstName}>
+        <Field label={t.firstName} htmlFor={id("firstName")} error={errors?.firstName}>
           <Input
             id={id("firstName")}
             name="firstName"
@@ -85,7 +86,7 @@ function ChildFields({
           />
         </Field>
 
-        <Field label="Last name" htmlFor={id("lastName")} error={errors?.lastName}>
+        <Field label={t.lastName} htmlFor={id("lastName")} error={errors?.lastName}>
           <Input
             id={id("lastName")}
             name="lastName"
@@ -97,7 +98,7 @@ function ChildFields({
       </div>
 
       <Field
-        label="Date of birth"
+        label={t.dateOfBirth}
         htmlFor={id("dateOfBirth")}
         error={errors?.dateOfBirth}
       >
@@ -110,14 +111,14 @@ function ChildFields({
         />
       </Field>
 
-      <Field label="Class" htmlFor={id("classId")} error={errors?.classId}>
+      <Field label={t.classLabel} htmlFor={id("classId")} error={errors?.classId}>
         <select
           id={id("classId")}
           name="classId"
           defaultValue={defaults?.classId ?? ""}
           className={selectClass}
         >
-          <option value="">Not assigned yet</option>
+          <option value="">{t.notAssignedYet}</option>
           {classes.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -127,9 +128,9 @@ function ChildFields({
       </Field>
 
       <Field
-        label="Allergies and notes"
+        label={t.allergiesLabel}
         htmlFor={id("allergiesNote")}
-        hint="Visible to staff only."
+        hint={t.allergiesHint}
         error={errors?.allergiesNote}
       >
         <textarea
@@ -176,13 +177,13 @@ export function CreateChildForm({
   );
 
   return (
-    <Disclosure label="Add a child">
+    <Disclosure label={t.addChild}>
       <form action={action} className="space-y-4">
         {state.error ? <Alert tone="error">{state.error}</Alert> : null}
         {state.success ? <Alert tone="success">{state.success}</Alert> : null}
 
         <ChildFields classes={classes} errors={state.errors} idPrefix="new" t={t} />
-        <Submit label="Add child" pendingLabel="Adding…" />
+        <Submit label={t.addChildSubmit} pendingLabel={t.adding} />
       </form>
     </Disclosure>
   );
@@ -232,7 +233,7 @@ export function EditChildForm({
         }}
       />
 
-      <Submit label="Save changes" pendingLabel="Saving…" />
+      <Submit label={t.saveChanges} pendingLabel={t.saving} />
     </form>
   );
 }
@@ -241,10 +242,12 @@ export function ArchiveChildButton({
   childId,
   childName,
   archived,
+  t,
 }: {
   childId: string;
   childName: string;
   archived: boolean;
+  t: ChildStrings;
 }) {
   const [state, action] = useActionState<FormState, FormData>(
     archived ? restoreChildAction : archiveChildAction,
@@ -258,7 +261,7 @@ export function ArchiveChildButton({
         <p className="mb-2 text-sm font-semibold text-danger">{state.error}</p>
       ) : null}
       <Button type="submit" variant="secondary" className="px-4 py-2 text-sm">
-        {archived ? `Restore ${childName}` : `Mark ${childName} as left`}
+        {fill(archived ? t.restore : t.markLeft, { name: childName })}
       </Button>
     </form>
   );

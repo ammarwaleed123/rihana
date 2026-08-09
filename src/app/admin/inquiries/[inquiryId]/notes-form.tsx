@@ -8,12 +8,15 @@ import {
   saveInquiryNotesAction,
   type NotesState,
 } from "@/lib/admin/inquiry-actions";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
-function Save() {
+type T = Dictionary["admin"]["inquiries"];
+
+function Save({ t }: { t: T }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="secondary" disabled={pending} className="px-5 py-2.5 text-sm">
-      {pending ? "Saving…" : "Save notes"}
+      {pending ? t.savingNotes : t.saveNotes}
     </Button>
   );
 }
@@ -21,9 +24,11 @@ function Save() {
 export function NotesForm({
   inquiryId,
   initialNotes,
+  t,
 }: {
   inquiryId: string;
   initialNotes: string;
+  t: T;
 }) {
   const [state, action] = useActionState<NotesState, FormData>(
     saveInquiryNotesAction,
@@ -39,10 +44,12 @@ export function NotesForm({
         name="internalNotes"
         rows={4}
         defaultValue={initialNotes}
-        placeholder="Private notes — who you spoke to, what was agreed, next steps…"
+        placeholder={t.notesPlaceholder}
+        // Staff write these notes in whichever language they think in.
+        dir="auto"
         className="w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base text-ink placeholder:text-ink-faint focus:border-leaf focus:outline-none"
       />
-      <Save />
+      <Save t={t} />
     </form>
   );
 }

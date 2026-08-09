@@ -14,11 +14,18 @@ import { isStandalone } from "@/lib/pwa/install-store";
  * never opens the website. Rendered on the client so it can tell the two apart;
  * the server default is the browser behaviour.
  */
-export function AuthLogo() {
+export function AuthLogo({ name, label }: { name: string; label: string }) {
   const standalone = useSyncExternalStore(
     () => () => {},
     isStandalone,
     () => false,
   );
-  return <BrandLogo href={standalone ? "/portal" : "/"} imgClassName="h-16 w-auto" />;
+  return (
+    <BrandLogo
+      href={standalone ? "/portal" : "/"}
+      name={name}
+      label={label}
+      imgClassName="h-16 w-auto"
+    />
+  );
 }

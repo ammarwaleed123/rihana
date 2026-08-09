@@ -9,6 +9,7 @@ import {
   useHintSnoozed,
   useInstall,
 } from "@/lib/pwa/install-store";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 /**
  * A prominent, friendly nudge to install the app to the home screen.
@@ -21,7 +22,13 @@ import {
  * still appears to a different account on the same device) rather than hiding it
  * forever.
  */
-export function InstallHint({ userId }: { userId: string }) {
+export function InstallHint({
+  userId,
+  t,
+}: {
+  userId: string;
+  t: Dictionary["portal"]["install"];
+}) {
   const { canPrompt, standalone, ios } = useInstall();
   const snoozed = useHintSnoozed(userId);
   const [closed, setClosed] = useState(false);
@@ -49,19 +56,16 @@ export function InstallHint({ userId }: { userId: string }) {
 
         <div className="min-w-0 flex-1">
           <p className="font-display text-lg font-bold text-ink">
-            Get the Rihana app
+            {t.hintTitle}
           </p>
-          <p className="mt-1 text-sm text-ink-soft">
-            Add it to your home screen for one-tap access and notifications when
-            new photos and updates arrive — just like a real app.
-          </p>
+          <p className="mt-1 text-sm text-ink-soft">{t.hintBody}</p>
 
           {ios ? (
             <p className="mt-3 rounded-xl bg-card/70 px-3 py-2 text-sm text-ink">
-              Tap the Share button
+              {t.hintIosBefore}
               <Share className="mx-1 inline size-4 align-text-bottom" aria-hidden="true" />
-              in your browser bar, then choose{" "}
-              <strong className="font-semibold">Add to Home Screen</strong>.
+              {t.hintIosAfter}{" "}
+              <strong className="font-semibold">{t.iosAddToHome}</strong>.
             </p>
           ) : (
             <button
@@ -70,7 +74,7 @@ export function InstallHint({ userId }: { userId: string }) {
               className="mt-3 inline-flex items-center gap-2 rounded-full bg-leaf px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-leaf-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf focus-visible:ring-offset-2"
             >
               <Download className="size-4" aria-hidden="true" />
-              Install app
+              {t.installApp}
             </button>
           )}
         </div>
@@ -78,7 +82,7 @@ export function InstallHint({ userId }: { userId: string }) {
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Not now"
+          aria-label={t.hintDismiss}
           className="grid size-8 shrink-0 place-items-center rounded-full text-ink-soft transition-colors hover:bg-leaf-soft hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf"
         >
           <X className="size-4" aria-hidden="true" />

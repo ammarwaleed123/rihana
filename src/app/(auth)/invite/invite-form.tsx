@@ -6,18 +6,22 @@ import { useFormStatus } from "react-dom";
 import { Alert, Button, Field, Input } from "@/components/ui/form";
 import { acceptInviteAction, type ActionState } from "@/lib/auth/actions";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password-constants";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { fill } from "@/lib/i18n/plural";
 
-function SubmitButton() {
+type T = Dictionary["auth"];
+
+function SubmitButton({ t }: { t: T }) {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Setting up…" : "Set password and continue"}
+      {pending ? t.settingUp : t.setPasswordAndContinue}
     </Button>
   );
 }
 
-export function InviteForm({ token }: { token: string }) {
+export function InviteForm({ token, t }: { token: string; t: T }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
     acceptInviteAction,
     {},
@@ -30,9 +34,9 @@ export function InviteForm({ token }: { token: string }) {
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
       <Field
-        label="Choose a password"
+        label={t.choosePassword}
         htmlFor="password"
-        hint={`At least ${PASSWORD_MIN_LENGTH} characters. A short phrase you will remember works well.`}
+        hint={fill(t.choosePasswordHint, { n: PASSWORD_MIN_LENGTH })}
       >
         <Input
           id="password"
@@ -42,20 +46,22 @@ export function InviteForm({ token }: { token: string }) {
           minLength={PASSWORD_MIN_LENGTH}
           required
           autoFocus
+          dir="ltr"
         />
       </Field>
 
-      <Field label="Confirm password" htmlFor="confirmPassword">
+      <Field label={t.confirmPassword} htmlFor="confirmPassword">
         <Input
           id="confirmPassword"
           name="confirmPassword"
           type="password"
           autoComplete="new-password"
           required
+          dir="ltr"
         />
       </Field>
 
-      <SubmitButton />
+      <SubmitButton t={t} />
     </form>
   );
 }
