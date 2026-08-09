@@ -14,9 +14,13 @@ import { GENERIC_LOGIN_ERROR } from "@/lib/auth/errors";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/auth/password";
 import { getSession, homePathForRole } from "@/lib/auth/scope";
 import { hashIp } from "@/lib/auth/tokens";
-import { getUserLocale } from "@/lib/data/account";
+import { adoptUserLocale, getUserLocale } from "@/lib/data/account";
 import { recordAudit } from "@/lib/data/audit";
-import { setLocaleCookie, toLocale } from "@/lib/i18n/locale-cookie";
+import {
+  peekLocaleCookie,
+  setLocaleCookie,
+  toLocale,
+} from "@/lib/i18n/locale-cookie";
 import {
   findUserByInviteToken,
   findUserByResetToken,
@@ -160,11 +164,35 @@ export async function signInAction(
   });
   await setSessionCookie(token);
 
-  // Mirror the account's saved language into its cookie, so the first page
-  // rendered after sign-in is already in the right language and direction
-  // rather than correcting itself a beat later. Display only — this cookie
-  // grants nothing.
-  await setLocaleCookie(toLocale(await getUserLocale(outcome.userId)));
+  /*
+   * Settle the language for the session that is starting.
+   *
+   * Two sources disagree here, and the more RECENT intention wins. The account
+   * carries what this person chose last time; the cookie carries what they
+   * chose moments ago — by reading the Arabic public site, or by using the
+   * toggle on the sign-in page itself. Signing in used to overwrite the second
+   * with the first, which threw away the choice they had just made and dropped
+   * them into English.
+   *
+   * So a cookie that disagrees is adopted onto the account, and follows them to
+   * their next device.
+   *
+   * NO cookie is not a choice, and must not be read as one. On a new phone
+   * there is nothing to state a preference with, and treating that silence as
+   * "English" overwrote the Arabic the account had been holding all along —
+   * destroying the very setting the column exists to carry between devices.
+   * So absence falls back to the account, which is the durable answer.
+   *
+   * Display only either way — this cookie grants nothing (see
+   * i18n/locale-cookie.ts).
+   */
+  const saved = toLocale(await getUserLocale(outcome.userId));
+  const chosen = await peekLocaleCookie();
+
+  if (chosen && chosen !== saved) {
+    await adoptUserLocale(outcome.userId, chosen);
+  }
+  await setLocaleCookie(chosen ?? saved);
 
   await recordAudit({
     action: "auth.signed_in",

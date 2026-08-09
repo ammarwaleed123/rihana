@@ -61,6 +61,29 @@ export async function setMyLocale(session: Session, locale: string) {
   });
 }
 
+/**
+ * Adopt the language chosen before signing in.
+ *
+ * Takes a raw id for the same reason `getUserLocale` does: it runs during
+ * sign-in, the one moment there is no Session yet, and the id comes from
+ * just-verified credentials rather than from user input.
+ *
+ * The choice a person makes at the door — on the public site, or with the toggle
+ * on the sign-in page — is the most recent thing they told us, so it wins over
+ * whatever the account happened to hold and is saved so it follows them to their
+ * next device.
+ */
+export async function adoptUserLocale(
+  userId: string,
+  locale: string,
+): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { locale },
+    select: { id: true },
+  });
+}
+
 /** The caller's children, with class and guardianship details for display. */
 export async function getMyFamily(session: Session) {
   if (session.user.role !== "PARENT") throw new ForbiddenError();

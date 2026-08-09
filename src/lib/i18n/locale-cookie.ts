@@ -37,9 +37,24 @@ export async function setLocaleCookie(locale: Locale): Promise<void> {
 }
 
 export async function readLocaleCookie(): Promise<Locale> {
+  return (await peekLocaleCookie()) ?? DEFAULT_LOCALE;
+}
+
+/**
+ * The cookie, or null when there is none.
+ *
+ * The distinction matters in exactly one place and it is load-bearing there.
+ * `readLocaleCookie` answers "what language do I render in", where a missing
+ * cookie sensibly means English. Sign-in asks a different question — "did this
+ * person just state a preference?" — and for that, *absent* is not the same as
+ * *English*. Collapsing the two meant a parent who had chosen Arabic and then
+ * signed in on a new phone had their saved choice overwritten with English,
+ * which is the opposite of what saving it to the account is for.
+ */
+export async function peekLocaleCookie(): Promise<Locale | null> {
   const store = await cookies();
   const value = store.get(LOCALE_COOKIE)?.value;
-  return isLocale(value) ? value : DEFAULT_LOCALE;
+  return isLocale(value) ? value : null;
 }
 
 /** Narrow an arbitrary stored string (e.g. `user.locale`) to a known locale. */

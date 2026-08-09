@@ -161,6 +161,9 @@ export function ChangePasswordForm({
  * reloads the shell in the new direction, so no confirmation step is needed:
  * the result is immediately visible and immediately reversible.
  */
+/** Where the scroll position waits while the page reloads. */
+const SCROLL_KEY = "rihana_account_scroll";
+
 export function LanguageForm({
   current,
   labels,
@@ -182,11 +185,47 @@ export function LanguageForm({
    * layout, which a soft navigation never re-renders — so without this the
    * interface would keep the old language until the next hard reload, and the
    * save would look like it had not worked.
+   *
+   * A full load also scrolls to the top, which put the language buttons off
+   * screen the instant you used them — the page appeared to jump away and the
+   * confirmation was never seen. So the position is stashed just before the
+   * reload and restored on the way back in. sessionStorage rather than state,
+   * because nothing in this component survives the navigation.
    */
   const reloadTo = state.reloadTo;
   useEffect(() => {
-    if (reloadTo) window.location.assign(reloadTo);
+    if (!reloadTo) return;
+    try {
+      sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+    } catch {
+      // Private mode: the language still saves, the page just starts at the top.
+    }
+    window.location.assign(reloadTo);
   }, [reloadTo]);
+
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = sessionStorage.getItem(SCROLL_KEY);
+      if (saved !== null) sessionStorage.removeItem(SCROLL_KEY);
+    } catch {
+      return;
+    }
+    if (saved === null) return;
+
+    const y = Number(saved);
+    if (!Number.isFinite(y)) return;
+
+    /*
+     * After the browser's own scroll restoration has had its go, or it would
+     * overwrite this a frame later. "instant" because the page has only just
+     * appeared — an animated scroll from the top would be the very jump this
+     * is meant to remove.
+     */
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: y, behavior: "instant" as ScrollBehavior });
+    });
+  }, []);
 
   return (
     <form action={action} className="space-y-4">
