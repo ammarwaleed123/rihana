@@ -44,7 +44,7 @@ async function signIn(page: Page, email: string) {
   await page.waitForURL(/\/(portal|admin)/);
 }
 
-function visibleText(page: Page, text: string) {
+function visibleText(page: Page, text: string | RegExp) {
   return page.getByText(text).filter({ visible: true });
 }
 
@@ -124,7 +124,7 @@ test.describe("publication follows tagging, not just the publish button", () => 
     await expect(visibleText(page, "Tags saved").first()).toBeVisible();
 
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     // Now tag the second one, after publication.
     await page.goto(`/admin/photos/${uploadId}`);
@@ -174,7 +174,7 @@ test.describe("filtering to one child keeps their class albums", () => {
     await page.getByRole("button", { name: "Share with the whole class" }).click();
     await expect(visibleText(page, "Shared with the whole class")).toBeVisible();
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
@@ -209,7 +209,7 @@ test.describe("published photos can be withdrawn", () => {
     await page.getByText("Laila", { exact: true }).click();
     await page.getByRole("button", { name: "Save tags" }).click();
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
@@ -241,7 +241,7 @@ test.describe("published photos can be withdrawn", () => {
     await page.getByText("Laila", { exact: true }).click();
     await page.getByRole("button", { name: "Save tags" }).click();
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     // The control used to disappear once published — exactly when it is most
     // needed.
@@ -272,7 +272,7 @@ test.describe("downloading", () => {
     await page.getByText("Laila", { exact: true }).click();
     await page.getByRole("button", { name: "Save tags" }).click();
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     await page.context().clearCookies();
     await signIn(page, PARENT_AMAL);
@@ -319,7 +319,7 @@ test.describe("withdrawing photo consent takes effect immediately", () => {
     await page.getByRole("button", { name: "Save tags" }).click();
     await expect(visibleText(page, "Tags saved")).toBeVisible();
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     // Sami can see it.
     await page.context().clearCookies();
@@ -406,7 +406,7 @@ test.describe("a caption is not lost by publishing without pressing its Save", (
     await expect(visibleText(page, "Shared with the whole class")).toBeVisible();
 
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     // The caption reached the parent — which it only can if it reached the
     // database first.

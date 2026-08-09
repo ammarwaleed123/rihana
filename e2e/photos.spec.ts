@@ -56,7 +56,7 @@ async function signIn(page: Page, email: string) {
   await page.waitForURL(/\/(portal|admin)/);
 }
 
-function visibleText(page: Page, text: string) {
+function visibleText(page: Page, text: string | RegExp) {
   return page.getByText(text).filter({ visible: true });
 }
 
@@ -175,7 +175,7 @@ async function publishOne(
   }
 
   await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-  await expect(visibleText(page, "Families can see them now")).toBeVisible();
+  await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 }
 
 async function publishFixture(page: Page) {

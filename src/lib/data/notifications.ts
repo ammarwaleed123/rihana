@@ -11,6 +11,7 @@ import {
 } from "@/lib/data/pagination";
 import { deliverPush } from "@/lib/data/push";
 import type { Session } from "@/lib/data/sessions";
+import type { NotificationMessage } from "@/lib/i18n/notification-text";
 import { prisma } from "@/lib/db";
 
 /**
@@ -32,6 +33,15 @@ import { prisma } from "@/lib/db";
 // ---------------------------------------------------------------------------
 // Fan-out: new photos
 // ---------------------------------------------------------------------------
+
+/**
+ * What goes into `Notification.payload`.
+ *
+ * The message (key + the words' ingredients) travels alongside the ids the app
+ * already kept there for linking and debugging. `NotificationMessage` is the
+ * part `notification-text.ts` reads back; the rest is ignored by it.
+ */
+type StoredPayload = NotificationMessage & Record<string, unknown>;
 
 type NotificationRow = {
   userId: string;
@@ -124,14 +134,21 @@ export async function fanOutPhotosPublished(
     for (const g of guardianships) {
       const count = countByChild.get(g.childId) ?? 0;
       if (count === 0) continue;
-      const name = nameById.get(g.childId) ?? "your child";
+      const resolvedName = nameById.get(g.childId) ?? "";
+      const name = resolvedName || "your child";
       const noun = count === 1 ? "photo" : "photos";
       rows.push({
         userId: g.parentUserId,
         type: "NEW_PHOTOS",
         title: `${count} new ${noun} of ${name}`,
         body: `${count} new ${noun} of ${name} ${count === 1 ? "is" : "are"} ready to see.`,
-        payload: { childId: g.childId, uploadSessionId, count },
+        payload: {
+          kind: "photos.child",
+          childId: g.childId,
+          uploadSessionId,
+          count,
+          childName: resolvedName,
+        } satisfies StoredPayload,
         linkPath: `/portal/photos?childId=${g.childId}`,
         dedupeKey: `photos:${uploadSessionId}:child:${g.childId}`,
       });
@@ -175,13 +192,20 @@ export async function fanOutPhotosPublished(
 
       const count = countByClass.get(classId) ?? 0;
       const noun = count === 1 ? "photo" : "photos";
-      const className = classNameById.get(classId) ?? "your child's class";
+      const resolvedClass = classNameById.get(classId) ?? "";
+      const className = resolvedClass || "your child's class";
       rows.push({
         userId: g.parentUserId,
         type: "NEW_PHOTOS",
         title: `${count} new class ${noun} in ${className}`,
         body: `${count} new ${noun} shared with ${className}.`,
-        payload: { classId, uploadSessionId, count },
+        payload: {
+          kind: "photos.class",
+          classId,
+          uploadSessionId,
+          count,
+          className: resolvedClass,
+        } satisfies StoredPayload,
         linkPath: `/portal/photos`,
         dedupeKey: `photos:${uploadSessionId}:class:${classId}`,
       });
@@ -259,7 +283,11 @@ export async function fanOutAnnouncement(
     type: "NEW_ANNOUNCEMENT" as const,
     title: "New announcement",
     body: announcement.title,
-    payload: { announcementId: announcement.id },
+    payload: {
+      kind: "announcement.new",
+      announcementId: announcement.id,
+      announcementTitle: announcement.title,
+    } satisfies StoredPayload,
     linkPath: `/portal/announcements`,
     dedupeKey: `announcement:${announcement.id}`,
   }));
@@ -370,7 +398,11 @@ export async function fanOutAlbumPublished(
     type: "NEW_PHOTOS" as const,
     title: `New album: ${album.title}`,
     body: `The nursery shared a new album, "${album.title}".`,
-    payload: { albumId: album.id },
+    payload: {
+      kind: "album.shared",
+      albumId: album.id,
+      albumTitle: album.title,
+    } satisfies StoredPayload,
     linkPath: `/portal/albums/${album.id}`,
     dedupeKey: `album:${album.id}`,
   }));
@@ -428,7 +460,13 @@ export async function fanOutPickupPendingReview(
     type: "PICKUP_PENDING_REVIEW" as const,
     title: "Pickup approval needed",
     body: `${requestedBy} asked to authorize ${person.fullName} to collect ${childName}.`,
-    payload: { pickupPersonId: person.id },
+    payload: {
+      kind: "pickup.review",
+      pickupPersonId: person.id,
+      requestedBy,
+      personName: person.fullName,
+      childName,
+    } satisfies StoredPayload,
     linkPath: `/admin/pickup/approvals`,
     dedupeKey,
   }));
@@ -485,7 +523,12 @@ export async function fanOutPickupReviewed(
         type: "PICKUP_APPROVED",
         title: "Pickup authorized",
         body: `${person.fullName} can now collect ${childName} from the nursery.`,
-        payload: { pickupPersonId: person.id },
+        payload: {
+          kind: "pickup.approved",
+          pickupPersonId: person.id,
+          personName: person.fullName,
+          childName,
+        } satisfies StoredPayload,
         linkPath: `/portal/pickup`,
         dedupeKey: `pickup-approved:${person.id}:${person.reviewedAt.getTime()}`,
       }
@@ -496,7 +539,15 @@ export async function fanOutPickupReviewed(
         body: person.rejectionReason
           ? `Your request to authorize ${person.fullName} for ${childName} was not approved: ${person.rejectionReason}`
           : `Your request to authorize ${person.fullName} to collect ${childName} was not approved. Please contact the nursery.`,
-        payload: { pickupPersonId: person.id },
+        payload: {
+          kind: "pickup.rejected",
+          pickupPersonId: person.id,
+          personName: person.fullName,
+          childName,
+          ...(person.rejectionReason
+            ? { reason: person.rejectionReason }
+            : {}),
+        } satisfies StoredPayload,
         linkPath: `/portal/pickup`,
         dedupeKey: `pickup-rejected:${person.id}:${person.reviewedAt.getTime()}`,
       };
@@ -568,8 +619,11 @@ export async function fanOutNewInquiry(
 export type NotificationItem = {
   id: string;
   type: string;
+  /** The English sentence written at send time; the fallback for old rows. */
   title: string;
   body: string;
+  /** Message key + ingredients. Read through `notificationText()`, never raw. */
+  payload: unknown;
   linkPath: string;
   readAt: Date | null;
   createdAt: Date;
@@ -591,8 +645,12 @@ export async function listNotifications(
     select: {
       id: true,
       type: true,
+      // `title`/`body` are the English sentence written at send time. They are
+      // still the fallback for rows created before messages carried a key —
+      // see notification-text.ts.
       title: true,
       body: true,
+      payload: true,
       linkPath: true,
       readAt: true,
       createdAt: true,

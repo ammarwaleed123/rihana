@@ -87,7 +87,7 @@ test.describe("photo notifications", () => {
     await page.getByRole("button", { name: "Save tags" }).click();
     await expect(visibleText(page, "Tags saved")).toBeVisible();
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     // Amal (Laila's parent) gets a notification naming Laila.
     await signIn(page, PARENT_AMAL);
@@ -159,7 +159,7 @@ test.describe("album notifications", () => {
     await page.getByRole("button", { name: "Share with the whole class" }).click();
     await expect(visibleText(page, "Shared with the whole class")).toBeVisible();
     await page.getByRole("button", { name: /^Publish \d+ photo/ }).click();
-    await expect(visibleText(page, "Families can see them now")).toBeVisible();
+    await expect(visibleText(page, /Families can see (it|them) now/)).toBeVisible();
 
     await page.goto("/admin/albums");
     await page.getByRole("button", { name: "New album" }).click();

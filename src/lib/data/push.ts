@@ -5,6 +5,10 @@ import webpush from "web-push";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { getDictionary, type Dictionary } from "@/lib/i18n";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
+import { toLocale } from "@/lib/i18n/locale-cookie";
+import { notificationText } from "@/lib/i18n/notification-text";
 
 /**
  * Web Push delivery.
@@ -77,8 +81,11 @@ export async function deletePushSubscription(
 
 type PushableRow = {
   userId: string;
+  /** English, written at send time. The fallback if the payload has no key. */
   title: string;
   body: string;
+  /** Message key + ingredients; see i18n/notification-text.ts. */
+  payload?: unknown;
   linkPath: string;
   dedupeKey: string;
 };
@@ -102,15 +109,36 @@ export async function deliverPush(
   try {
     const userIds = [...new Set(rows.map((r) => r.userId))];
 
-    const [subs, unreadGroups] = await Promise.all([
+    const [subs, unreadGroups, recipients] = await Promise.all([
       prisma.pushSubscription.findMany({ where: { userId: { in: userIds } } }),
       prisma.notification.groupBy({
         by: ["userId"],
         where: { userId: { in: userIds }, readAt: null },
         _count: { _all: true },
       }),
+      /*
+       * Push is the one message that cannot be translated when it is read: it
+       * leaves for the device and is never re-rendered. So it is built HERE, in
+       * each recipient's saved language. A push already on a lock screen keeps
+       * the language it was sent in even if they switch afterwards — inherent to
+       * push, not a defect.
+       */
+      prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, locale: true },
+      }),
     ]);
     if (subs.length === 0) return;
+
+    const localeByUser = new Map(
+      recipients.map((u) => [u.id, toLocale(u.locale)]),
+    );
+
+    // At most two dictionaries per fan-out, loaded once and shared.
+    const dictionaries = new Map<Locale, Dictionary>();
+    for (const locale of new Set(localeByUser.values())) {
+      dictionaries.set(locale, await getDictionary(locale));
+    }
 
     const badgeByUser = new Map(
       unreadGroups.map((g) => [g.userId, g._count._all]),
@@ -126,9 +154,15 @@ export async function deliverPush(
 
     await Promise.all(
       rows.flatMap((row) => {
+        const locale = localeByUser.get(row.userId) ?? DEFAULT_LOCALE;
+        const dict = dictionaries.get(locale);
+        const text = dict
+          ? notificationText(row, dict, locale)
+          : { title: row.title, body: row.body };
+
         const payload = JSON.stringify({
-          title: row.title,
-          body: row.body,
+          title: text.title,
+          body: text.body,
           url: row.linkPath,
           badgeCount: badgeByUser.get(row.userId) ?? 0,
           tag: row.dedupeKey,
