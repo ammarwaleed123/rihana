@@ -19,6 +19,7 @@
     "verify:csrf": "tsx scripts/verify-csrf.ts",
     "verify:erasure": "tsx scripts/verify-erasure.ts",
     "check:rls": "tsx scripts/check-rls.ts",
+    "smoke": "tsx scripts/smoke.ts",
     "verify:security": "npm run check:rls && npm run verify:auth && npm run verify:csrf && npm run verify:pickup && npm run verify:erasure",
     "db:reset-limits": "tsx scripts/reset-limits.ts",
     "db:inspect": "tsx scripts/inspect-db.ts",
