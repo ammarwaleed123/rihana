@@ -65,6 +65,7 @@ if (byGrantee.size === 0) {
 }
 
 const exposed = rls.filter((t) => !t.rowsecurity && byGrantee.size > 0);
+const rlsOff = rls.filter((t) => !t.rowsecurity);
 
 console.log("");
 if (exposed.length > 0) {
@@ -75,8 +76,34 @@ if (exposed.length > 0) {
     "Anyone holding the project's anon key can read them over the REST API.\n",
   );
   process.exitCode = 1;
+} else if (rlsOff.length > 0) {
+  /*
+   * Not reachable today, but one of the two defences is down.
+   *
+   * The lockdown migration deliberately used REVOKE *and* deny-by-default RLS,
+   * "because either alone is one mistake away from failing". Only the REVOKE
+   * half carries forward to new tables, via ALTER DEFAULT PRIVILEGES; RLS has
+   * no such default, so a table added later arrives with it off. That is how
+   * `push_subscriptions` ended up half-protected when Phase 8 added it.
+   *
+   * Calling that a pass would let the second defence rot away one table at a
+   * time with nothing ever saying so.
+   */
+  console.log(
+    `INCOMPLETE: RLS is off on ${rlsOff.length} table(s): ${rlsOff
+      .map((t) => t.tablename)
+      .sort()
+      .join(", ")}`,
+  );
+  console.log(
+    "Privileges are revoked, so nothing is reachable — but the second defence\n" +
+      "is missing there. Enable it with a migration.\n",
+  );
+  process.exitCode = 1;
 } else {
-  console.log("No table is both RLS-off and reachable by a public API role.\n");
+  console.log(
+    "Every table has RLS on, and no public API role holds privileges.\n",
+  );
 }
 
 await prisma.$disconnect();

@@ -115,9 +115,21 @@ async function pick(page: Page, caption: string) {
       await page.reload();
     }
     await expect(checkbox).toHaveCount(1);
-  }).toPass({ timeout: 60_000 });
 
-  await checkbox.check({ force: true });
+    /*
+     * Tick it, and insist the tick took.
+     *
+     * The tile is server-rendered, but the box is a controlled input that only
+     * responds once React has hydrated — and `force`, which the sr-only input
+     * requires, skips exactly the actionability wait that would have covered
+     * that. A click landing in the gap is dropped silently, and the reload
+     * above reopens the gap every time it retries. So assert the state changed
+     * instead of assuming it did; `check` is a no-op on an already-ticked box,
+     * which makes retrying safe.
+     */
+    await checkbox.check({ force: true });
+    await expect(checkbox).toBeChecked();
+  }).toPass({ timeout: 60_000 });
 }
 
 /** Create the album and put both published photos in it. Returns its id. */

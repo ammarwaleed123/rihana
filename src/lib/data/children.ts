@@ -328,8 +328,9 @@ export async function restoreChild(session: Session, childId: string) {
  *   - Photos that also show other children. Destroying those would erase another
  *     family's record too, which nobody asked for.
  *
- * Storage objects for the orphaned photos are removed by a queued job; their ids
- * are returned so the caller can enqueue it (wired up in Phase 3).
+ * Storage objects for the orphaned photos, and for the child's pickup people,
+ * are removed by a queued job. Their KEYS are returned — not their ids — because
+ * the rows that map one to the other are gone by the time this returns.
  */
 export async function deleteChild(session: Session, childId: string) {
   if (session.user.role !== "OWNER") throw new ForbiddenError();
@@ -357,6 +358,42 @@ export async function deleteChild(session: Session, childId: string) {
 
   const orphanedPhotoIds = exclusivePhotos.map((p) => p.id);
 
+  /*
+   * Collect the storage keys BEFORE the transaction removes the rows that hold
+   * them. This ordering is the whole difficulty: once the photo and pickup rows
+   * are gone there is nothing left to resolve an id back to an object, so a
+   * caller handed only ids cannot purge anything. That is exactly what happened
+   * — deletion returned ids, the caller logged "storage purge pending queue
+   * wiring", and every erased child's images stayed in the bucket while the
+   * audit log recorded them as permanently deleted.
+   *
+   * Both kinds of object belong to the child and both must go: the photos that
+   * showed only them, and the avatars of the people authorized to collect them.
+   */
+  const [orphanedPhotos, pickupPersons] = await Promise.all([
+    prisma.photo.findMany({
+      where: { id: { in: orphanedPhotoIds } },
+      select: {
+        storageKeyOriginal: true,
+        storageKeyWeb: true,
+        storageKeyThumb: true,
+      },
+    }),
+    prisma.pickupPerson.findMany({
+      where: { childId },
+      select: { photoStorageKey: true, photoThumbKey: true },
+    }),
+  ]);
+
+  const orphanedKeys = [
+    ...orphanedPhotos.flatMap((p) => [
+      p.storageKeyOriginal,
+      p.storageKeyWeb,
+      p.storageKeyThumb,
+    ]),
+    ...pickupPersons.flatMap((p) => [p.photoStorageKey, p.photoThumbKey]),
+  ].filter((key): key is string => Boolean(key));
+
   await prisma.$transaction([
     // Album membership first — AlbumPhoto has no cascade from Photo's side we
     // want to rely on implicitly.
@@ -379,7 +416,7 @@ export async function deleteChild(session: Session, childId: string) {
     prisma.child.delete({ where: { id: childId } }),
   ]);
 
-  return { child, orphanedPhotoIds };
+  return { child, orphanedPhotoIds, orphanedKeys };
 }
 
 // ---------------------------------------------------------------------------

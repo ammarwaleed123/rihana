@@ -33,6 +33,7 @@ import {
 } from "@/lib/data/people";
 import type { Session } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
+import { QUEUES, enqueue } from "@/lib/jobs/queue";
 import { logger } from "@/lib/logger";
 import {
   childInput,
@@ -471,15 +472,35 @@ export async function deleteChildAction(
       },
     });
 
-    // Storage objects are purged by a queued job — wired up in Phase 3.
-    logger.warn(
-      {
-        scope: "child-deletion",
-        childId: result.child.id,
-        photoIds: result.orphanedPhotoIds.length,
-      },
-      "child deleted; storage purge pending queue wiring",
-    );
+    /*
+     * Erase the objects too, not just the rows.
+     *
+     * Without this the database forgot the child and the audit log said
+     * "permanently deleted", while their photographs stayed in the bucket
+     * indefinitely — a deletion that did not delete, on the one request where a
+     * family is entitled to expect it did.
+     *
+     * Enqueue failure is non-fatal (the rows are already gone and the request
+     * must not fail), but it is logged at error level WITH the keys: a purge
+     * that silently never happened is precisely the bug being fixed here, so it
+     * has to leave a trail someone can act on.
+     */
+    if (result.orphanedKeys.length > 0) {
+      const jobId = await enqueue(QUEUES.storagePurge, {
+        keys: result.orphanedKeys,
+      });
+
+      if (!jobId) {
+        logger.error(
+          {
+            scope: "child-deletion",
+            childId: result.child.id,
+            keys: result.orphanedKeys,
+          },
+          "storage purge was not queued — objects must be removed by hand",
+        );
+      }
+    }
 
     revalidatePath("/admin/children");
     deleted = { firstName: result.child.firstName };

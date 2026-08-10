@@ -19,8 +19,31 @@ const { PrismaClient } = await import("../src/generated/prisma/client.js");
 const { createHash, randomBytes } = await import("node:crypto");
 const { hash: argonHash, verify: argonVerify } = await import("@node-rs/argon2");
 
-const BASE = process.env.VERIFY_BASE_URL ?? "http://localhost:3210";
-const COOKIE = "rihana_session";
+/*
+ * Defaults to the production server, like the other verify scripts.
+ *
+ * It used to default to 3210 — the port Playwright's dev server uses — so
+ * running it without setting VERIFY_BASE_URL quietly aimed the security checks
+ * at a development build. That is the same trap as the `__Host-` cookie bug
+ * below: a harness that looks like it passed, having tested the wrong thing.
+ * These checks are about what ships, so the default now points there.
+ */
+const BASE = process.env.VERIFY_BASE_URL ?? "http://localhost:3120";
+/*
+ * Both cookie names, always.
+ *
+ * The app uses the `__Host-` prefix in production and the bare name in
+ * development, because the prefix requires HTTPS. Sending only the bare name
+ * meant this harness reported nine false failures — "a valid parent session
+ * reaches /portal: got 307" — against any server started with `next start`,
+ * which is the mode it matters most in. A request may carry both; the app reads
+ * whichever one it is looking for.
+ */
+const COOKIE_NAMES = ["__Host-rihana_session", "rihana_session"];
+
+function sessionCookie(token: string): string {
+  return COOKIE_NAMES.map((name) => `${name}=${token}`).join("; ");
+}
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -63,7 +86,7 @@ async function mintSession(email: string) {
 async function get(path: string, token?: string) {
   const response = await fetch(`${BASE}${path}`, {
     redirect: "manual",
-    headers: token ? { Cookie: `${COOKIE}=${token}` } : {},
+    headers: token ? { Cookie: sessionCookie(token) } : {},
   });
 
   return {

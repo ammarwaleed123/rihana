@@ -235,15 +235,207 @@ Photos are excluded from search indexing at the header level.
 
 ## Review results
 
-_Pending — completed in Phase 9._
+**Reviewed 2026-08-09**, **dependencies fixed and re-verified 2026-08-10** on
+Next 16.3.0 — against the app running in production mode (`next start`) with a
+live worker, a real Supabase Postgres and a real S3 bucket.
 
-The review pass must verify, with evidence recorded here:
+Re-run the whole pass before any production deploy, and a proportionate subset
+whenever a change touches photos, scoping, uploads, or adds a route or an action
+reachable without a session. Everything below is a command, not a memory:
 
-- [ ] IDOR: a second parent account cannot fetch another child's photo by ID
-- [ ] IDOR: a parent cannot read or mutate another child's pickup list
-- [ ] A teacher cannot read or mutate a class they are not assigned to
-- [ ] Signed URLs stop working after their TTL expires
-- [ ] Login rate limits fire and lock out as configured
-- [ ] EXIF, including GPS, is absent from every stored derivative
-- [ ] No secret appears in the client bundle
-- [ ] Deleting a child removes their objects from storage
+```
+npm run verify:security     # rls, auth, csrf, pickup, erasure — needs the app + worker running
+npm run check:secrets       # secrets in the bundle
+npx tsx scripts/verify-storage.ts               # bucket privacy, round trip
+npx tsx scripts/verify-photo-privacy.ts         # EXIF/GPS in stored bytes
+npm audit
+npm test && npx playwright test
+```
+
+`verify:security` runs against `VERIFY_BASE_URL` (default `http://localhost:3120`)
+and needs a worker consuming the queue, because the erasure check waits on a job.
+It creates only throwaway records and removes them however it exits. `playwright
+test` does **not** — it reseeds the demo database, which destroys demo photos,
+push subscriptions and any manual test data, and resets the owner password.
+
+### The eight required checks
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | A second parent cannot fetch another child's photo by ID | **PASS** | Guessed photo and album ids, another family's album, another child's pickup page — all 404, never 403. `/api/img/<id>` and `?v=thumb` likewise |
+| 2 | A parent cannot read **or mutate** another child's pickup list | **PASS** | Read: 404. Write: signed in as a real parent, on their own form, with the hidden `childId` rewritten in the browser to another family's child and the correct password supplied — nothing was created, and the error did not name the other child |
+| 3 | A teacher cannot read or mutate a class they are not assigned to | **PASS** | A child in an unassigned class 404s; `/admin/people` and `/admin/activity` redirect; covered continuously by `e2e/admin.spec.ts` and `e2e/albums.spec.ts` |
+| 4 | Signed URLs stop working after their TTL | **PASS** | App TTL is 300s. A 3-second signature fetched the object, then the same URL was refused after expiry with "expired" in the response; a tampered signature was refused too. Note Supabase answers 4xx as **400**, not the 403 AWS returns |
+| 5 | Login rate limits fire and lock out | **PASS** | `verify-auth.ts` 19/19, including that unknown-email and wrong-password cost the same time (no account oracle); `e2e/rate-limit.spec.ts` exercises the lockout and that one account's exhausted bucket does not affect another |
+| 6 | EXIF, including GPS, absent from every stored derivative | **PASS** | `verify-photo-privacy.ts` 121/121 across every stored original, web and thumbnail |
+| 7 | No secret appears in the client bundle | **PASS** | `check-secrets.ts` clean |
+| 8 | Deleting a child removes their objects from storage | **FIXED, now PASS** | Was broken — see finding 1. Now driven through the real admin screen: the child's photographs and their pickup people's avatars both leave the bucket |
+
+Also verified, beyond the required list:
+
+- **CSRF.** An attacker origin on another port submitted a cross-site form POST at
+  a Server Action while the browser held a live session. The request reached the
+  app **without the session cookie** and changed nothing. Session cookies are
+  `httpOnly`, `SameSite=Lax`, `Secure` in production; the CSP additionally sets
+  `form-action 'self'` and `frame-ancestors 'none'`. Kept as
+  `scripts/verify-csrf.ts` — it asserts the POST *arrived* before asserting it
+  carried no cookie, because a form that silently failed to fire would otherwise
+  pass every remaining check.
+- **Forged sessions.** Six shapes — invented tokens, a 64-char hex string shaped
+  like a session id, the `__Host-` variant, empty, and a SQL payload — against six
+  private routes. None reached content. The proxy's cookie check is presentation
+  only; `requireSession()` and the data layer are the controls, and this is what
+  proves it.
+- **Security headers**, confirmed on the wire: CSP (`default-src 'self'`,
+  `object-src 'none'`, `base-uri 'self'`), `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, HSTS with
+  preload, COOP/CORP `same-origin`, and `X-Robots-Tag: noindex` on portal and
+  image routes.
+
+### Findings
+
+**1 — Deleting a child did not delete their photographs. (High, fixed.)**
+`deleteChild` removed the rows and returned the ids of the photos it had
+orphaned; the caller logged `"child deleted; storage purge pending queue wiring"`
+and enqueued nothing. Every erased child's images stayed in the bucket
+indefinitely while the database, the interface and the audit log all reported
+them destroyed — on the one request where a family is entitled to expect
+otherwise. The ordering was the trap: the rows holding the storage keys are
+deleted in the same transaction, so a caller handed only ids had nothing left to
+resolve. `deleteChild` now collects the keys first — the child's photos **and**
+their pickup people's avatars, which were a second leak in the same path — and
+the action enqueues the purge, logging at error level with the keys if the queue
+refuses it. Regression-checked by `scripts/verify-erasure.ts`.
+
+**2 — Row-level security was missing on a table added after the lockdown.
+(Low, fixed.)** `20260720005455_lock_down_public_api_roles` set up two
+independent defences and said its dynamic enumeration meant "a table added in a
+later migration cannot be forgotten". Only half of that carries forward: the
+REVOKE side is preserved by `ALTER DEFAULT PRIVILEGES`, but Postgres has no
+default for RLS, so `push_subscriptions` (Phase 8) arrived with privileges
+revoked and RLS off. Nothing was reachable — the first defence held — but the
+second had quietly lapsed. Fixed by `20260809180000_rls_for_later_tables`, and
+`check-rls.ts` now fails on **any** RLS-off table rather than only when it is
+also granted, so the rot cannot continue unnoticed. The tightened check was
+confirmed to fire by switching RLS off and watching it fail.
+
+**3 — The auth harness reported false failures against a production build.
+(Tooling, fixed.)** `verify-auth.ts` sent only the bare `rihana_session` cookie,
+while the app uses the `__Host-` prefix whenever `NODE_ENV=production`. Nine
+checks failed for a reason that had nothing to do with the app — against exactly
+the mode you would run it in before a deploy. It now sends both names.
+
+**4 — Ten vulnerable production dependencies, five high. (Fixed 2026-08-10.)**
+`npm audit` now reports **0 vulnerabilities**, across dev and production alike.
+
+Ten packages was not ten ways in. Sorted by whether they could reach the running
+site:
+
+| Count | Packages | Reachable? |
+|---|---|---|
+| 6 | `prisma`, `@prisma/dev`, `hono`, `@hono/node-server`, `valibot`, `fast-uri` | **No.** The `prisma dev` local toolchain. Not deployed |
+| 2 | `postcss`, `nanoid` | **Practically no.** Attacks via malicious CSS; all CSS here is ours, and it is compiled at build time |
+| 2 | `next`, its private `sharp` | **Yes.** The two that mattered |
+
+One correction to an earlier draft of this section, because it changed the
+decision: **sharp was never the risk it looked like.** Two copies are installed —
+`node_modules/sharp` at 0.35.3, which is what the upload pipeline actually loads
+(confirmed with `require.resolve`), and Next's private `sharp` at 0.34.5. The
+advisory covers `<0.35.0`, so the code that processes attacker-supplied uploads
+was already on a fixed version; the vulnerable copy served only Next's image
+optimizer, which `images: { remotePatterns: [] }` keeps pointed at our own
+assets. Read the tree before ranking the finding.
+
+Of the nine advisories against `next`, most did not apply: no custom server (so
+not the SSRF one), no rewrites, and the proxy-bypass advisory is worth reading
+against this codebase's own design note — the proxy here is deliberately **not**
+the authorization boundary, so a bypass costs a redirect rather than access. That
+is why the boundary lives in the data layer, and it is doing its job. Two did
+matter: **cache confusion of response bodies** (two advisories), which is exactly
+the class of bug that could hand one family's response to another, and a Server
+Actions DoS, whose surface the 24 MB upload body limit widens slightly.
+
+Fixed in two steps. `npm audit fix` cleared the six toolchain packages in range
+(`prisma` 7.8.0 → 7.9.1). The remaining four were all inside Next, and there is
+no patched 16.2.x — the fix ships in 16.3.0 only — so `next` and
+`eslint-config-next` were pinned up together, 16.2.10 → 16.3.0. Nothing in the
+`version-16` breaking-change list applied: the `middleware` → `proxy` rename, the
+`turbopack` config and the ESLint CLI migration were already done.
+
+Verified after the bump: typecheck, lint, 162 unit tests, a clean production
+build, then `check-rls` (all tables ON), `verify-auth` 19/19, `verify-csrf` 6/6
+and `verify-erasure` 4/4 against the rebuilt server.
+
+**5 — `LiveFilters` navigated on every page load. (Correctness, fixed.)** Found
+by the post-upgrade e2e run, which failed seven tests. Four root causes; this was
+the one in our own code, and it had been there all along.
+
+The component guarded its "apply the filter" effect with a `useRef` flag meaning
+"skip the first render". A ref survives the remount React simulates in Strict
+Mode, so the second, deliberately double-invoked pass read the flag as already
+set and ran `router.replace()` — on every load of the children list, with no
+filter touched. The resulting transition never settled: the page sat on
+"Filtering…" and swallowed the next click, so a child's **Manage** link stopped
+navigating at all. Three tests died there, including photo-consent withdrawal.
+
+Replaced with a comparison of the filter state against the current URL, which is
+idempotent — running it twice costs nothing, which is the property the ref was
+only pretending to have. Diagnosis confirmed before the fix by turning Strict
+Mode off (passed) and back on (failed again).
+
+The remaining three failures were a test flaw, not an app one: the album picker
+force-clicks an `sr-only` **controlled** checkbox, and `force` skips precisely
+the actionability wait that covers hydration, so a click landing before React
+hydrates is dropped in silence. Both call sites now assert the tick took.
+
+Worth recording for the next upgrade: **all seven failures passed against a
+production build before any fix**, which is how they were triaged from "the
+framework broke the app" down to one real defect.
+
+### Verified against the production build
+
+The whole suite was then re-run against `next build && next start` rather than
+`next dev`, because the dev server is the one thing here that never ships.
+
+| Check | Result |
+|---|---|
+| e2e, full suite | **153 passed** (12.2m — faster than the 15.0m dev run) |
+| unit tests | 162 passed |
+| `verify-auth` | 19 passed |
+| `verify-csrf` | 6 passed |
+| `verify-pickup` | 9 passed |
+| `verify-erasure` | 4 passed |
+| `verify-storage` | 15 passed — private, not anonymously listable, delete works |
+| `verify-photo-privacy` | 121 passed — no EXIF, GPS, XMP or IPTC in any stored derivative |
+| `check-rls` | every table ON, no privileges held by a public API role |
+| `check-secrets` | no secret reachable from the client bundle |
+| `check-db` / `check-fks` | both URLs connect; child deletion cascades confirmed |
+| `npm audit` | 0 vulnerabilities |
+| headers, on the wire | CSP, nosniff, DENY, HSTS preload, COOP/CORP, no `X-Powered-By`, `noindex` on portal and image routes, photos `private, no-store` |
+
+**489 assertions, 0 failures**, all against the build that ships.
+
+One fix came out of this. `verify-auth.ts` **defaulted to port 3210** — the port
+Playwright's dev server uses — so running `npm run verify:auth` on its own
+quietly aimed the auth checks at a development build and reported 19/19. Today's
+runs were correct only because the port was being overridden by hand. That is the
+same failure shape as finding 3: a harness that reports success while examining
+the wrong thing, which is worse than no harness, because it manufactures
+confidence. All three server-facing scripts now default to 3120.
+
+Still open, and not a defect: the e2e suite's own default remains `next dev`, for
+iteration speed. The production run is a deliberate pre-deploy step and belongs
+in the deployment runbook rather than in every local loop.
+
+### Not yet verified
+
+These cannot be answered from a laptop and belong to the deploy:
+
+- Cookies actually carry `Secure` under the real environment, and HSTS arrives
+  over real HTTPS
+- The production bucket is private and not listable (verified for the current
+  bucket; re-run `verify-storage.ts` against the production one)
+- Database backups exist and a restore has been rehearsed
+- The demo seed cannot run against production — `reset-demo.ts` refuses when
+  `NODE_ENV=production`, which protects the obvious case but not a production
+  `DATABASE_URL` in a non-production shell

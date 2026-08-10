@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 /**
@@ -21,6 +21,21 @@ import type { Dictionary } from "@/lib/i18n/dictionaries/en";
  * The form still works with JavaScript disabled: it is a real GET form with a
  * submit button, and this only enhances it.
  */
+/**
+ * The canonical query string for a set of filter values.
+ *
+ * Used for both sides of the "has anything actually changed?" comparison, so
+ * that key order and blank-vs-absent can never make two identical filters look
+ * different.
+ */
+function filterQuery(query: string, classId: string, archived: boolean): string {
+  const next = new URLSearchParams();
+  if (query.trim()) next.set("q", query.trim());
+  if (classId) next.set("classId", classId);
+  if (archived) next.set("archived", "1");
+  return next.toString();
+}
+
 export function LiveFilters({
   classes,
   t,
@@ -38,23 +53,31 @@ export function LiveFilters({
   const [classId, setClassId] = useState(params.get("classId") ?? "");
   const [archived, setArchived] = useState(params.get("archived") === "1");
 
-  // Skip the effect on first render, otherwise landing on the page immediately
-  // pushes an identical URL and adds a bogus history entry.
-  const mounted = useRef(false);
-
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
-
     const timer = setTimeout(() => {
-      const next = new URLSearchParams();
-      if (query.trim()) next.set("q", query.trim());
-      if (classId) next.set("classId", classId);
-      if (archived) next.set("archived", "1");
+      const qs = filterQuery(query, classId, archived);
 
-      const qs = next.toString();
+      /*
+       * Do nothing when the URL already says this.
+       *
+       * This replaces a "skip the first render" ref, which looked equivalent and
+       * was not: a ref survives the remount React simulates in Strict Mode, so
+       * the second pass sailed past the guard and fired `router.replace` on
+       * every single page load. That left a transition pending — the filter
+       * stuck on "Filtering…" — and swallowed the next click, which is how
+       * clicking a child's "Manage" link stopped navigating at all.
+       *
+       * Comparing state to the URL is idempotent, so running twice costs
+       * nothing. Both sides go through the same builder, because comparing
+       * against the raw query string would differ on key order alone.
+       */
+      if (qs === filterQuery(
+        params.get("q") ?? "",
+        params.get("classId") ?? "",
+        params.get("archived") === "1",
+      )) {
+        return;
+      }
 
       startTransition(() => {
         // `replace`, not `push`: typing a name should not bury the previous page
@@ -64,7 +87,7 @@ export function LiveFilters({
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [query, classId, archived, router, basePath]);
+  }, [query, classId, archived, router, basePath, params]);
 
   const field =
     "w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base focus:border-leaf focus:outline-none";

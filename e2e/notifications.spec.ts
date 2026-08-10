@@ -167,7 +167,14 @@ test.describe("album notifications", () => {
     await page.getByLabel("Class").selectOption({ label: "Sunflowers" });
     await page.getByRole("button", { name: "Create album" }).click();
     await page.waitForURL(/\/admin\/albums\/[a-z0-9]+/);
-    await page.getByRole("checkbox", { name: caption }).check({ force: true });
+    // Ticked with a retry: the box is a controlled input, `force` skips the
+    // actionability wait, and a click that lands before React hydrates is
+    // dropped without a word. See the longer note in albums.spec.ts.
+    const photo = page.getByRole("checkbox", { name: caption });
+    await expect(async () => {
+      await photo.check({ force: true });
+      await expect(photo).toBeChecked();
+    }).toPass({ timeout: 30_000 });
     await page.getByRole("button", { name: /^Add 1 photo/ }).click();
     await page.getByRole("button", { name: "Publish album" }).click();
     await expect(visibleText(page, "Album published")).toBeVisible();
