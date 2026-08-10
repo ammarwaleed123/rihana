@@ -226,9 +226,43 @@ async function signedInChecks() {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForURL(/\/(portal|admin)/, { timeout: 30_000 });
 
-    check("the owner can sign in", /\/(portal|admin)/.test(page.url()), page.url());
+    /*
+     * Wait for whichever comes first: the redirect, or the form's error.
+     *
+     * Waiting only for the URL means a rejected password surfaces as a bare
+     * 30-second timeout, which says nothing about whether the app is broken or
+     * the password was simply wrong. Race them and report what actually
+     * happened.
+     */
+    const landed = await Promise.race([
+      page
+        .waitForURL(/\/(portal|admin)/, { timeout: 30_000 })
+        .then(() => "signed-in" as const)
+        .catch(() => null),
+      page
+        .getByTestId("form-alert")
+        .waitFor({ state: "visible", timeout: 30_000 })
+        .then(() => "rejected" as const)
+        .catch(() => null),
+    ]);
+
+    if (landed !== "signed-in") {
+      const message = await page
+        .getByTestId("form-alert")
+        .textContent()
+        .catch(() => null);
+      check(
+        "the owner can sign in",
+        false,
+        message
+          ? `the site said: "${message.trim()}" — check SMOKE_PASSWORD`
+          : `no redirect and no error shown; still at ${page.url()}`,
+      );
+      return;
+    }
+
+    check("the owner can sign in", true, page.url());
 
     const cookie = (await context.cookies()).find((c) =>
       c.name.includes("rihana_session"),
