@@ -22,7 +22,19 @@
 
 import { config as loadEnv } from "dotenv";
 
-for (const path of [".env.production.local", ".env.local", ".env"]) {
+/*
+ * `.env.prod-admin`, deliberately NOT `.env.production.local`.
+ *
+ * Next loads `.env.production.local` ahead of `.env.local` whenever NODE_ENV is
+ * production — which `next start` always sets. A file by that name therefore
+ * silently repoints every local production build at whatever it contains. Ours
+ * held live credentials, so `npm start` on a laptop was quietly talking to the
+ * real nursery's database while `.env.local` said otherwise.
+ *
+ * The name here is one Next does not recognise, so these credentials are only
+ * ever used by commands that ask for them explicitly.
+ */
+for (const path of [".env.prod-admin", ".env.local", ".env"]) {
   loadEnv({ path, override: false, quiet: true });
 }
 
