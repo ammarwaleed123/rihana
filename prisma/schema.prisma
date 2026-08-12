@@ -86,6 +86,12 @@ model User {
   pickupPersonsReview PickupPerson[]      @relation("PickupReviewedBy")
   inquiriesHandled    Inquiry[]
 
+  dailyReportsPublished DailyReport[]                 @relation("DailyReportPublishedBy")
+  dailyReportsEdited    DailyReport[]                 @relation("DailyReportEditedBy")
+  dailyReportsAcked     DailyReportAcknowledgement[]
+  accidentsSigned       AccidentIncident[]
+  accidentsAcked        AccidentAcknowledgement[]
+
   @@index([role, status])
   @@index([status])
   @@map("users")
@@ -134,12 +140,14 @@ model Class {
   updatedAt    DateTime  @updatedAt
   archivedAt   DateTime?
 
-  children      Child[]
-  teachers      TeacherAssignment[]
-  photos        Photo[]
-  albums        Album[]
-  announcements Announcement[]
-  uploadSession UploadSession[]
+  children        Child[]
+  teachers        TeacherAssignment[]
+  photos          Photo[]
+  albums          Album[]
+  announcements   Announcement[]
+  uploadSession   UploadSession[]
+  dailyReports    DailyReport[]
+  accidentReports AccidentReport[]
 
   @@index([archivedAt])
   @@map("classes")
@@ -205,11 +213,13 @@ model Child {
   /// partial failure. `archivedAt` is what marks a child who has simply left.
   deletedAt  DateTime?
 
-  class         Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
-  guardianships Guardianship[]
-  photoTags     PhotoTag[]
-  pickupPersons PickupPerson[]
-  auditLogs     AuditLog[]
+  class           Class?           @relation(fields: [classId], references: [id], onDelete: SetNull)
+  guardianships   Guardianship[]
+  photoTags       PhotoTag[]
+  pickupPersons   PickupPerson[]
+  auditLogs       AuditLog[]
+  dailyReports    DailyReport[]
+  accidentReports AccidentReport[]
 
   @@index([classId, status])
   @@index([status])
@@ -443,6 +453,17 @@ enum NotificationType {
   PICKUP_REJECTED
   PICKUP_PENDING_REVIEW
   NEW_INQUIRY
+
+  /// Today's report is finished and readable.
+  DAILY_REPORT_READY
+  /// A report the family has already seen was corrected.
+  DAILY_REPORT_UPDATED
+  /// The child did not attend today.
+  CHILD_ABSENT
+  /// An accident report was published, or a further incident added to one.
+  ACCIDENT_REPORTED
+  /// Staff-facing: a guardian has acknowledged a report.
+  REPORT_ACKNOWLEDGED
 }
 
 model Notification {
@@ -640,4 +661,313 @@ model Inquiry {
 
   @@index([status, createdAt(sort: Desc)])
   @@map("inquiries")
+}
+
+// ---------------------------------------------------------------------------
+// Daily reports (the notebook that goes home with each child)
+// ---------------------------------------------------------------------------
+//
+// Replaces a paper book the nursery already fills in every day. The structure
+// below mirrors that page deliberately — staff should recognise it, not have to
+// learn it.
+//
+// Times of day (arrival, nap, incident) are stored as "HH:mm" strings, not
+// timestamps. They are a wall-clock reading a teacher types, always in the
+// nursery's own timezone, and never compared across zones. A DateTime would
+// invite exactly the offset bugs that make a nap look like it started at 3am.
+
+enum DailyReportStatus {
+  /// Being filled in. Invisible to families.
+  DRAFT
+  /// The child did not attend. Closes the day; the family is told.
+  ABSENT
+  /// Finished and sent home.
+  PUBLISHED
+}
+
+enum PlayArea {
+  BLOCKS
+  DRAMATIC_PLAY
+  ART
+  LIBRARY
+  DISCOVERY
+  MOVEMENT
+  COOKING
+}
+
+enum Meal {
+  BREAKFAST
+  SNACK
+  LUNCH
+}
+
+enum MealAmount {
+  ALL
+  SOME
+  NOT_HUNGRY
+}
+
+/// One report per child per day.
+///
+/// The unique constraint on (childId, date) is what makes two teachers filling
+/// the same child's day land on the same row rather than racing to create two.
+model DailyReport {
+  id      String            @id @default(cuid(2))
+  childId String
+  date    DateTime          @db.Date
+  status  DailyReportStatus @default(DRAFT)
+
+  /// Class at the time of writing. Snapshotted so moving a child between
+  /// classes later does not silently re-scope who may read past reports.
+  classId String?
+
+  arrivalTime String?
+
+  playAreas   PlayArea[]
+  alsoEnjoyed String?
+
+  /// Qur'an study. Free text: what a child memorised or revised is a reference
+  /// ("Al-Fatiha, 1-4"), not something worth enumerating.
+  quranMemorised String?
+  quranRevision  String?
+  littleMuslim   String?
+
+  /// A child who stayed awake still has a complete report — without this the
+  /// form could never be finished on a no-nap day.
+  napNone  Boolean @default(false)
+  napFrom  String?
+  napUntil String?
+
+  /// The same escape for a toilet-trained child with nothing to record.
+  toiletNothingToRecord Boolean @default(false)
+
+  bringCleanClothes Boolean @default(false)
+  bringDiapers      Boolean @default(false)
+  bringOther        String?
+
+  teacherComments String?
+
+  publishedAt       DateTime?
+  publishedByUserId String?
+  /// Set only on an edit AFTER publishing — that is the event a family is told
+  /// about, so it must be distinguishable from ordinary drafting.
+  lastEditedAt       DateTime?
+  lastEditedByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  child        Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  class        Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
+  publishedBy  User?  @relation("DailyReportPublishedBy", fields: [publishedByUserId], references: [id], onDelete: SetNull)
+  lastEditedBy User?  @relation("DailyReportEditedBy", fields: [lastEditedByUserId], references: [id], onDelete: SetNull)
+
+  meals            DailyReportMeal[]
+  toiletEntries    DailyReportToiletEntry[]
+  acknowledgements DailyReportAcknowledgement[]
+
+  @@unique([childId, date])
+  // HOT PATH: a parent's list of their child's recent reports.
+  @@index([childId, date(sort: Desc)])
+  // HOT PATH: a teacher's class list for today.
+  @@index([classId, date, status])
+  @@map("daily_reports")
+}
+
+model DailyReportMeal {
+  id       String     @id @default(cuid(2))
+  reportId String
+  meal     Meal
+  amount   MealAmount
+  /// What they actually ate — the "I ate" column on the paper.
+  description String?
+
+  report DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, meal])
+  @@map("daily_report_meals")
+}
+
+/// One line of the nappy/toilet table. Five on paper; that limit is enforced in
+/// the form rather than the schema, so a busy day is never silently truncated.
+model DailyReportToiletEntry {
+  id       String  @id @default(cuid(2))
+  reportId String
+  time     String
+  wet      Boolean @default(false)
+  bm       Boolean @default(false)
+  /// "Out Of Toilet" on the paper: an accident away from the toilet.
+  accident Boolean @default(false)
+  position Int
+
+  report DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, position])
+  @@map("daily_report_toilet_entries")
+}
+
+/// A guardian confirming they have read the day's report. One row per guardian:
+/// two parents each acknowledge for themselves, and neither speaks for the other.
+model DailyReportAcknowledgement {
+  id             String   @id @default(cuid(2))
+  reportId       String
+  userId         String
+  acknowledgedAt DateTime @default(now())
+
+  report DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, userId])
+  @@map("daily_report_acknowledgements")
+}
+
+// ---------------------------------------------------------------------------
+// Accident reports
+// ---------------------------------------------------------------------------
+//
+// The most sensitive records in the system: injuries, treatment given, whether a
+// doctor was called. Scoped exactly like photos, and every publication, edit and
+// acknowledgement is audited.
+//
+// One report per child per day holding MANY incidents — a second accident is
+// added to the day's record rather than starting a new one, which is how the
+// nursery already works on paper.
+
+enum AccidentPlace {
+  MONTESSORI_CLASS
+  ART_CLASS
+  TOILET
+  GARDEN
+  DRAMA_CLASS
+  ACADEMIC_CLASS
+  OTHER
+}
+
+enum BodyFigure {
+  BOY
+  GIRL
+}
+
+enum BodyPart {
+  FOREHEAD
+  EYEBROW
+  EYE
+  EAR
+  CHEEK
+  NOSE
+  MOUTH
+  LIP
+  TOOTH
+  TONGUE
+  CHIN
+  NECK
+  CHEST
+  ARM
+  HAND
+  STOMACH
+  KNEE
+  LEG
+  FOOT
+  TOE
+}
+
+enum InjuryNature {
+  BITE
+  SCRATCH
+  ANKLE_SPRAIN
+  RED_MARK
+  BRUISES
+  CUT
+  HITTING
+  SCRATCH_ARTIFICIAL_GRASS
+  OTHER
+}
+
+enum InjuryTreatment {
+  ICE
+  BETADINE
+  RUNNING_WATER
+  BANDAGE
+  HEMOCLAR
+  OTHER
+}
+
+model AccidentReport {
+  id      String   @id @default(cuid(2))
+  childId String
+  date    DateTime @db.Date
+  classId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  child Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  class Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  incidents AccidentIncident[]
+
+  @@unique([childId, date])
+  @@index([childId, date(sort: Desc)])
+  @@index([classId, date(sort: Desc)])
+  @@map("accident_reports")
+}
+
+model AccidentIncident {
+  id       String @id @default(cuid(2))
+  reportId String
+
+  timeOfIncident String
+  place          AccidentPlace
+  placeOther     String?
+
+  figure    BodyFigure
+  bodyParts BodyPart[]
+
+  nature      InjuryNature[]
+  natureOther String?
+
+  treatment      InjuryTreatment[]
+  treatmentOther String?
+
+  description String
+
+  /// Records that a call was made. The app notifies parents in-app, but it
+  /// cannot ring a doctor — the time is what the teacher entered.
+  parentsNotified  Boolean @default(false)
+  doctorNotified   Boolean @default(false)
+  notificationTime String?
+
+  /// The teacher's drawn signature. Required to publish: this is the one place
+  /// in the app where a record must point at a person, not an account.
+  signatureStorageKey String
+  signedByUserId      String
+  signedAt            DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  report   AccidentReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  signedBy User           @relation(fields: [signedByUserId], references: [id])
+
+  acknowledgements AccidentAcknowledgement[]
+
+  @@index([reportId, timeOfIncident])
+  @@map("accident_incidents")
+}
+
+/// A guardian's signed acknowledgement of ONE incident. A second accident on the
+/// same day needs its own signature — acknowledging the morning does not stand
+/// for an afternoon a parent has not yet seen.
+model AccidentAcknowledgement {
+  id                  String   @id @default(cuid(2))
+  incidentId          String
+  userId              String
+  signatureStorageKey String
+  acknowledgedAt      DateTime @default(now())
+
+  incident AccidentIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, userId])
+  @@map("accident_acknowledgements")
 }
