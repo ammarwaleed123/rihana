@@ -208,18 +208,28 @@ export function NavTabs({
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
-    <nav aria-label={ariaLabel} className="mb-8 border-b border-ink/10">
-      <ul className="flex flex-wrap gap-1">
+    /*
+     * One scrollable row on a phone; wraps normally from `sm` up.
+     *
+     * Twelve tabs wrapped to five rows on a narrow screen and pushed the actual
+     * page below the fold — the navigation took more room than the thing being
+     * navigated to. Horizontal scroll keeps it to one line.
+     */
+    <nav
+      aria-label={ariaLabel}
+      className="mb-8 border-b border-ink/10 overflow-x-auto sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <ul className="flex gap-1 sm:flex-wrap">
         {items.map((item) => {
           const active = item.href === activeHref;
 
           return (
-            <li key={item.href}>
+            <li key={item.href} className="shrink-0">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "-mb-px inline-block border-b-2 px-4 py-3 font-bold transition-colors",
+                  "-mb-px inline-block whitespace-nowrap border-b-2 px-4 py-3 font-bold transition-colors",
                   active
                     ? "border-leaf text-leaf"
                     : "border-transparent text-ink-soft hover:text-ink",

@@ -46,10 +46,18 @@ export function DayPicker({
     <form
       method="get"
       action="/admin/reports"
-      className="mb-6 flex flex-wrap items-end gap-3"
+      /*
+       * Stacked on a phone, side by side from `sm`.
+       *
+       * iOS renders date and time inputs as native controls with an intrinsic
+       * width they refuse to shrink below, so a narrow fixed column overflowed
+       * and the Today button sat on top of the date. Desktop devtools does not
+       * reproduce it — it uses the desktop control.
+       */
+      className="mb-6 grid gap-3 sm:flex sm:flex-wrap sm:items-end"
       onSubmit={(event) => event.preventDefault()}
     >
-      <div className="min-w-48 flex-1">
+      <div className="min-w-0 sm:min-w-48 sm:flex-1">
         <label htmlFor="classId" className="mb-1.5 block text-sm font-bold">
           {t.chooseClass}
         </label>
@@ -68,7 +76,7 @@ export function DayPicker({
         </select>
       </div>
 
-      <div className="min-w-44">
+      <div className="min-w-0 sm:min-w-44">
         <label htmlFor="date" className="mb-1.5 block text-sm font-bold">
           {t.chooseDate}
         </label>
@@ -87,7 +95,7 @@ export function DayPicker({
       <button
         type="button"
         onClick={() => go({ date: new Date().toISOString().slice(0, 10) })}
-        className="rounded-full border-2 border-ink/15 px-5 py-3 font-bold text-ink transition-colors hover:border-leaf hover:text-leaf"
+        className="w-full rounded-full border-2 border-ink/15 px-5 py-3 font-bold text-ink transition-colors hover:border-leaf hover:text-leaf sm:w-auto"
       >
         {t.today}
       </button>
