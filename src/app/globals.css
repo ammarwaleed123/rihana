@@ -239,3 +239,41 @@
       infinite;
   }
 }
+
+/*
+ * Date and time inputs on iOS.
+ *
+ * Safari renders these as native controls with an intrinsic width they will not
+ * shrink below, and it ignores `width` set on the element. The result on a phone
+ * was a Day field that spilled past the screen edge and nappy Time fields that
+ * would not line up with the text field beside them — while Chromium, including
+ * its device emulation, laid both out perfectly. Measuring in devtools proves
+ * nothing here.
+ *
+ * `appearance: none` is what actually releases the control from its own sizing;
+ * min-width/max-width alone do not. The value inside then needs aligning to the
+ * start explicitly, because iOS centres it once the native chrome is dropped,
+ * and needs a minimum height or an empty field collapses to nothing.
+ */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: start;
+  /* Without this an empty field has no line box and the border collapses. */
+  min-height: 1.5em;
+}
+
+/* The picker button keeps its own box; stop it forcing the field wider. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  margin-inline-start: 0;
+}
