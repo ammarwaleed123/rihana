@@ -29,6 +29,7 @@ function navItems(t: NavStrings) {
   return [
     { href: "/portal", label: t.home, icon: HomeIcon },
     { href: "/portal/photos", label: t.photos, icon: PhotoIcon },
+    { href: "/portal/reports", label: t.reports, icon: DayIcon },
     { href: "/portal/albums", label: t.albums, icon: AlbumIcon },
     { href: "/portal/pickup", label: t.pickup, icon: PickupIcon },
     { href: "/portal/account", label: t.account, icon: AccountIcon },
@@ -160,6 +161,18 @@ function PhotoIcon() {
       <circle cx="8.5" cy="10" r="1.5" />
       <path d="m4 17 4.5-4.5L13 17" />
       <path d="m13 14 2.5-2.5L20 16" />
+    </svg>
+  );
+}
+
+/** A day's page: a sheet with a line of writing on it. */
+function DayIcon() {
+  return (
+    <svg {...iconProps()}>
+      <rect x="4" y="3" width="16" height="18" rx="2.5" />
+      <path d="M8 8h8" />
+      <path d="M8 12h8" />
+      <path d="M8 16h5" />
     </svg>
   );
 }

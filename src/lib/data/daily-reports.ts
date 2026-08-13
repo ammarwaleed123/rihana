@@ -1,7 +1,11 @@
 import "server-only";
 
 import { ForbiddenError, NotFoundError } from "@/lib/auth/errors";
-import { assertCanViewChild, classIdsForTeacher } from "@/lib/data/scope";
+import {
+  assertCanViewChild,
+  childIdsForParent,
+  classIdsForTeacher,
+} from "@/lib/data/scope";
 import type { Session } from "@/lib/data/sessions";
 import { prisma } from "@/lib/db";
 import {
@@ -458,6 +462,47 @@ export async function listReportsForParent(session: Session, childId: string) {
       },
     },
     orderBy: { date: "desc" },
+  });
+}
+
+/**
+ * Every recent report across a parent's children, newest first.
+ *
+ * Scope comes from the caller's own guardianships, never from the request. A
+ * `childId` filter narrows within that set and can only ever shrink it — passing
+ * someone else's child yields nothing rather than an error, because the filter
+ * is intersected with what they may see rather than trusted.
+ */
+export async function listRecentReportsForParent(
+  session: Session,
+  childId?: string,
+) {
+  const mine = await childIdsForParent(session.user.id);
+  const ids = childId ? mine.filter((id) => id === childId) : mine;
+  if (ids.length === 0) return [];
+
+  const since = dateOnly(new Date());
+  since.setUTCDate(since.getUTCDate() - PARENT_VISIBLE_DAYS);
+
+  return prisma.dailyReport.findMany({
+    where: {
+      childId: { in: ids },
+      status: { in: ["PUBLISHED", "ABSENT"] },
+      date: { gte: since },
+    },
+    select: {
+      id: true,
+      date: true,
+      status: true,
+      publishedAt: true,
+      lastEditedAt: true,
+      child: { select: { id: true, firstName: true } },
+      acknowledgements: {
+        where: { userId: session.user.id },
+        select: { acknowledgedAt: true },
+      },
+    },
+    orderBy: [{ date: "desc" }],
   });
 }
 

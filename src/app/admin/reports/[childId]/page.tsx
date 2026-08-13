@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Alert } from "@/components/ui/form";
+import { NotFoundError } from "@/lib/auth/errors";
 import { PageHeader } from "@/components/ui/shell";
 import { requireStaff } from "@/lib/auth/scope";
 import { dateOnly, openDailyReport, outstanding } from "@/lib/data/daily-reports";
@@ -43,7 +45,17 @@ export default async function ReportPage({
   const requested = query.date ? new Date(`${query.date}T00:00:00Z`) : new Date();
   const day = dateOnly(Number.isNaN(requested.getTime()) ? new Date() : requested);
 
-  const report = await openDailyReport(session, childId, day);
+  /*
+   * A child in a class this teacher is not assigned to is a 404, never a 403 —
+   * guessing an id must not confirm the child exists at this nursery.
+   */
+  let report;
+  try {
+    report = await openDailyReport(session, childId, day);
+  } catch (error) {
+    if (error instanceof NotFoundError) notFound();
+    throw error;
+  }
   const missing = outstanding(report);
 
   const dayFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {

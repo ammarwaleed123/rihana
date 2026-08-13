@@ -1349,6 +1349,7 @@ const ar: Dictionary = {
       ariaLabel: "أقسام التطبيق",
       home: "الرئيسية",
       photos: "الصور",
+      reports: "اليوم",
       albums: "الألبومات",
       pickup: "الاصطحاب",
       account: "حسابي",
@@ -1390,6 +1391,67 @@ const ar: Dictionary = {
       pickup: "الاصطحاب",
       pickupBodyOne: "حدّد من يمكنه اصطحاب طفلك — أو اختر باص الحضانة.",
       pickupBodyMany: "حدّد من يمكنه اصطحاب أطفالك — أو اختر باص الحضانة.",
+    },
+
+    reports: {
+      title: "يوم طفلك",
+      description: "ما حدث اليوم، من معلّمته.",
+      filterByChild: "التصفية حسب الطفل",
+      everyone: "الجميع",
+
+      emptyTitle: "لا يوجد شيء بعد",
+      emptyBody:
+        "عندما تنهي المعلّمة يوم طفلك سيظهر هنا. تبقى التقارير متاحة لمدة شهر.",
+
+      absent: "غائب",
+      absentBody: "{name} لم يحضر إلى الحضانة في هذا اليوم.",
+      updated: "مُحدَّث",
+      updatedNotice: "قامت المعلّمة بتحديث هذا التقرير في {date}.",
+
+      acknowledge: "لقد اطلعت على هذا",
+      acknowledging: "جاري الحفظ…",
+      acknowledged: "اطلعت على هذا في {date}",
+
+      arrivalTime: "وصل الساعة",
+      playedIn: "اليوم استمتعت باللعب في",
+      areaBlocks: "منطقة المكعبات",
+      areaDramaticPlay: "غرفة اللعب التمثيلي",
+      areaArt: "منطقة الفنون",
+      areaLibrary: "منطقة المكتبة",
+      areaDiscovery: "منطقة الاستكشاف",
+      areaMovement: "منطقة الحركة",
+      areaCooking: "منطقة الطبخ",
+      alsoEnjoyed: "كما استمتعت بـ",
+
+      quran: "القرآن الكريم",
+      quranMemorised: "الحفظ",
+      quranRevision: "المراجعة",
+      littleMuslim: "المسلم الصغير",
+
+      ate: "اليوم أكلت",
+      mealBreakfast: "الإفطار",
+      mealSnack: "وجبة خفيفة",
+      mealLunch: "الغداء",
+      amountAll: "كلها",
+      amountSome: "بعضها",
+      amountNotHungry: "لم يكن جائعاً",
+
+      toilet: "تغيير الحفاض والحمام",
+      toiletWet: "بلل",
+      toiletBm: "براز",
+      toiletAccident: "خارج الحمام",
+      toiletNothing: "لا يوجد ما يُسجَّل اليوم",
+
+      nap: "وقت القيلولة",
+      napBetween: "نام من {from} حتى {until}",
+      napNone: "لم ينم اليوم",
+
+      bring: "من فضلكم أحضروا غداً",
+      bringCleanClothes: "ملابس نظيفة",
+      bringDiapers: "حفاضات",
+
+      teacherComments: "من المعلّمة",
+      noComment: "لا توجد ملاحظة اليوم.",
     },
 
     photos: {

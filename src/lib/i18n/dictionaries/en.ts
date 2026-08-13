@@ -1273,6 +1273,7 @@ const en = {
       ariaLabel: "Portal sections",
       home: "Home",
       photos: "Photos",
+      reports: "Day",
       albums: "Albums",
       pickup: "Pickup",
       account: "Account",
@@ -1314,6 +1315,76 @@ const en = {
       pickup: "Pickup",
       pickupBodyOne: "Choose who can collect your child — or set the nursery bus.",
       pickupBodyMany: "Choose who can collect your children — or set the nursery bus.",
+    },
+
+    /*
+     * The daily report as a family reads it.
+     *
+     * Field labels are deliberately duplicated from `admin.reports` rather than
+     * shared. The two audiences are different — staff are filling a form they
+     * know from paper, a parent is being told about their child's day — and
+     * coupling them would mean neither could be reworded without disturbing the
+     * other. The four Arabic subject headings stay Arabic in both languages.
+     */
+    reports: {
+      title: "Your child's day",
+      description: "What happened today, from their teacher.",
+      filterByChild: "Filter by child",
+      everyone: "Everyone",
+
+      emptyTitle: "Nothing here yet",
+      emptyBody:
+        "When a teacher finishes your child's day, it will appear here. Reports stay for a month.",
+
+      absent: "Absent",
+      absentBody: "{name} was not at nursery on this day.",
+      updated: "Updated",
+      updatedNotice: "Their teacher updated this report on {date}.",
+
+      acknowledge: "I have read this",
+      acknowledging: "Saving…",
+      acknowledged: "You read this on {date}",
+
+      arrivalTime: "Arrived at",
+      playedIn: "Today, I had fun playing in",
+      areaBlocks: "Blocks Area",
+      areaDramaticPlay: "Dramatic Play Room",
+      areaArt: "Art Area",
+      areaLibrary: "Library Area",
+      areaDiscovery: "Discovery Area",
+      areaMovement: "Movement Area",
+      areaCooking: "Cooking Area",
+      alsoEnjoyed: "I also enjoyed",
+
+      quran: "القرآن الكريم",
+      quranMemorised: "الحفظ",
+      quranRevision: "المراجعة",
+      littleMuslim: "المسلم الصغير",
+
+      ate: "Today I Ate",
+      mealBreakfast: "Breakfast",
+      mealSnack: "Snack",
+      mealLunch: "Lunch",
+      amountAll: "All of it",
+      amountSome: "Some of it",
+      amountNotHungry: "Wasn't hungry",
+
+      toilet: "Nappy changes and toilet",
+      toiletWet: "Wet",
+      toiletBm: "BM",
+      toiletAccident: "Out of toilet",
+      toiletNothing: "Nothing to record today",
+
+      nap: "At naptime",
+      napBetween: "Slept from {from} until {until}",
+      napNone: "Did not sleep today",
+
+      bring: "Please bring tomorrow",
+      bringCleanClothes: "Clean clothes",
+      bringDiapers: "Diapers",
+
+      teacherComments: "From their teacher",
+      noComment: "No note today.",
     },
 
     photos: {
