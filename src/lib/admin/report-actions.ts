@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { clientIpFromHeaders } from "@/lib/auth/cookies";
@@ -25,6 +24,16 @@ import {
   fieldErrors,
 } from "@/lib/validation";
 
+/*
+ * No revalidatePath here, deliberately.
+ *
+ * Every admin route is dynamic, so the class list re-queries on each visit and
+ * has nothing to invalidate. Calling it anyway invalidated this page's own
+ * segment, which reset the form's action state AND left the stale server render
+ * in place — so a teacher who sent a report home was shown the old "still
+ * missing" list instead of a confirmation. Two mechanisms fighting over the same
+ * screen, neither winning.
+ */
 export type ReportState = {
   error?: string;
   success?: string;
@@ -129,43 +138,80 @@ function orNull(value: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
+/**
+ * The fields this teacher actually changed.
+ *
+ * Two teachers fill one report at the same time — the Qur'an teacher does her
+ * section, someone else records meals. If every save carried the whole form,
+ * whoever saved last would overwrite the rest with their own, older picture of
+ * the day: a nap recorded at 13:00 wiped by a lunch entry at 14:05, silently.
+ *
+ * So a save applies only what was touched, and stays silent about everything
+ * else. Deliberate corrections to another teacher's entry still work — she has
+ * to actually change the field, which marks it.
+ *
+ * An empty list is treated as "everything", so a form submitted without
+ * JavaScript still saves rather than doing nothing at all.
+ */
+function changedSet(formData: FormData): (field: string) => boolean {
+  const raw = str(formData, "changedFields").trim();
+  if (raw === "") return () => true;
+  const fields = new Set(raw.split(",").filter(Boolean));
+  return (field: string) => fields.has(field);
+}
+
 async function persist(
   session: Session,
   reportId: string,
   parsed: ReturnType<typeof parse>,
+  formData: FormData,
 ) {
   if (!parsed.success) throw parsed.error;
   const input = parsed.data;
+  const touched = changedSet(formData);
+
+  const pick = <V,>(field: string, value: V): V | undefined =>
+    touched(field) ? value : undefined;
+
+  const meals = input.meals
+    .filter((m): m is typeof m & { amount: NonNullable<typeof m.amount> } =>
+      m.amount !== null,
+    )
+    // A meal row is only written if its amount or its description was touched.
+    .filter(
+      (m) =>
+        touched(`meal_${m.meal}_amount`) || touched(`meal_${m.meal}_description`),
+    )
+    .map((m) => ({
+      meal: m.meal,
+      amount: m.amount,
+      description: orNull(m.description),
+    }));
 
   return saveDailyReport(session, reportId, {
-    arrivalTime: orNull(input.arrivalTime),
-    playAreas: input.playAreas,
-    alsoEnjoyed: orNull(input.alsoEnjoyed),
-    quranMemorised: orNull(input.quranMemorised),
-    quranRevision: orNull(input.quranRevision),
-    littleMuslim: orNull(input.littleMuslim),
-    napNone: input.napNone,
-    napFrom: orNull(input.napFrom),
-    napUntil: orNull(input.napUntil),
-    toiletNothingToRecord: input.toiletNothingToRecord,
-    bringCleanClothes: input.bringCleanClothes,
-    bringDiapers: input.bringDiapers,
-    bringOther: orNull(input.bringOther),
-    teacherComments: orNull(input.teacherComments),
-    meals: input.meals
-      .filter((m): m is typeof m & { amount: NonNullable<typeof m.amount> } =>
-        m.amount !== null,
-      )
-      .map((m) => ({
-        meal: m.meal,
-        amount: m.amount,
-        description: orNull(m.description),
-      })),
-    toiletEntries: input.toiletEntries,
+    arrivalTime: pick("arrivalTime", orNull(input.arrivalTime)),
+    playAreas: pick("playAreas", input.playAreas),
+    alsoEnjoyed: pick("alsoEnjoyed", orNull(input.alsoEnjoyed)),
+    quranMemorised: pick("quranMemorised", orNull(input.quranMemorised)),
+    quranRevision: pick("quranRevision", orNull(input.quranRevision)),
+    littleMuslim: pick("littleMuslim", orNull(input.littleMuslim)),
+    napNone: pick("napNone", input.napNone),
+    napFrom: pick("napFrom", orNull(input.napFrom)),
+    napUntil: pick("napUntil", orNull(input.napUntil)),
+    toiletNothingToRecord: pick(
+      "toiletNothingToRecord",
+      input.toiletNothingToRecord,
+    ),
+    bringCleanClothes: pick("bringCleanClothes", input.bringCleanClothes),
+    bringDiapers: pick("bringDiapers", input.bringDiapers),
+    bringOther: pick("bringOther", orNull(input.bringOther)),
+    teacherComments: pick("teacherComments", orNull(input.teacherComments)),
+    meals: meals.length > 0 ? meals : undefined,
+    toiletEntries: pick("toiletEntries", input.toiletEntries),
   });
 }
 
-export async function saveReportAction(
+async function runSave(
   _prev: ReportState,
   formData: FormData,
 ): Promise<ReportState> {
@@ -176,16 +222,8 @@ export async function saveReportAction(
     const parsed = parse(formData);
     if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 
-    const { wasPublished } = await persist(session, reportId, parsed);
+    const { wasPublished } = await persist(session, reportId, parsed, formData);
 
-    /*
-     * Only the class list. Revalidating this child's own page remounts the
-     * form, which discards the action result — so the teacher was shown the
-     * stale "still missing" list instead of a confirmation, in the same instant
-     * the report went home. The form clears that list from the action result,
-     * and the page's own server-rendered notice covers a reload.
-     */
-    revalidatePath("/admin/reports");
     return { success: wasPublished ? "resent" : "saved" };
   } catch (error) {
     return toState(error, "report-save");
@@ -199,7 +237,7 @@ export async function saveReportAction(
  * "Send home" expects that field to count. Publishing what was last saved rather
  * than what is on screen would silently drop it.
  */
-export async function publishReportAction(
+async function runPublish(
   _prev: ReportState,
   formData: FormData,
 ): Promise<ReportState> {
@@ -210,7 +248,7 @@ export async function publishReportAction(
     const parsed = parse(formData);
     if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 
-    await persist(session, reportId, parsed);
+    await persist(session, reportId, parsed, formData);
     const result = await publishDailyReport(session, reportId);
 
     if (!result.published) {
@@ -228,21 +266,13 @@ export async function publishReportAction(
       targetId: reportId,
     });
 
-    /*
-     * Only the class list. Revalidating this child's own page remounts the
-     * form, which discards the action result — so the teacher was shown the
-     * stale "still missing" list instead of a confirmation, in the same instant
-     * the report went home. The form clears that list from the action result,
-     * and the page's own server-rendered notice covers a reload.
-     */
-    revalidatePath("/admin/reports");
     return { success: result.wasAlreadyPublished ? "resent" : "sentHome" };
   } catch (error) {
     return toState(error, "report-publish");
   }
 }
 
-export async function markAbsentAction(
+async function runAbsent(
   _prev: ReportState,
   formData: FormData,
 ): Promise<ReportState> {
@@ -261,16 +291,30 @@ export async function markAbsentAction(
       targetId: reportId,
     });
 
-    /*
-     * Only the class list. Revalidating this child's own page remounts the
-     * form, which discards the action result — so the teacher was shown the
-     * stale "still missing" list instead of a confirmation, in the same instant
-     * the report went home. The form clears that list from the action result,
-     * and the page's own server-rendered notice covers a reload.
-     */
-    revalidatePath("/admin/reports");
     return { success: "markedAbsent" };
   } catch (error) {
     return toState(error, "report-absent");
+  }
+}
+
+/**
+ * One action for the whole form, dispatched on an `intent` field.
+ *
+ * Not three actions with `formAction` on the buttons. That runs the right
+ * action — the report really was published — but its return value never reaches
+ * the `useActionState` that owns it, so the teacher was told nothing at all
+ * while the save behind her succeeded. One form, one hook, one result.
+ */
+export async function reportAction(
+  prev: ReportState,
+  formData: FormData,
+): Promise<ReportState> {
+  switch (String(formData.get("intent") ?? "save")) {
+    case "publish":
+      return runPublish(prev, formData);
+    case "absent":
+      return runAbsent(prev, formData);
+    default:
+      return runSave(prev, formData);
   }
 }

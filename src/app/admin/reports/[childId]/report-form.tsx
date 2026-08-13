@@ -1,15 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useEffect, useRef, useState, useActionState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Alert, Button, Input } from "@/components/ui/form";
 import { Card, SectionTitle } from "@/components/ui/shell";
-import {
-  markAbsentAction,
-  publishReportAction,
-  saveReportAction,
-  type ReportState,
-} from "@/lib/admin/report-actions";
+import { reportAction, type ReportState } from "@/lib/admin/report-actions";
 import type { MissingField } from "@/lib/data/report-rules";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import { fill } from "@/lib/i18n/plural";
@@ -151,18 +147,54 @@ export function ReportForm({
   childName: string;
   t: T;
 }) {
-  const [saveState, save] = useActionState<ReportState, FormData>(
-    saveReportAction,
-    {},
-  );
-  const [publishState, publish] = useActionState<ReportState, FormData>(
-    publishReportAction,
-    {},
-  );
-  const [absentState, absent] = useActionState<ReportState, FormData>(
-    markAbsentAction,
-    {},
-  );
+  const [state, submit] = useActionState<ReportState, FormData>(reportAction, {});
+
+  const router = useRouter();
+
+  /*
+   * Which fields THIS teacher actually changed.
+   *
+   * A save sends only these. Without it every save is a full replacement of the
+   * form as it looked when this page loaded — so a teacher recording lunch at
+   * 14:05 would blank out the nap another teacher saved at 13:00, silently, with
+   * no error. Two teachers filling one report is the normal case here, not an
+   * edge case, and the form was the only thing over-sending: the data layer
+   * already treats "not provided" as "leave alone".
+   *
+   * Kept in a ref and mirrored into a hidden input, so recording a keystroke
+   * costs no re-render.
+   */
+  const changed = useRef<Set<string>>(new Set());
+  const changedField = useRef<HTMLInputElement>(null);
+
+  function markChanged(name: string) {
+    if (!name) return;
+    changed.current.add(name);
+    if (changedField.current) {
+      changedField.current.value = [...changed.current].join(",");
+    }
+  }
+
+  /*
+   * Re-read the report when the teacher comes back to the app.
+   *
+   * They switch away constantly — to the camera, to a child who needs them — and
+   * come back to a screen rendered an hour ago. Refreshing on return means they
+   * see what another teacher has since saved, rather than re-typing it.
+   *
+   * Skipped while there are unsaved changes: pulling fresh data underneath
+   * someone mid-sentence would be worse than showing them something slightly old.
+   */
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      if (changed.current.size > 0) return;
+      router.refresh();
+    }
+
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
 
   const [noNap, setNoNap] = useState(report.napNone);
   const [nothingToRecord, setNothingToRecord] = useState(
@@ -170,11 +202,6 @@ export function ReportForm({
   );
 
   const closed = report.status === "ABSENT";
-  const state = publishState.error || publishState.success || publishState.missing
-    ? publishState
-    : absentState.error || absentState.success
-      ? absentState
-      : saveState;
 
   /*
    * `initialMissing` is computed on the server render. After a successful save
@@ -182,9 +209,13 @@ export function ReportForm({
    * fill in fields she just filled — right after telling her the report went
    * home. A success clears it; the revalidated page supplies a fresh list.
    */
-  const missing = state.success
-    ? []
-    : (publishState.missing ?? initialMissing);
+  const missing = state.success ? [] : (state.missing ?? initialMissing);
+
+  useEffect(() => {
+    if (!state.success) return;
+    changed.current.clear();
+    if (changedField.current) changedField.current.value = "";
+  }, [state.success]);
 
   const successText =
     state.success === "saved"
@@ -205,8 +236,20 @@ export function ReportForm({
   }
 
   return (
-    <form action={save} className="space-y-6 pb-24">
+    <form
+      action={submit}
+      className="space-y-6 pb-24"
+      onChange={(event) => {
+        const target = event.target as unknown as { name?: string };
+        const name = target.name ?? "";
+        markChanged(name);
+        // A nappy line and its checkboxes are stored together, so any of them
+        // changing means the whole set is resubmitted.
+        if (name.startsWith("toilet_")) markChanged("toiletEntries");
+      }}
+    >
       <input type="hidden" name="reportId" value={report.id} />
+      <input type="hidden" name="changedFields" ref={changedField} defaultValue="" />
 
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       {successText ? <Alert tone="success">{successText}</Alert> : null}
@@ -354,7 +397,11 @@ export function ReportForm({
               type="checkbox"
               name="toiletNothingToRecord"
               checked={nothingToRecord}
-              onChange={(event) => setNothingToRecord(event.target.checked)}
+              onChange={(event) => {
+                setNothingToRecord(event.target.checked);
+                markChanged("toiletNothingToRecord");
+                markChanged("toiletEntries");
+              }}
               className="size-5 shrink-0 rounded border-2 border-ink/25 accent-leaf"
             />
             <span className="text-base font-semibold text-ink">{t.toiletNothing}</span>
@@ -420,7 +467,12 @@ export function ReportForm({
             type="checkbox"
             name="napNone"
             checked={noNap}
-            onChange={(event) => setNoNap(event.target.checked)}
+            onChange={(event) => {
+              setNoNap(event.target.checked);
+              markChanged("napNone");
+              markChanged("napFrom");
+              markChanged("napUntil");
+            }}
             className="size-5 shrink-0 rounded border-2 border-ink/25 accent-leaf"
           />
           <span className="text-base font-semibold text-ink">{t.napNone}</span>
@@ -499,11 +551,11 @@ export function ReportForm({
        */}
       <div className="fixed inset-x-0 bottom-0 z-10 border-t-2 border-ink/10 bg-paper/95 p-3 backdrop-blur">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-end gap-2">
-          <Button type="submit" variant="secondary">
+          <Button type="submit" name="intent" value="save" variant="secondary">
             {t.save}
           </Button>
 
-          <Button type="submit" formAction={publish}>
+          <Button type="submit" name="intent" value="publish">
             {report.status === "PUBLISHED" ? t.resend : t.markFinished}
           </Button>
 
@@ -511,7 +563,8 @@ export function ReportForm({
             <Button
               type="submit"
               variant="ghost"
-              formAction={absent}
+              name="intent"
+              value="absent"
               onClick={(event) => {
                 if (
                   !window.confirm(fill(t.markAbsentConfirm, { name: childName }))
