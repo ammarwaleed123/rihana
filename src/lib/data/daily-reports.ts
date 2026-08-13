@@ -343,7 +343,12 @@ export async function publishDailyReport(session: Session, reportId: string) {
           publishedAt: new Date(),
           publishedByUserId: session.user.id,
         },
-    select: { id: true, childId: true, date: true },
+    select: {
+      id: true,
+      childId: true,
+      date: true,
+      child: { select: { firstName: true, lastName: true } },
+    },
   });
 
   return {
@@ -372,7 +377,12 @@ export async function markChildAbsent(session: Session, reportId: string) {
       publishedAt: new Date(),
       publishedByUserId: session.user.id,
     },
-    select: { id: true, childId: true, date: true },
+    select: {
+      id: true,
+      childId: true,
+      date: true,
+      child: { select: { firstName: true, lastName: true } },
+    },
   });
 }
 

@@ -379,6 +379,7 @@ const en = {
       overview: "Overview",
       photos: "Photos",
       albums: "Albums",
+      reports: "Daily reports",
       announcements: "Announcements",
       pickup: "Pickup",
       children: "Children",
@@ -391,6 +392,121 @@ const en = {
 
     roleOwner: "Owner",
     roleTeacher: "Teacher",
+
+    /*
+     * The daily report.
+     *
+     * The four Arabic headings — القرآن الكريم، الحفظ، المراجعة، المسلم الصغير —
+     * stay in Arabic in BOTH languages. They are the names of the subjects as the
+     * nursery teaches them, not phrases to be translated, and staff and families
+     * know them by those names whichever interface language they use.
+     */
+    reports: {
+      title: "Daily reports",
+      description: "The day that goes home with each child.",
+      chooseClass: "Class",
+      chooseDate: "Day",
+      today: "Today",
+      noClasses: "You are not assigned to a class yet.",
+      noChildren: "No children are enrolled in this class.",
+
+      statusNotStarted: "Not started",
+      statusDraft: "In progress",
+      statusPublished: "Sent home",
+      statusAbsent: "Absent",
+
+      open: "Open",
+      start: "Start report",
+      backToDay: "All children",
+
+      arrivalTime: "Arrival time",
+      timeHint: "24-hour, like 08:15",
+
+      playedIn: "Today, I had fun playing in",
+      areaBlocks: "Blocks Area",
+      areaDramaticPlay: "Dramatic Play Room",
+      areaArt: "Art Area",
+      areaLibrary: "Library Area",
+      areaDiscovery: "Discovery Area",
+      areaMovement: "Movement Area",
+      areaCooking: "Cooking Area",
+      alsoEnjoyed: "I also enjoyed",
+
+      quran: "القرآن الكريم",
+      quranMemorised: "الحفظ",
+      quranRevision: "المراجعة",
+      littleMuslim: "المسلم الصغير",
+
+      ate: "Today I Ate",
+      meal: "Meal",
+      mealBreakfast: "Breakfast",
+      mealSnack: "Snack",
+      mealLunch: "Lunch",
+      amountAll: "All",
+      amountSome: "Some",
+      amountNotHungry: "I wasn't hungry",
+      iAte: "I ate",
+      iAteHint: "Not needed when the child wasn't hungry.",
+
+      toilet: "My (Diaper Changes / Toilet) Time",
+      toiletTime: "Time",
+      toiletWet: "Wet",
+      toiletWetHint: "urine",
+      toiletBm: "BM",
+      toiletBmHint: "bowel movement",
+      toiletAccident: "Out Of Toilet",
+      toiletAccidentHint: "an accident away from the toilet",
+      toiletNothing: "Nothing to record today",
+      toiletAdd: "Add a line",
+      toiletRemove: "Remove line {n}",
+      toiletFull: "Five lines is the most this form holds.",
+
+      nap: "At naptime, I slept",
+      napFrom: "From",
+      napUntil: "Until",
+      napNone: "Did not sleep today",
+
+      bring: "Please bring me for tomorrow",
+      bringCleanClothes: "Clean clothes",
+      bringDiapers: "Diapers",
+      bringOther: "Others",
+
+      teacherComments: "Teacher's Comments",
+      parentComments: "Parent's Comments",
+
+      save: "Save",
+      saved: "Saved",
+      saving: "Saving…",
+      markFinished: "Send home",
+      markFinishedBusy: "Sending…",
+      sentHome: "Sent home. The family has been told.",
+      resend: "Save changes",
+      resent: "Updated. The family has been told it changed.",
+
+      markAbsent: "Child was absent",
+      markAbsentConfirm: "Mark {name} absent today? This closes the day and tells the family.",
+      markedAbsent: "Marked absent. The family has been told.",
+
+      stillMissing: "Still to fill in before this can go home:",
+      missingArrivalTime: "Arrival time",
+      missingPlayAreas: "At least one play area",
+      missingQuranMemorised: "الحفظ",
+      missingQuranRevision: "المراجعة",
+      missingLittleMuslim: "المسلم الصغير",
+      missingMealBreakfast: "Breakfast — how much",
+      missingMealSnack: "Snack — how much",
+      missingMealLunch: "Lunch — how much",
+      missingMealBreakfastDescription: "Breakfast — what they ate",
+      missingMealSnackDescription: "Snack — what they ate",
+      missingMealLunchDescription: "Lunch — what they ate",
+      missingNap: "Nap times, or 'did not sleep today'",
+      missingToilet: "A toilet line, or 'nothing to record'",
+      missingTeacherComments: "Teacher's comments",
+
+      sentHomeNotice: "Sent home {date} by {name}",
+      editedNotice: "Updated {date} by {name}",
+      absentNotice: "{name} was absent on this day.",
+    },
 
     children: {
       title: "Children",

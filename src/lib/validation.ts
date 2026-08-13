@@ -421,6 +421,74 @@ export const deleteChildInput = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Daily reports
+// ---------------------------------------------------------------------------
+
+export const PLAY_AREAS = [
+  "BLOCKS",
+  "DRAMATIC_PLAY",
+  "ART",
+  "LIBRARY",
+  "DISCOVERY",
+  "MOVEMENT",
+  "COOKING",
+] as const;
+
+export const MEALS = ["BREAKFAST", "SNACK", "LUNCH"] as const;
+export const MEAL_AMOUNTS = ["ALL", "SOME", "NOT_HUNGRY"] as const;
+
+/**
+ * "08:15" — 24-hour, zero-padded.
+ *
+ * Times on this form are wall-clock readings a teacher types, never compared
+ * across timezones, so they are stored and validated as strings. An empty string
+ * is allowed here and means "not filled in yet": a half-finished draft must be
+ * savable, and completeness is decided separately by `report-rules`.
+ */
+const clockTime = z
+  .string()
+  .trim()
+  .refine((v) => v === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(v), {
+    message: "Use a 24-hour time like 08:15",
+  });
+
+export const dailyReportInput = z.object({
+  arrivalTime: clockTime,
+  playAreas: z.array(z.enum(PLAY_AREAS)),
+  alsoEnjoyed: z.string().trim().max(500),
+  quranMemorised: z.string().trim().max(500),
+  quranRevision: z.string().trim().max(500),
+  littleMuslim: z.string().trim().max(1000),
+  meals: z.array(
+    z.object({
+      meal: z.enum(MEALS),
+      amount: z.enum(MEAL_AMOUNTS).nullable(),
+      description: z.string().trim().max(300),
+    }),
+  ),
+  napNone: z.boolean(),
+  napFrom: clockTime,
+  napUntil: clockTime,
+  toiletNothingToRecord: z.boolean(),
+  toiletEntries: z
+    .array(
+      z.object({
+        time: clockTime,
+        wet: z.boolean(),
+        bm: z.boolean(),
+        accident: z.boolean(),
+      }),
+    )
+    .max(5),
+  bringCleanClothes: z.boolean(),
+  bringDiapers: z.boolean(),
+  bringOther: z.string().trim().max(300),
+  teacherComments: z.string().trim().max(2000),
+});
+
+export type DailyReportFormInput = z.infer<typeof dailyReportInput>;
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
