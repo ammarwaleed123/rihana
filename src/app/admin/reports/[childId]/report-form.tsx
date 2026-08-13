@@ -415,9 +415,9 @@ export function ReportForm({
               return (
                 <div
                   key={index}
-                  className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border-2 border-ink/10 p-3"
+                  className="rounded-xl border-2 border-ink/10 p-3"
                 >
-                  <div>
+                  <div className="mb-2">
                     <label
                       htmlFor={`toilet_${index}_time`}
                       className="mb-1 block text-xs font-bold text-ink-soft"
@@ -430,7 +430,7 @@ export function ReportForm({
                       type="time"
                       dir="ltr"
                       defaultValue={entry?.time ?? ""}
-                      className="w-32"
+                      className="min-w-0 max-w-full"
                     />
                   </div>
 
@@ -550,12 +550,23 @@ export function ReportForm({
        * form is how work gets lost.
        */}
       <div className="fixed inset-x-0 bottom-0 z-10 border-t-2 border-ink/10 bg-paper/95 p-3 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-end gap-2">
-          <Button type="submit" name="intent" value="save" variant="secondary">
+        <div className="mx-auto flex max-w-3xl items-center justify-center gap-2 sm:justify-end">
+          <Button
+            type="submit"
+            name="intent"
+            value="save"
+            variant="secondary"
+            className="px-4 py-2.5 text-sm sm:px-6 sm:py-3 sm:text-base"
+          >
             {t.save}
           </Button>
 
-          <Button type="submit" name="intent" value="publish">
+          <Button
+            type="submit"
+            name="intent"
+            value="publish"
+            className="px-4 py-2.5 text-sm sm:px-6 sm:py-3 sm:text-base"
+          >
             {report.status === "PUBLISHED" ? t.resend : t.markFinished}
           </Button>
 
@@ -565,6 +576,7 @@ export function ReportForm({
               variant="ghost"
               name="intent"
               value="absent"
+              className="px-3 py-2.5 text-sm sm:px-6 sm:py-3 sm:text-base"
               onClick={(event) => {
                 if (
                   !window.confirm(fill(t.markAbsentConfirm, { name: childName }))

@@ -40,7 +40,7 @@ export function DayPicker({
   }
 
   const field =
-    "w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base focus:border-leaf focus:outline-none";
+    "w-full min-w-0 max-w-full rounded-xl border-2 border-ink/15 bg-card px-4 py-3 text-base focus:border-leaf focus:outline-none";
 
   return (
     <form
@@ -54,10 +54,10 @@ export function DayPicker({
        * and the Today button sat on top of the date. Desktop devtools does not
        * reproduce it — it uses the desktop control.
        */
-      className="mb-6 grid gap-3 sm:flex sm:flex-wrap sm:items-end"
+      className="mb-6 grid justify-items-center gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-items-stretch"
       onSubmit={(event) => event.preventDefault()}
     >
-      <div className="min-w-0 sm:min-w-48 sm:flex-1">
+      <div className="w-full min-w-0 sm:min-w-48 sm:flex-1">
         <label htmlFor="classId" className="mb-1.5 block text-sm font-bold">
           {t.chooseClass}
         </label>
@@ -76,7 +76,7 @@ export function DayPicker({
         </select>
       </div>
 
-      <div className="min-w-0 sm:min-w-44">
+      <div className="w-full min-w-0 sm:min-w-44">
         <label htmlFor="date" className="mb-1.5 block text-sm font-bold">
           {t.chooseDate}
         </label>
