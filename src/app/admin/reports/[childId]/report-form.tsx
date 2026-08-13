@@ -275,7 +275,7 @@ export function ReportForm({
           type="time"
           defaultValue={report.arrivalTime}
           dir="ltr"
-          className="w-full sm:max-w-44"
+          className="max-w-40"
         />
         <p className="mt-1 text-sm text-ink-faint">{t.timeHint}</p>
       </Card>
@@ -415,9 +415,9 @@ export function ReportForm({
               return (
                 <div
                   key={index}
-                  className="rounded-xl border-2 border-ink/10 p-3"
+                  className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border-2 border-ink/10 p-3"
                 >
-                  <div className="mb-2 sm:max-w-44">
+                  <div>
                     <label
                       htmlFor={`toilet_${index}_time`}
                       className="mb-1 block text-xs font-bold text-ink-soft"
@@ -430,11 +430,10 @@ export function ReportForm({
                       type="time"
                       dir="ltr"
                       defaultValue={entry?.time ?? ""}
-                      className="w-full"
+                      className="w-32"
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
                   <CheckRow
                     name={`toilet_${index}_wet`}
                     defaultChecked={entry?.wet}
@@ -453,7 +452,6 @@ export function ReportForm({
                     label={t.toiletAccident}
                     hint={t.toiletAccidentHint}
                   />
-                  </div>
                 </div>
               );
             })}
@@ -481,7 +479,7 @@ export function ReportForm({
         </label>
 
         {noNap ? null : (
-          <div className="mt-3 grid gap-4 sm:flex sm:flex-wrap">
+          <div className="mt-3 flex flex-wrap gap-4">
             <div>
               <label htmlFor="napFrom" className="mb-1.5 block text-sm font-bold">
                 {t.napFrom}
@@ -492,7 +490,7 @@ export function ReportForm({
                 type="time"
                 dir="ltr"
                 defaultValue={report.napFrom}
-                className="w-full sm:w-40"
+                className="w-36"
               />
             </div>
             <div>
@@ -505,7 +503,7 @@ export function ReportForm({
                 type="time"
                 dir="ltr"
                 defaultValue={report.napUntil}
-                className="w-full sm:w-40"
+                className="w-36"
               />
             </div>
           </div>
