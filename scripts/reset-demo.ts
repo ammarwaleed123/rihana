@@ -35,6 +35,14 @@ console.log("Clearing application data…");
 await prisma.auditLog.deleteMany({});
 await prisma.notification.deleteMany({});
 await prisma.outboundEmail.deleteMany({});
+/*
+ * Both report kinds, explicitly. Deleting the children below would cascade to
+ * them anyway, but a run that starts with yesterday's accident records still on
+ * the roster fails in confusing places — the accident form opens closed rather
+ * than open, and a day that should read "no accidents" does not.
+ */
+await prisma.accidentReport.deleteMany({});
+await prisma.dailyReport.deleteMany({});
 await prisma.albumPhoto.deleteMany({});
 await prisma.album.deleteMany({});
 await prisma.photoTag.deleteMany({});

@@ -52,9 +52,15 @@ export default defineConfig({
        *
        * Layout at mobile width is covered by screenshots and by the other
        * suites — including the portal tab-bar assertions in regressions.spec.
+       *
+       * The two report suites are excluded for a different reason: they are
+       * stateful. Each writes one record per child per day, so a second project
+       * running the same file finds the work of the first already there — the
+       * accident form opens closed instead of open, and a "no accidents yet"
+       * assertion fails against a real accident. One project, once.
        */
       testIgnore:
-        /photos\.spec\.ts|photo-regressions\.spec\.ts|albums\.spec\.ts|account\.spec\.ts|notifications\.spec\.ts|pickup\.spec\.ts/,
+        /photos\.spec\.ts|photo-regressions\.spec\.ts|albums\.spec\.ts|account\.spec\.ts|notifications\.spec\.ts|pickup\.spec\.ts|accidents\.spec\.ts|report-form\.spec\.ts/,
     },
     {
       name: "desktop",
