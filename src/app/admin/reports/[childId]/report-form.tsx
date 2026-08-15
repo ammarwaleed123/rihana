@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Alert, Button, Input } from "@/components/ui/form";
 import { Card, SectionTitle } from "@/components/ui/shell";
 import { reportAction, type ReportState } from "@/lib/admin/report-actions";
+import { baselineFrom } from "@/lib/data/report-baseline";
 import type { MissingField } from "@/lib/data/report-rules";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import { fill } from "@/lib/i18n/plural";
@@ -152,27 +153,41 @@ export function ReportForm({
   const router = useRouter();
 
   /*
-   * Which fields THIS teacher actually changed.
+   * Which fields this teacher changed is decided on the server, by comparing the
+   * submission against `baseline` below — not by a listener here.
    *
-   * A save sends only these. Without it every save is a full replacement of the
-   * form as it looked when this page loaded — so a teacher recording lunch at
-   * 14:05 would blank out the nap another teacher saved at 13:00, silently, with
-   * no error. Two teachers filling one report is the normal case here, not an
-   * edge case, and the form was the only thing over-sending: the data layer
-   * already treats "not provided" as "leave alone".
-   *
-   * Kept in a ref and mirrored into a hidden input, so recording a keystroke
-   * costs no re-render.
+   * It was a listener once, and it was wrong on exactly the phones this is for:
+   * an onChange handler does not exist until React has hydrated, and a teacher
+   * starts filling the form the moment it appears. Anything entered in that
+   * first second was never marked, never sent, and silently dropped on save —
+   * the field that vanished being whichever one she touched first.
    */
-  const changed = useRef<Set<string>>(new Set());
-  const changedField = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  function markChanged(name: string) {
-    if (!name) return;
-    changed.current.add(name);
-    if (changedField.current) {
-      changedField.current.value = [...changed.current].join(",");
+  /**
+   * Is there unsaved typing on screen?
+   *
+   * Read from the DOM rather than from state: every control carries the value
+   * the server rendered as its `defaultValue`/`defaultChecked`, so the browser
+   * has kept the comparison for us since before any JavaScript ran.
+   */
+  function hasUnsavedChanges(): boolean {
+    const form = formRef.current;
+    if (!form) return false;
+
+    for (const element of Array.from(form.elements)) {
+      if (element instanceof HTMLInputElement) {
+        if (element.type === "hidden") continue;
+        if (element.type === "checkbox" || element.type === "radio") {
+          if (element.checked !== element.defaultChecked) return true;
+        } else if (element.value !== element.defaultValue) {
+          return true;
+        }
+      } else if (element instanceof HTMLTextAreaElement) {
+        if (element.value !== element.defaultValue) return true;
+      }
     }
+    return false;
   }
 
   /*
@@ -188,7 +203,7 @@ export function ReportForm({
   useEffect(() => {
     function onVisible() {
       if (document.visibilityState !== "visible") return;
-      if (changed.current.size > 0) return;
+      if (hasUnsavedChanges()) return;
       router.refresh();
     }
 
@@ -209,13 +224,7 @@ export function ReportForm({
    * fill in fields she just filled — right after telling her the report went
    * home. A success clears it; the revalidated page supplies a fresh list.
    */
-  const missing = state.success ? [] : (state.missing ?? initialMissing);
-
-  useEffect(() => {
-    if (!state.success) return;
-    changed.current.clear();
-    if (changedField.current) changedField.current.value = "";
-  }, [state.success]);
+  const missing = state.missing ?? (state.success ? [] : initialMissing);
 
   const successText =
     state.success === "saved"
@@ -236,20 +245,19 @@ export function ReportForm({
   }
 
   return (
-    <form
-      action={submit}
-      className="space-y-6 pb-24"
-      onChange={(event) => {
-        const target = event.target as unknown as { name?: string };
-        const name = target.name ?? "";
-        markChanged(name);
-        // A nappy line and its checkboxes are stored together, so any of them
-        // changing means the whole set is resubmitted.
-        if (name.startsWith("toilet_")) markChanged("toiletEntries");
-      }}
-    >
+    <form ref={formRef} action={submit} className="space-y-6 pb-24">
       <input type="hidden" name="reportId" value={report.id} />
-      <input type="hidden" name="changedFields" ref={changedField} defaultValue="" />
+      {/*
+       * The values this form was rendered with. The server diffs the submission
+       * against these to decide what to write, so a teacher only ever overwrites
+       * what she actually changed — and it works before hydration, and with
+       * JavaScript off, neither of which was true of the handler this replaced.
+       */}
+      <input
+        type="hidden"
+        name="baseline"
+        defaultValue={JSON.stringify(baselineFrom(report))}
+      />
 
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       {successText ? <Alert tone="success">{successText}</Alert> : null}
@@ -397,11 +405,7 @@ export function ReportForm({
               type="checkbox"
               name="toiletNothingToRecord"
               checked={nothingToRecord}
-              onChange={(event) => {
-                setNothingToRecord(event.target.checked);
-                markChanged("toiletNothingToRecord");
-                markChanged("toiletEntries");
-              }}
+              onChange={(event) => setNothingToRecord(event.target.checked)}
               className="size-5 shrink-0 rounded border-2 border-ink/25 accent-leaf"
             />
             <span className="text-base font-semibold text-ink">{t.toiletNothing}</span>
@@ -467,12 +471,7 @@ export function ReportForm({
             type="checkbox"
             name="napNone"
             checked={noNap}
-            onChange={(event) => {
-              setNoNap(event.target.checked);
-              markChanged("napNone");
-              markChanged("napFrom");
-              markChanged("napUntil");
-            }}
+            onChange={(event) => setNoNap(event.target.checked)}
             className="size-5 shrink-0 rounded border-2 border-ink/25 accent-leaf"
           />
           <span className="text-base font-semibold text-ink">{t.napNone}</span>

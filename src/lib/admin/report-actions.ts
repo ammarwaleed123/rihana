@@ -8,7 +8,14 @@ import { requireSessionOrThrow } from "@/lib/auth/scope";
 import { hashIp } from "@/lib/auth/tokens";
 import { recordAudit } from "@/lib/data/audit";
 import {
+  baselineFrom,
+  changedFieldsBetween,
+  parseBaseline,
+} from "@/lib/data/report-baseline";
+import {
+  getReportForStaff,
   markChildAbsent,
+  outstanding,
   publishDailyReport,
   saveDailyReport,
 } from "@/lib/data/daily-reports";
@@ -147,17 +154,53 @@ function orNull(value: string): string | null {
  * whoever saved last would overwrite the rest with their own, older picture of
  * the day: a nap recorded at 13:00 wiped by a lunch entry at 14:05, silently.
  *
- * So a save applies only what was touched, and stays silent about everything
- * else. Deliberate corrections to another teacher's entry still work — she has
- * to actually change the field, which marks it.
+ * The answer is a comparison, not a listener. The form carries a snapshot of
+ * the values it was rendered with and we diff the submission against it.
  *
- * An empty list is treated as "everything", so a form submitted without
- * JavaScript still saves rather than doing nothing at all.
+ * This replaced a browser-side version that collected field names in an
+ * onChange handler, and it was wrong on exactly the phones it was written for:
+ * **the handler does not exist until React has hydrated**, and a teacher starts
+ * typing the moment the form appears. Whatever she entered in that first second
+ * was never marked, never sent, and silently discarded — the field that
+ * vanished being whichever one she touched first. Comparing values cannot have
+ * that bug, and it works with JavaScript off, where the old mechanism sent an
+ * empty list and fell back to overwriting everything.
+ *
+ * A missing or unreadable snapshot still falls back to "everything", so a
+ * stripped field degrades to the old behaviour rather than saving nothing.
  */
-function changedSet(formData: FormData): (field: string) => boolean {
-  const raw = str(formData, "changedFields").trim();
-  if (raw === "") return () => true;
-  const fields = new Set(raw.split(",").filter(Boolean));
+function changedSet(
+  formData: FormData,
+  submitted: ReturnType<typeof parse>,
+): (field: string) => boolean {
+  const before = parseBaseline(str(formData, "baseline"));
+  if (!before || !submitted.success) return () => true;
+
+  const input = submitted.data;
+  const after = baselineFrom({
+    arrivalTime: input.arrivalTime,
+    playAreas: input.playAreas,
+    alsoEnjoyed: input.alsoEnjoyed,
+    quranMemorised: input.quranMemorised,
+    quranRevision: input.quranRevision,
+    littleMuslim: input.littleMuslim,
+    meals: input.meals.map((m) => ({
+      meal: m.meal,
+      amount: m.amount ?? "",
+      description: m.description,
+    })),
+    napNone: input.napNone,
+    napFrom: input.napFrom,
+    napUntil: input.napUntil,
+    toiletNothingToRecord: input.toiletNothingToRecord,
+    toiletEntries: input.toiletEntries,
+    bringCleanClothes: input.bringCleanClothes,
+    bringDiapers: input.bringDiapers,
+    bringOther: input.bringOther,
+    teacherComments: input.teacherComments,
+  });
+
+  const fields = changedFieldsBetween(before, after);
   return (field: string) => fields.has(field);
 }
 
@@ -169,7 +212,7 @@ async function persist(
 ) {
   if (!parsed.success) throw parsed.error;
   const input = parsed.data;
-  const touched = changedSet(formData);
+  const touched = changedSet(formData, parsed);
 
   const pick = <V,>(field: string, value: V): V | undefined =>
     touched(field) ? value : undefined;
@@ -235,7 +278,18 @@ async function runSave(
       await enqueue(QUEUES.notifyDailyReport, { reportId, event: "updated" });
     }
 
-    return { success: wasPublished ? "resent" : "saved" };
+    /*
+     * Say what is still outstanding, read back from what was actually stored.
+     *
+     * This is not decoration. A meal's "I ate" cannot be kept without a "how
+     * much" beside it — the column requires one — so a teacher who types what a
+     * child ate and saves before choosing an amount loses the sentence. It used
+     * to disappear with nothing said. Now the save answers "Breakfast — how
+     * much", which is both true and the thing she needs to do about it.
+     */
+    const saved = await getReportForStaff(session, reportId);
+
+    return { success: wasPublished ? "resent" : "saved", missing: outstanding(saved) };
   } catch (error) {
     return toState(error, "report-save");
   }
