@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ForbiddenError, NotFoundError } from "@/lib/auth/errors";
+import { signatureKeysForChild } from "@/lib/data/accident-reports";
 import {
   buildPage,
   clampPageSize,
@@ -370,7 +371,7 @@ export async function deleteChild(session: Session, childId: string) {
    * Both kinds of object belong to the child and both must go: the photos that
    * showed only them, and the avatars of the people authorized to collect them.
    */
-  const [orphanedPhotos, pickupPersons] = await Promise.all([
+  const [orphanedPhotos, pickupPersons, signatureKeys] = await Promise.all([
     prisma.photo.findMany({
       where: { id: { in: orphanedPhotoIds } },
       select: {
@@ -383,6 +384,14 @@ export async function deleteChild(session: Session, childId: string) {
       where: { childId },
       select: { photoStorageKey: true, photoThumbKey: true },
     }),
+    /*
+     * Signatures on this child's accident records — the teacher's and every
+     * guardian's. Exactly the same trap as the photographs: the rows cascade
+     * away with the child, and without collecting the keys first the drawn
+     * signatures of named people would stay in the bucket after the family was
+     * told the record was permanently deleted.
+     */
+    signatureKeysForChild(childId),
   ]);
 
   const orphanedKeys = [
@@ -392,6 +401,7 @@ export async function deleteChild(session: Session, childId: string) {
       p.storageKeyThumb,
     ]),
     ...pickupPersons.flatMap((p) => [p.photoStorageKey, p.photoThumbKey]),
+    ...signatureKeys,
   ].filter((key): key is string => Boolean(key));
 
   await prisma.$transaction([
@@ -412,6 +422,10 @@ export async function deleteChild(session: Session, childId: string) {
     prisma.photoTag.deleteMany({ where: { childId } }),
     prisma.guardianship.deleteMany({ where: { childId } }),
     prisma.pickupPerson.deleteMany({ where: { childId } }),
+    // Both report kinds take their incidents, meals, toilet lines and
+    // acknowledgements with them through their own cascades.
+    prisma.dailyReport.deleteMany({ where: { childId } }),
+    prisma.accidentReport.deleteMany({ where: { childId } }),
 
     prisma.child.delete({ where: { id: childId } }),
   ]);

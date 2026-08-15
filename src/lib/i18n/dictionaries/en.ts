@@ -380,6 +380,7 @@ const en = {
       photos: "Photos",
       albums: "Albums",
       reports: "Daily reports",
+      accidents: "Accidents",
       announcements: "Announcements",
       pickup: "Pickup",
       children: "Children",
@@ -506,6 +507,140 @@ const en = {
       sentHomeNotice: "Sent home {date} by {name}",
       editedNotice: "Updated {date} by {name}",
       absentNotice: "{name} was absent on this day.",
+    },
+
+    /*
+     * The accident report.
+     *
+     * Written in the nursery's own words from the paper form — "Out of toilet",
+     * "Hemoclar" — rather than softened into clinical language. Staff are
+     * filling in a form they already know, and renaming its fields would make
+     * them stop and translate.
+     */
+    accidents: {
+      title: "Accidents",
+      description: "Injuries, what was done, and who was told.",
+      noClasses: "You are not assigned to a class yet.",
+      noChildren: "No children are enrolled in this class.",
+      backToDay: "All children",
+
+      none: "No accidents",
+      // {n} is always 1 or more here — the zero case uses `none` above.
+      count: { one: "{n} accident", other: "{n} accidents" } as Plural,
+      open: "Open",
+      record: "Record an accident",
+
+      dayTitle: "{name}",
+      addAnother: "Record another accident",
+      recorded: "Recorded. The family has been told.",
+      corrected: "Corrected. The family has been asked to sign again.",
+      deleted: "That record was deleted.",
+
+      timeOfIncident: "Time of the incident",
+      timeHint: "24-hour, like 08:15",
+
+      place: "Where it happened",
+      placeMontessoriClass: "Montessori class",
+      placeArtClass: "Art class",
+      placeToilet: "Toilet",
+      placeGarden: "Garden",
+      placeDramaClass: "Drama class",
+      placeAcademicClass: "Academic class",
+      placeOther: "Somewhere else",
+      placeOtherLabel: "Where?",
+
+      figure: "Child",
+      figureBoy: "Boy",
+      figureGirl: "Girl",
+
+      bodyParts: "Where they were hurt",
+      bodyPartsHint: "Choose every part that was hurt.",
+      partForehead: "Forehead",
+      partEyebrow: "Eyebrow",
+      partEye: "Eye",
+      partEar: "Ear",
+      partCheek: "Cheek",
+      partNose: "Nose",
+      partMouth: "Mouth",
+      partLip: "Lip",
+      partTooth: "Tooth",
+      partTongue: "Tongue",
+      partChin: "Chin",
+      partNeck: "Neck",
+      partChest: "Chest",
+      partArm: "Arm",
+      partHand: "Hand",
+      partStomach: "Stomach",
+      partKnee: "Knee",
+      partLeg: "Leg",
+      partFoot: "Foot",
+      partToe: "Toe",
+
+      nature: "Nature of the injury",
+      natureBite: "Bite",
+      natureScratch: "Scratch",
+      natureAnkleSprain: "Ankle sprain",
+      natureRedMark: "Red mark",
+      natureBruises: "Bruises",
+      natureCut: "Cut",
+      natureHitting: "Hitting",
+      natureScratchArtificialGrass: "Scratch from artificial grass",
+      natureOther: "Something else",
+      natureOtherLabel: "What happened?",
+
+      treatment: "Treatment given",
+      treatmentIce: "Ice",
+      treatmentBetadine: "Betadine",
+      treatmentRunningWater: "Running water",
+      treatmentBandage: "Bandage",
+      treatmentHemoclar: "Hemoclar",
+      treatmentOther: "Something else",
+      treatmentOtherLabel: "What was given?",
+
+      whatHappened: "What happened",
+      whatHappenedHint: "In your own words. The family reads this.",
+
+      notified: "Who was told",
+      parentsNotified: "Parents were called",
+      doctorNotified: "A doctor was called",
+      notificationTime: "Time of the call",
+      notificationHint: "Needed once someone was called.",
+
+      signature: "Your signature",
+      signatureHint:
+        "Sign to confirm this account is yours. It goes to the family with the record.",
+      signatureEmpty: "Sign here",
+      signatureClear: "Clear",
+
+      submit: "Record this accident",
+      submitBusy: "Recording…",
+      correct: "Save the correction",
+      correctBusy: "Saving…",
+      editThis: "Correct this record",
+      cancelEdit: "Cancel",
+      deleteThis: "Delete this record",
+      deleteConfirm:
+        "Delete this accident record? It also removes the family's signature, and cannot be undone.",
+
+      recordedBy: "Recorded by {name} at {time}",
+      correctedNotice: "Corrected {date}",
+      signedByFamily: "Signed by the family on {date}",
+      awaitingFamily: "The family has not signed yet",
+      awaitingAgain: "The family has been asked to sign again",
+
+      stillMissing: "Still to fill in before this can be recorded:",
+      missingTimeOfIncident: "Time of the incident",
+      missingPlace: "Where it happened",
+      missingPlaceOther: "Where — you chose 'somewhere else'",
+      missingFigure: "Boy or girl",
+      missingBodyParts: "At least one part of the body",
+      missingNature: "At least one nature of injury",
+      missingNatureOther: "What happened — you chose 'something else'",
+      missingTreatment: "At least one treatment",
+      missingTreatmentOther: "What was given — you chose 'something else'",
+      missingDescription: "What happened",
+      missingNotificationTime: "Time of the call",
+      missingSignature: "Your signature",
     },
 
     children: {
@@ -1262,6 +1397,30 @@ const en = {
     pickupRejectedBodyReason:
       "Your request to authorize {person} for {child} was not approved: {reason}",
 
+    reportReadyTitle: "{name}'s day",
+    reportReadyBody: "{name}'s day at nursery is ready to read.",
+    reportUpdatedTitle: "{name}'s day was updated",
+    reportUpdatedBody: "Their teacher changed something in {name}'s day.",
+    reportAbsentTitle: "{name} was marked absent",
+    reportAbsentBody: "{name} was recorded as not at nursery today.",
+
+    /*
+     * Accident wording says that something happened and never what.
+     *
+     * These reach a lock screen, where the person reading is whoever is holding
+     * the phone. The details belong behind the sign-in, on a page only the
+     * family can open.
+     */
+    accidentReportedTitle: "{name} had an accident",
+    accidentReportedBody:
+      "The nursery recorded an accident involving {name}. Please read it and sign.",
+    accidentCorrectedTitle: "An accident record was corrected",
+    accidentCorrectedBody:
+      "Their teacher corrected the accident record for {name}. Please read it and sign again.",
+    // Staff-facing.
+    accidentAcknowledgedTitle: "An accident record was signed",
+    accidentAcknowledgedBody: "{parent} signed the accident record for {name}.",
+
     /** Stand-ins for a name the fan-out could not resolve. */
     aChild: "your child",
     aClass: "your child’s class",
@@ -1385,6 +1544,100 @@ const en = {
 
       teacherComments: "From their teacher",
       noComment: "No note today.",
+    },
+
+    /*
+     * The accident report as a family reads it.
+     *
+     * Plainer than the staff form and in the past tense — a parent is being
+     * told what happened to their child, not filling anything in. The one thing
+     * they do is sign, and that is the only control on the page.
+     */
+    accidents: {
+      metaTitle: "Accidents",
+      title: "Accidents",
+      description: "When your child was hurt at nursery, and what was done.",
+      filterByChild: "Filter by child",
+      everyone: "Everyone",
+
+      emptyTitle: "Nothing here",
+      emptyBody:
+        "If your child is hurt at nursery, their teacher records it here and you will be asked to sign. Records stay for a month.",
+
+      // {n} is always 1 or more.
+      count: { one: "{n} accident", other: "{n} accidents" } as Plural,
+      view: "Read it",
+      needsSignature: "Needs your signature",
+
+      timeOfIncident: "At {time}",
+      place: "Where",
+      placeMontessoriClass: "Montessori class",
+      placeArtClass: "Art class",
+      placeToilet: "Toilet",
+      placeGarden: "Garden",
+      placeDramaClass: "Drama class",
+      placeAcademicClass: "Academic class",
+      placeOther: "Somewhere else",
+
+      bodyParts: "Where they were hurt",
+      partForehead: "Forehead",
+      partEyebrow: "Eyebrow",
+      partEye: "Eye",
+      partEar: "Ear",
+      partCheek: "Cheek",
+      partNose: "Nose",
+      partMouth: "Mouth",
+      partLip: "Lip",
+      partTooth: "Tooth",
+      partTongue: "Tongue",
+      partChin: "Chin",
+      partNeck: "Neck",
+      partChest: "Chest",
+      partArm: "Arm",
+      partHand: "Hand",
+      partStomach: "Stomach",
+      partKnee: "Knee",
+      partLeg: "Leg",
+      partFoot: "Foot",
+      partToe: "Toe",
+
+      nature: "What kind of injury",
+      natureBite: "Bite",
+      natureScratch: "Scratch",
+      natureAnkleSprain: "Ankle sprain",
+      natureRedMark: "Red mark",
+      natureBruises: "Bruises",
+      natureCut: "Cut",
+      natureHitting: "Hitting",
+      natureScratchArtificialGrass: "Scratch from artificial grass",
+      natureOther: "Something else",
+
+      treatment: "What was done",
+      treatmentIce: "Ice",
+      treatmentBetadine: "Betadine",
+      treatmentRunningWater: "Running water",
+      treatmentBandage: "Bandage",
+      treatmentHemoclar: "Hemoclar",
+      treatmentOther: "Something else",
+
+      whatHappened: "What happened",
+      notified: "Who was told",
+      parentsNotified: "You were called at {time}",
+      doctorNotified: "A doctor was called at {time}",
+      nobodyCalled: "No call was needed.",
+
+      teacherSignature: "Recorded and signed by {name}",
+      correctedNotice:
+        "Their teacher corrected this record on {date}, so please read it again and sign.",
+
+      signature: "Your signature",
+      signatureHint: "Sign to confirm you have been told about this.",
+      signatureEmpty: "Sign here",
+      signatureClear: "Clear",
+      sign: "I have been told",
+      signing: "Saving…",
+      signed: "You signed this on {date}",
+      yourSignature: "Your signature",
     },
 
     photos: {

@@ -50,7 +50,12 @@ type NotificationRow = {
     | "NEW_ANNOUNCEMENT"
     | "PICKUP_APPROVED"
     | "PICKUP_REJECTED"
-    | "PICKUP_PENDING_REVIEW";
+    | "PICKUP_PENDING_REVIEW"
+    | "DAILY_REPORT_READY"
+    | "DAILY_REPORT_UPDATED"
+    | "CHILD_ABSENT"
+    | "ACCIDENT_REPORTED"
+    | "REPORT_ACKNOWLEDGED";
   title: string;
   body: string;
   payload: Prisma.InputJsonValue;
@@ -601,6 +606,290 @@ export async function fanOutNewInquiry(
     payload: { inquiryId: inquiry.id },
     linkPath: `/admin/inquiries/${inquiry.id}`,
     dedupeKey: `inquiry:${inquiry.id}`,
+  }));
+
+  const result = await prisma.notification.createMany({
+    data: rows,
+    skipDuplicates: true,
+  });
+
+  await deliverPush(rows, result.count);
+  return { created: result.count };
+}
+
+// ---------------------------------------------------------------------------
+// Fan-out: daily reports
+// ---------------------------------------------------------------------------
+
+/** How long a run of corrections counts as one edit, for notification purposes. */
+const EDIT_BUCKET_MS = 5 * 60 * 1000;
+
+/** The guardians of one child. The audience for everything about their day. */
+async function guardiansOf(childId: string): Promise<string[]> {
+  const rows = await prisma.guardianship.findMany({
+    where: { childId },
+    select: { parentUserId: true },
+  });
+  return [...new Set(rows.map((r) => r.parentUserId))];
+}
+
+/**
+ * Tell a family their child's day is ready — or that it changed, or that the
+ * child was marked absent.
+ *
+ * Three events through one fan-out because they are the same message to the
+ * same people about the same row, and splitting them would mean three copies of
+ * the audience query. What differs is the wording and the dedupe key.
+ *
+ * The key is what makes an edit notify again where a retry does not: "ready" is
+ * keyed on the report, so a pg-boss retry no-ops forever, while "updated" is
+ * keyed on `lastEditedAt`, so a second correction is a second notification and
+ * the same correction retried is not.
+ *
+ * Guarded on the report's current state, so a day that has been marked absent
+ * between enqueue and execution does not still announce a report.
+ */
+export async function fanOutDailyReport(
+  reportId: string,
+  event: "ready" | "updated" | "absent",
+): Promise<{ created: number }> {
+  const report = await prisma.dailyReport.findUnique({
+    where: { id: reportId },
+    select: {
+      id: true,
+      childId: true,
+      status: true,
+      publishedAt: true,
+      lastEditedAt: true,
+      child: { select: { firstName: true } },
+    },
+  });
+  if (!report) return { created: 0 };
+
+  const wanted = event === "absent" ? "ABSENT" : "PUBLISHED";
+  if (report.status !== wanted) return { created: 0 };
+  // "Updated" only means something once there has actually been an edit.
+  if (event === "updated" && !report.lastEditedAt) return { created: 0 };
+
+  const parentIds = await guardiansOf(report.childId);
+  if (parentIds.length === 0) return { created: 0 };
+
+  const childName = report.child.firstName;
+  const name = childName || "your child";
+
+  const shape = {
+    ready: {
+      type: "DAILY_REPORT_READY" as const,
+      title: `${name}'s day`,
+      body: `${name}'s day at nursery is ready to read.`,
+      kind: "report.ready" as const,
+      dedupeKey: `daily-report-ready:${report.id}`,
+    },
+    updated: {
+      type: "DAILY_REPORT_UPDATED" as const,
+      title: `${name}'s day was updated`,
+      body: `Their teacher changed something in ${name}'s day.`,
+      kind: "report.updated" as const,
+      /*
+       * Bucketed to five minutes, not stamped to the millisecond.
+       *
+       * A teacher correcting a report that has already gone home saves several
+       * times in a row — the nap time, then the lunch, then a comment. Keyed on
+       * the exact `lastEditedAt` that is three separate notifications for one
+       * act of tidying up, and a family that learns to ignore the bell. Within
+       * one bucket the later saves collapse into the first; a correction the
+       * next morning is a genuinely new event and notifies again.
+       */
+      dedupeKey: `daily-report-updated:${report.id}:${Math.floor(
+        (report.lastEditedAt?.getTime() ?? 0) / EDIT_BUCKET_MS,
+      )}`,
+    },
+    absent: {
+      type: "CHILD_ABSENT" as const,
+      title: `${name} was marked absent`,
+      body: `${name} was recorded as not at nursery today.`,
+      kind: "report.absent" as const,
+      dedupeKey: `daily-report-absent:${report.id}`,
+    },
+  }[event];
+
+  const rows: NotificationRow[] = parentIds.map((userId) => ({
+    userId,
+    type: shape.type,
+    title: shape.title,
+    body: shape.body,
+    payload: {
+      kind: shape.kind,
+      reportId: report.id,
+      childId: report.childId,
+      childName,
+    } satisfies StoredPayload,
+    linkPath: `/portal/reports/${report.id}`,
+    dedupeKey: shape.dedupeKey,
+  }));
+
+  const result = await prisma.notification.createMany({
+    data: rows,
+    skipDuplicates: true,
+  });
+
+  await deliverPush(rows, result.count);
+  return { created: result.count };
+}
+
+// ---------------------------------------------------------------------------
+// Fan-out: accidents
+// ---------------------------------------------------------------------------
+
+/**
+ * Tell a family their child was hurt.
+ *
+ * The most urgent message this app sends, and the only one where a correction
+ * matters as much as the original — a parent who read "a scratch" and comes
+ * back to "a cut" has to be told. So the dedupe key carries `updatedAt`: a
+ * retry no-ops, a correction notifies afresh.
+ *
+ * Deliberately says nothing about the injury itself. The body of an accident
+ * record is not something to put on a lock screen next to the child's name,
+ * where it can be read by whoever is holding the phone.
+ */
+export async function fanOutAccidentReported(
+  incidentId: string,
+): Promise<{ created: number }> {
+  const incident = await prisma.accidentIncident.findUnique({
+    where: { id: incidentId },
+    select: {
+      id: true,
+      updatedAt: true,
+      createdAt: true,
+      report: {
+        select: {
+          id: true,
+          childId: true,
+          child: { select: { firstName: true } },
+        },
+      },
+    },
+  });
+  if (!incident) return { created: 0 };
+
+  const parentIds = await guardiansOf(incident.report.childId);
+  if (parentIds.length === 0) return { created: 0 };
+
+  const childName = incident.report.child.firstName;
+  const name = childName || "your child";
+  // A correction is a different message from the first telling.
+  const corrected =
+    incident.updatedAt.getTime() - incident.createdAt.getTime() > 1000;
+
+  const rows: NotificationRow[] = parentIds.map((userId) => ({
+    userId,
+    type: "ACCIDENT_REPORTED",
+    title: corrected ? `An accident record was corrected` : `${name} had an accident`,
+    body: corrected
+      ? `Their teacher corrected the accident record for ${name}. Please read it and sign again.`
+      : `The nursery recorded an accident involving ${name}. Please read it and sign.`,
+    payload: {
+      kind: corrected ? "accident.corrected" : "accident.reported",
+      incidentId: incident.id,
+      reportId: incident.report.id,
+      childId: incident.report.childId,
+      childName,
+    } satisfies StoredPayload,
+    linkPath: `/portal/accidents/${incident.report.id}`,
+    dedupeKey: `accident:${incident.id}:${incident.updatedAt.getTime()}`,
+  }));
+
+  const result = await prisma.notification.createMany({
+    data: rows,
+    skipDuplicates: true,
+  });
+
+  await deliverPush(rows, result.count);
+  return { created: result.count };
+}
+
+/**
+ * Tell staff a family has signed an accident record.
+ *
+ * Accidents only, deliberately — not daily reports.
+ *
+ * The nursery asked to be told when a parent acknowledges, and for accidents
+ * that is a real question somebody asks: has this family seen it yet. For daily
+ * reports it would be two notifications per child per day, every day, which is
+ * roughly forty a class — and a bell that cries forty times is a bell nobody
+ * reads. The daily report screen already shows the same fact silently, where it
+ * is looked for rather than pushed.
+ *
+ * Reaches the teachers assigned to the class the accident was recorded in, plus
+ * every active owner.
+ */
+export async function fanOutAccidentAcknowledged(
+  incidentId: string,
+  parentUserId: string,
+): Promise<{ created: number }> {
+  const acknowledgement = await prisma.accidentAcknowledgement.findUnique({
+    where: { incidentId_userId: { incidentId, userId: parentUserId } },
+    select: {
+      acknowledgedAt: true,
+      user: { select: { name: true } },
+      incident: {
+        select: {
+          id: true,
+          timeOfIncident: true,
+          report: {
+            select: {
+              childId: true,
+              classId: true,
+              date: true,
+              child: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!acknowledgement) return { created: 0 };
+
+  const { incident } = acknowledgement;
+  const classId = incident.report.classId;
+
+  const [assignments, owners] = await Promise.all([
+    classId
+      ? prisma.teacherAssignment.findMany({
+          where: { classId },
+          select: { userId: true },
+        })
+      : Promise.resolve([]),
+    prisma.user.findMany({
+      where: { role: "OWNER", status: "ACTIVE", deletedAt: null },
+      select: { id: true },
+    }),
+  ]);
+
+  const staffIds = [
+    ...new Set([...assignments.map((a) => a.userId), ...owners.map((o) => o.id)]),
+  ];
+  if (staffIds.length === 0) return { created: 0 };
+
+  const parentName = acknowledgement.user?.name ?? "";
+  const childName = incident.report.child.firstName;
+  const day = incident.report.date.toISOString().slice(0, 10);
+
+  const rows: NotificationRow[] = staffIds.map((userId) => ({
+    userId,
+    type: "REPORT_ACKNOWLEDGED",
+    title: "An accident record was signed",
+    body: `${parentName || "A parent"} signed the accident record for ${childName}.`,
+    payload: {
+      kind: "accident.acknowledged",
+      incidentId: incident.id,
+      childId: incident.report.childId,
+      childName,
+      parentName,
+    } satisfies StoredPayload,
+    linkPath: `/admin/accidents/${incident.report.childId}?date=${day}`,
+    dedupeKey: `accident-ack:${incident.id}:${parentUserId}:${acknowledgement.acknowledgedAt.getTime()}`,
   }));
 
   const result = await prisma.notification.createMany({

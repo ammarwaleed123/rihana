@@ -129,6 +129,16 @@ describe("every message kind survives a round trip", () => {
       childName: "Laila",
       reason: "Not on our approved list",
     },
+    { kind: "report.ready", childName: "Laila" },
+    { kind: "report.updated", childName: "Laila" },
+    { kind: "report.absent", childName: "Laila" },
+    { kind: "accident.reported", childName: "Laila" },
+    { kind: "accident.corrected", childName: "Laila" },
+    {
+      kind: "accident.acknowledged",
+      childName: "Laila",
+      parentName: "Amal Saeed",
+    },
   ];
 
   it.each(all)("parses back and renders in both languages: $kind", (message) => {
@@ -157,6 +167,67 @@ describe("every message kind survives a round trip", () => {
   it("shows the parent's own words when a pickup is turned down for a reason", () => {
     const text = renderMessage(all[7], ar, "ar");
     expect(text.body).toContain("Not on our approved list");
+  });
+});
+
+/*
+ * An accident notification lands on a lock screen, where the reader is whoever
+ * is holding the phone. It may say that something happened and that the family
+ * should look; it must not say what was injured or what was done about it.
+ *
+ * This is enforced structurally rather than by review: the message carries only
+ * a child's name, so there is no field for a detail to travel in. The test
+ * guards the shape, so adding one later has to be a deliberate decision.
+ */
+describe("accident notifications carry no details", () => {
+  const detail = [
+    "knee",
+    "bite",
+    "bruise",
+    "betadine",
+    "bandage",
+    "doctor",
+    "ركبة",
+    "عضّة",
+    "ضمادة",
+  ];
+
+  it.each([
+    { kind: "accident.reported", childName: "Laila" },
+    { kind: "accident.corrected", childName: "Laila" },
+  ] as const)("says something happened, not what: $kind", (message) => {
+    for (const [dict, locale] of [
+      [en, "en"],
+      [ar, "ar"],
+    ] as const) {
+      const text = renderMessage(message, dict, locale);
+      const whole = `${text.title} ${text.body}`.toLowerCase();
+      for (const word of detail) {
+        expect(whole).not.toContain(word);
+      }
+    }
+  });
+
+  it("names the child, because the family must know who it is about", () => {
+    const text = renderMessage(
+      { kind: "accident.reported", childName: "Laila" },
+      ar,
+      "ar",
+    );
+    expect(text.title).toContain("Laila");
+  });
+});
+
+describe("report notifications degrade when a child has been removed", () => {
+  it.each([
+    "report.ready",
+    "report.updated",
+    "report.absent",
+    "accident.reported",
+  ] as const)("uses the reader's stand-in rather than a gap: %s", (kind) => {
+    const text = renderMessage({ kind, childName: "" }, ar, "ar");
+    expect(text.title).toContain(ar.notify.aChild);
+    expect(text.title).not.toMatch(/\{\w+\}/);
   });
 });
 

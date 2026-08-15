@@ -60,7 +60,13 @@ export type AuditAction =
   | "daily_report.published"
   | "daily_report.updated"
   | "daily_report.absent"
-  | "daily_report.acknowledged";
+  | "daily_report.acknowledged"
+  // accident reports — the most sensitive records here, so every write is one
+  // of these, including a guardian's signature
+  | "accident.recorded"
+  | "accident.corrected"
+  | "accident.deleted"
+  | "accident.acknowledged";
 
 export type AuditEntry = {
   action: AuditAction;

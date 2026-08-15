@@ -15,6 +15,7 @@ import {
 import type { MissingField } from "@/lib/data/report-rules";
 import type { Session } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
+import { enqueue, QUEUES } from "@/lib/jobs/queue";
 import { logger } from "@/lib/logger";
 import {
   MEALS,
@@ -224,6 +225,16 @@ async function runSave(
 
     const { wasPublished } = await persist(session, reportId, parsed, formData);
 
+    /*
+     * Editing a report the family has already read is a thing they must be told
+     * about — the interface says "the family has been told it changed", and that
+     * sentence has to be true. Saving a draft tells nobody: the report has not
+     * gone home yet.
+     */
+    if (wasPublished) {
+      await enqueue(QUEUES.notifyDailyReport, { reportId, event: "updated" });
+    }
+
     return { success: wasPublished ? "resent" : "saved" };
   } catch (error) {
     return toState(error, "report-save");
@@ -266,6 +277,13 @@ async function runPublish(
       targetId: reportId,
     });
 
+    // Queued, not inline: the fan-out reaches every guardian and sends push, and
+    // none of that belongs in the request a teacher is waiting on.
+    await enqueue(QUEUES.notifyDailyReport, {
+      reportId,
+      event: result.wasAlreadyPublished ? "updated" : "ready",
+    });
+
     return { success: result.wasAlreadyPublished ? "resent" : "sentHome" };
   } catch (error) {
     return toState(error, "report-publish");
@@ -290,6 +308,8 @@ async function runAbsent(
       targetType: "daily_report",
       targetId: reportId,
     });
+
+    await enqueue(QUEUES.notifyDailyReport, { reportId, event: "absent" });
 
     return { success: "markedAbsent" };
   } catch (error) {

@@ -66,3 +66,19 @@ export function pickupPersonKey(
 ): string {
   return `pickup/${pickupPersonId}/${variant}.jpg`;
 }
+
+/**
+ * A drawn signature on an accident record.
+ *
+ * The token is generated per signature rather than being the row id, so
+ * re-signing after a correction writes a new object instead of overwriting the
+ * one the previous version was signed with. The old object is deleted
+ * explicitly by the caller — it is superseded, and keeping it would leave a
+ * signature in storage that no row points at.
+ */
+export function signatureKey(
+  kind: "incident" | "acknowledgement",
+  token: string,
+): string {
+  return `signatures/${kind}/${token}.jpg`;
+}

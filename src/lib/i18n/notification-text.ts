@@ -44,7 +44,13 @@ export type NotificationMessage =
       personName: string;
       childName: string;
       reason?: string;
-    };
+    }
+  | { kind: "report.ready"; childName: string }
+  | { kind: "report.updated"; childName: string }
+  | { kind: "report.absent"; childName: string }
+  | { kind: "accident.reported"; childName: string }
+  | { kind: "accident.corrected"; childName: string }
+  | { kind: "accident.acknowledged"; childName: string; parentName: string };
 
 export type NotificationText = { title: string; body: string };
 
@@ -106,6 +112,22 @@ export function parseMessage(payload: unknown): NotificationMessage | null {
         personName: str(p.personName),
         childName: str(p.childName),
         reason: str(p.reason) || undefined,
+      };
+    case "report.ready":
+      return { kind: "report.ready", childName: str(p.childName) };
+    case "report.updated":
+      return { kind: "report.updated", childName: str(p.childName) };
+    case "report.absent":
+      return { kind: "report.absent", childName: str(p.childName) };
+    case "accident.reported":
+      return { kind: "accident.reported", childName: str(p.childName) };
+    case "accident.corrected":
+      return { kind: "accident.corrected", childName: str(p.childName) };
+    case "accident.acknowledged":
+      return {
+        kind: "accident.acknowledged",
+        childName: str(p.childName),
+        parentName: str(p.parentName),
       };
     default:
       return null;
@@ -179,7 +201,53 @@ export function renderMessage(
               child: message.childName,
             }),
       };
+    case "report.ready":
+      return {
+        title: fill(t.reportReadyTitle, { name: name(message, t) }),
+        body: fill(t.reportReadyBody, { name: name(message, t) }),
+      };
+    case "report.updated":
+      return {
+        title: fill(t.reportUpdatedTitle, { name: name(message, t) }),
+        body: fill(t.reportUpdatedBody, { name: name(message, t) }),
+      };
+    case "report.absent":
+      return {
+        title: fill(t.reportAbsentTitle, { name: name(message, t) }),
+        body: fill(t.reportAbsentBody, { name: name(message, t) }),
+      };
+    /*
+     * Says that something happened, never what. An accident's details are not
+     * something to put on a lock screen beside the child's name, where whoever
+     * is holding the phone can read them.
+     */
+    case "accident.reported":
+      return {
+        title: fill(t.accidentReportedTitle, { name: name(message, t) }),
+        body: fill(t.accidentReportedBody, { name: name(message, t) }),
+      };
+    case "accident.corrected":
+      return {
+        title: t.accidentCorrectedTitle,
+        body: fill(t.accidentCorrectedBody, { name: name(message, t) }),
+      };
+    case "accident.acknowledged":
+      return {
+        title: t.accidentAcknowledgedTitle,
+        body: fill(t.accidentAcknowledgedBody, {
+          parent: message.parentName || t.aParent,
+          name: name(message, t),
+        }),
+      };
   }
+}
+
+/** A child's own name, or the stand-in when the fan-out could not resolve one. */
+function name(
+  message: { childName: string },
+  t: Dictionary["notify"],
+): string {
+  return message.childName || t.aChild;
 }
 
 /**

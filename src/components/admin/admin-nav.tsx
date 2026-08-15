@@ -23,6 +23,7 @@ export function AdminNav({
     { href: "/admin/photos", label: t.photos },
     { href: "/admin/albums", label: t.albums },
     { href: "/admin/reports", label: t.reports },
+    { href: "/admin/accidents", label: t.accidents },
     { href: "/admin/announcements", label: t.announcements },
     { href: "/admin/pickup", label: t.pickup },
     { href: "/admin/children", label: t.children },

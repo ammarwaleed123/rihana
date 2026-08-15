@@ -133,6 +133,56 @@ export async function processUpload(buffer: Buffer): Promise<ProcessedImage> {
   };
 }
 
+/** The most a signature may weigh once decoded from its data URL. */
+const MAX_SIGNATURE_BYTES = 2_000_000;
+
+/**
+ * A drawn signature, from a canvas.
+ *
+ * It arrives as a base64 PNG in a form field, which makes it exactly as
+ * trustworthy as an uploaded file — the interface that normally produces it is
+ * not the only thing that can post it. So it goes through the same decode and
+ * re-encode as a photograph, and the bytes stored are sharp's, not the
+ * client's.
+ *
+ * Flattened onto white because a canvas exports transparency, and transparency
+ * rendered as black is a signature nobody can read.
+ */
+export async function processSignature(dataUrl: string): Promise<Variant> {
+  const prefix = "data:image/png;base64,";
+  if (!dataUrl.startsWith(prefix)) {
+    throw new UnsupportedImageError("That signature could not be read.");
+  }
+
+  const buffer = Buffer.from(dataUrl.slice(prefix.length), "base64");
+
+  if (buffer.byteLength === 0) {
+    throw new UnsupportedImageError("That signature is empty.");
+  }
+  if (buffer.byteLength > MAX_SIGNATURE_BYTES) {
+    throw new UnsupportedImageError("That signature is too large.");
+  }
+
+  // The declared PNG in the data URL is a claim by the client; the magic bytes
+  // are the fact. A JPEG or an SVG announcing itself as a PNG stops here.
+  const mime = await sniffMimeType(buffer);
+  if (mime !== "image/png") {
+    throw new UnsupportedImageError("That signature could not be read.");
+  }
+
+  try {
+    return await encode(
+      sharp(buffer, { limitInputPixels: MAX_PIXELS, failOn: "truncated" })
+        .flatten({ background: "#ffffff" }),
+      { maxEdge: 800, quality: 88 },
+    );
+  } catch (error) {
+    throw new UnsupportedImageError(
+      `That signature could not be read: ${(error as Error).message}`,
+    );
+  }
+}
+
 /** Thumbnail. Generated in the worker, not on the upload request. */
 export async function createThumbnail(buffer: Buffer): Promise<Variant> {
   return encode(

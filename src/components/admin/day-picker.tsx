@@ -15,13 +15,20 @@ import { useTransition } from "react";
  * an effect, which is what made it fire a navigation on every page load until
  * the Strict Mode guard was fixed. Here the navigation is caused by the change
  * event and nothing else.
+ *
+ * Shared by the daily report and accident screens via `basePath`. They are the
+ * same control over the same two questions — which class, which day — and
+ * having two copies would mean fixing the iOS date-field problem twice.
  */
 export function DayPicker({
+  basePath,
   classes,
   selectedClassId,
   date,
   t,
 }: {
+  /** Where the selection navigates to, e.g. `/admin/reports`. */
+  basePath: string;
   classes: Array<{ id: string; name: string }>;
   selectedClassId: string;
   date: string;
@@ -35,7 +42,7 @@ export function DayPicker({
     params.set("classId", next.classId ?? selectedClassId);
     params.set("date", next.date ?? date);
     startTransition(() => {
-      router.replace(`/admin/reports?${params.toString()}`, { scroll: false });
+      router.replace(`${basePath}?${params.toString()}`, { scroll: false });
     });
   }
 
@@ -45,14 +52,15 @@ export function DayPicker({
   return (
     <form
       method="get"
-      action="/admin/reports"
+      action={basePath}
       /*
        * Stacked on a phone, side by side from `sm`.
        *
        * iOS renders date and time inputs as native controls with an intrinsic
        * width they refuse to shrink below, so a narrow fixed column overflowed
        * and the Today button sat on top of the date. Desktop devtools does not
-       * reproduce it — it uses the desktop control.
+       * reproduce it — it uses the desktop control. The release valve is
+       * `appearance: none` in globals.css; this layout assumes it.
        */
       className="mb-6 grid justify-items-center gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-items-stretch"
       onSubmit={(event) => event.preventDefault()}

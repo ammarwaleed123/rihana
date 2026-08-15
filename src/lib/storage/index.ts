@@ -27,5 +27,5 @@ export const storage: StorageAdapter = new Proxy({} as StorageAdapter, {
   },
 });
 
-export { photoKey, pickupPersonKey } from "@/lib/storage/types";
+export { photoKey, pickupPersonKey, signatureKey } from "@/lib/storage/types";
 export type { StorageAdapter, PhotoVariant } from "@/lib/storage/types";

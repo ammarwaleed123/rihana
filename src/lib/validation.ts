@@ -489,6 +489,115 @@ export const dailyReportInput = z.object({
 export type DailyReportFormInput = z.infer<typeof dailyReportInput>;
 
 // ---------------------------------------------------------------------------
+// Accident reports
+// ---------------------------------------------------------------------------
+
+export const ACCIDENT_PLACES = [
+  "MONTESSORI_CLASS",
+  "ART_CLASS",
+  "TOILET",
+  "GARDEN",
+  "DRAMA_CLASS",
+  "ACADEMIC_CLASS",
+  "OTHER",
+] as const;
+
+export const BODY_FIGURES = ["BOY", "GIRL"] as const;
+
+/**
+ * Where the child was hurt.
+ *
+ * On paper this is a printed list of words and the teacher circles one. The
+ * order here is that printed order — head downwards — because staff read it as
+ * a shape they already know, not alphabetically.
+ */
+export const BODY_PARTS = [
+  "FOREHEAD",
+  "EYEBROW",
+  "EYE",
+  "EAR",
+  "CHEEK",
+  "NOSE",
+  "MOUTH",
+  "LIP",
+  "TOOTH",
+  "TONGUE",
+  "CHIN",
+  "NECK",
+  "CHEST",
+  "ARM",
+  "HAND",
+  "STOMACH",
+  "KNEE",
+  "LEG",
+  "FOOT",
+  "TOE",
+] as const;
+
+export const INJURY_NATURES = [
+  "BITE",
+  "SCRATCH",
+  "ANKLE_SPRAIN",
+  "RED_MARK",
+  "BRUISES",
+  "CUT",
+  "HITTING",
+  "SCRATCH_ARTIFICIAL_GRASS",
+  "OTHER",
+] as const;
+
+export const INJURY_TREATMENTS = [
+  "ICE",
+  "BETADINE",
+  "RUNNING_WATER",
+  "BANDAGE",
+  "HEMOCLAR",
+  "OTHER",
+] as const;
+
+/**
+ * A drawn signature, arriving as a PNG data URL from a canvas.
+ *
+ * The shape is checked here and the bytes are checked again by sharp before
+ * anything is stored — this string is posted by the client and so is entirely
+ * attacker-controlled, whatever the interface that normally produces it. The
+ * length cap is on the encoded string: base64 inflates by a third, so this is
+ * roughly a two-megabyte image, far past any real signature.
+ */
+export const signatureDataUrl = z
+  .string()
+  .max(3_000_000, "That signature is too large")
+  .refine((v) => v.startsWith("data:image/png;base64,"), {
+    message: "Please sign in the box",
+  });
+
+/**
+ * One accident.
+ *
+ * Everything is mandatory, as the nursery asked, but that rule is enforced by
+ * `accident-rules` rather than here: this schema decides whether the submission
+ * is well-formed, and completeness is a separate question with its own list of
+ * what is still missing. Empty strings are therefore allowed through.
+ */
+export const accidentIncidentInput = z.object({
+  timeOfIncident: clockTime,
+  place: z.enum(ACCIDENT_PLACES).nullable(),
+  placeOther: z.string().trim().max(200),
+  figure: z.enum(BODY_FIGURES).nullable(),
+  bodyParts: z.array(z.enum(BODY_PARTS)),
+  nature: z.array(z.enum(INJURY_NATURES)),
+  natureOther: z.string().trim().max(200),
+  treatment: z.array(z.enum(INJURY_TREATMENTS)),
+  treatmentOther: z.string().trim().max(200),
+  description: z.string().trim().max(2000),
+  parentsNotified: z.boolean(),
+  doctorNotified: z.boolean(),
+  notificationTime: clockTime,
+});
+
+export type AccidentIncidentFormInput = z.infer<typeof accidentIncidentInput>;
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

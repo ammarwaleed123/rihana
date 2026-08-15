@@ -370,6 +370,7 @@ const ar: Dictionary = {
       photos: "الصور",
       albums: "الألبومات",
       reports: "التقارير اليومية",
+      accidents: "الحوادث",
       announcements: "الإعلانات",
       pickup: "الاصطحاب",
       children: "الأطفال",
@@ -488,6 +489,144 @@ const ar: Dictionary = {
       sentHomeNotice: "أُرسل للأهل في {date} بواسطة {name}",
       editedNotice: "عُدِّل في {date} بواسطة {name}",
       absentNotice: "{name} كان غائباً في هذا اليوم.",
+    },
+
+    /*
+     * تقرير الحوادث.
+     *
+     * أسماء العلاج مكتوبة كما تُنطق في الحضانة — «بيتادين»، «هيموكلار» — لأن
+     * المعلّمة تعرفها بهذه الأسماء على الورق، وترجمتها إلى مصطلحات طبية تجعلها
+     * تتوقف لتفكّر بدل أن تملأ النموذج.
+     */
+    accidents: {
+      title: "الحوادث",
+      description: "الإصابات، وما جرى عمله، ومن تم إبلاغه.",
+      noClasses: "لم يتم تعيينك على فصل بعد.",
+      noChildren: "لا يوجد أطفال في هذا الفصل.",
+      backToDay: "كل الأطفال",
+
+      none: "لا توجد حوادث",
+      count: {
+        zero: "لا توجد حوادث",
+        one: "حادثة واحدة",
+        two: "حادثتان",
+        few: "{n} حوادث",
+        many: "{n} حادثة",
+        other: "{n} حادثة",
+      },
+      open: "فتح",
+      record: "تسجيل حادثة",
+
+      dayTitle: "{name}",
+      addAnother: "تسجيل حادثة أخرى",
+      recorded: "تم التسجيل، وأُبلغت الأسرة.",
+      corrected: "تم التصحيح، وطُلب من الأسرة التوقيع مرة أخرى.",
+      deleted: "تم حذف السجل.",
+
+      timeOfIncident: "وقت الحادثة",
+      timeHint: "بنظام ٢٤ ساعة، مثل 08:15",
+
+      place: "مكان الحادثة",
+      placeMontessoriClass: "فصل المونتيسوري",
+      placeArtClass: "فصل الرسم",
+      placeToilet: "دورة المياه",
+      placeGarden: "الحديقة",
+      placeDramaClass: "فصل المسرح",
+      placeAcademicClass: "الفصل الدراسي",
+      placeOther: "مكان آخر",
+      placeOtherLabel: "أين؟",
+
+      figure: "الطفل",
+      figureBoy: "ولد",
+      figureGirl: "بنت",
+
+      bodyParts: "موضع الإصابة",
+      bodyPartsHint: "اختاري كل موضع أُصيب.",
+      partForehead: "الجبهة",
+      partEyebrow: "الحاجب",
+      partEye: "العين",
+      partEar: "الأذن",
+      partCheek: "الخد",
+      partNose: "الأنف",
+      partMouth: "الفم",
+      partLip: "الشفة",
+      partTooth: "السن",
+      partTongue: "اللسان",
+      partChin: "الذقن",
+      partNeck: "الرقبة",
+      partChest: "الصدر",
+      partArm: "الذراع",
+      partHand: "اليد",
+      partStomach: "البطن",
+      partKnee: "الركبة",
+      partLeg: "الساق",
+      partFoot: "القدم",
+      partToe: "إصبع القدم",
+
+      nature: "نوع الإصابة",
+      natureBite: "عضّة",
+      natureScratch: "خدش",
+      natureAnkleSprain: "التواء في الكاحل",
+      natureRedMark: "احمرار",
+      natureBruises: "كدمات",
+      natureCut: "جرح",
+      natureHitting: "ضربة",
+      natureScratchArtificialGrass: "خدش من العشب الصناعي",
+      natureOther: "شيء آخر",
+      natureOtherLabel: "ماذا حدث؟",
+
+      treatment: "الإسعاف المقدَّم",
+      treatmentIce: "ثلج",
+      treatmentBetadine: "بيتادين",
+      treatmentRunningWater: "ماء جارٍ",
+      treatmentBandage: "ضمادة",
+      treatmentHemoclar: "هيموكلار",
+      treatmentOther: "شيء آخر",
+      treatmentOtherLabel: "ماذا استُخدم؟",
+
+      whatHappened: "ماذا حدث",
+      whatHappenedHint: "بكلماتك. الأسرة ستقرأ هذا النص.",
+
+      notified: "من تم إبلاغه",
+      parentsNotified: "تم الاتصال بالأهل",
+      doctorNotified: "تم الاتصال بالطبيب",
+      notificationTime: "وقت الاتصال",
+      notificationHint: "مطلوب متى تم الاتصال بأحد.",
+
+      signature: "توقيعك",
+      signatureHint: "وقّعي لتأكيد أن هذا ما حدث. يصل التوقيع إلى الأسرة مع السجل.",
+      signatureEmpty: "وقّعي هنا",
+      signatureClear: "مسح",
+
+      submit: "تسجيل الحادثة",
+      submitBusy: "جارٍ التسجيل…",
+      correct: "حفظ التصحيح",
+      correctBusy: "جارٍ الحفظ…",
+      editThis: "تصحيح هذا السجل",
+      cancelEdit: "إلغاء",
+      deleteThis: "حذف هذا السجل",
+      deleteConfirm:
+        "حذف سجل الحادثة؟ سيُحذف معه توقيع الأسرة، ولا يمكن التراجع عن ذلك.",
+
+      recordedBy: "سجّلته {name} في {time}",
+      correctedNotice: "صُحِّح في {date}",
+      signedByFamily: "وقّعت الأسرة في {date}",
+      awaitingFamily: "لم توقّع الأسرة بعد",
+      awaitingAgain: "طُلب من الأسرة التوقيع مرة أخرى",
+
+      stillMissing: "ما زال مطلوباً قبل تسجيل الحادثة:",
+      missingTimeOfIncident: "وقت الحادثة",
+      missingPlace: "مكان الحادثة",
+      missingPlaceOther: "المكان — اخترتِ «مكان آخر»",
+      missingFigure: "ولد أم بنت",
+      missingBodyParts: "موضع واحد على الأقل",
+      missingNature: "نوع إصابة واحد على الأقل",
+      missingNatureOther: "ماذا حدث — اخترتِ «شيء آخر»",
+      missingTreatment: "إسعاف واحد على الأقل",
+      missingTreatmentOther: "ماذا استُخدم — اخترتِ «شيء آخر»",
+      missingDescription: "ماذا حدث",
+      missingNotificationTime: "وقت الاتصال",
+      missingSignature: "توقيعك",
     },
 
     children: {
@@ -1339,6 +1478,28 @@ const ar: Dictionary = {
     pickupRejectedBodyReason:
       "لم تتم الموافقة على طلبك بتفويض {person} لـ{child}: {reason}",
 
+    reportReadyTitle: "يوم {name}",
+    reportReadyBody: "أصبح تقرير يوم {name} في الحضانة جاهزاً للقراءة.",
+    reportUpdatedTitle: "تم تعديل يوم {name}",
+    reportUpdatedBody: "عدّلت المعلّمة شيئاً في تقرير يوم {name}.",
+    reportAbsentTitle: "تم تسجيل غياب {name}",
+    reportAbsentBody: "سُجِّل أن {name} لم يحضر إلى الحضانة اليوم.",
+
+    /*
+     * صياغة الحوادث تقول إن شيئاً وقع ولا تقول ما هو.
+     *
+     * هذه الرسائل تظهر على شاشة القفل، ومن يقرؤها هو من يمسك الهاتف. التفاصيل
+     * تبقى خلف تسجيل الدخول، في صفحة لا يفتحها إلا الأسرة.
+     */
+    accidentReportedTitle: "تعرّض {name} لحادث",
+    accidentReportedBody:
+      "سجّلت الحضانة حادثاً يخص {name}. فضلاً اقرأ التقرير ثم وقّع.",
+    accidentCorrectedTitle: "تم تصحيح سجل حادثة",
+    accidentCorrectedBody:
+      "صحّحت المعلّمة سجل الحادثة الخاص بـ{name}. فضلاً اقرأه مرة أخرى ثم وقّع.",
+    accidentAcknowledgedTitle: "تم توقيع سجل حادثة",
+    accidentAcknowledgedBody: "وقّع {parent} سجل الحادثة الخاص بـ{name}.",
+
     aChild: "طفلك",
     aClass: "فصل طفلك",
     aParent: "أحد أولياء الأمور",
@@ -1452,6 +1613,105 @@ const ar: Dictionary = {
 
       teacherComments: "من المعلّمة",
       noComment: "لا توجد ملاحظة اليوم.",
+    },
+
+    /*
+     * تقرير الحوادث كما تقرأه الأسرة.
+     *
+     * بصيغة الماضي وبلغة أبسط من نموذج المعلّمة: الأهل يُخبَرون بما حدث لطفلهم
+     * ولا يملؤون شيئاً. الشيء الوحيد الذي يفعلونه هو التوقيع.
+     */
+    accidents: {
+      metaTitle: "الحوادث",
+      title: "الحوادث",
+      description: "متى أُصيب طفلك في الحضانة، وما الذي جرى عمله.",
+      filterByChild: "تصفية حسب الطفل",
+      everyone: "الجميع",
+
+      emptyTitle: "لا يوجد شيء هنا",
+      emptyBody:
+        "إذا أُصيب طفلك في الحضانة، تسجّل المعلّمة ذلك هنا ويُطلب منك التوقيع. تبقى السجلات لمدة شهر.",
+
+      count: {
+        zero: "لا توجد حوادث",
+        one: "حادثة واحدة",
+        two: "حادثتان",
+        few: "{n} حوادث",
+        many: "{n} حادثة",
+        other: "{n} حادثة",
+      },
+      view: "اقرأ التفاصيل",
+      needsSignature: "بانتظار توقيعك",
+
+      timeOfIncident: "في {time}",
+      place: "المكان",
+      placeMontessoriClass: "فصل المونتيسوري",
+      placeArtClass: "فصل الرسم",
+      placeToilet: "دورة المياه",
+      placeGarden: "الحديقة",
+      placeDramaClass: "فصل المسرح",
+      placeAcademicClass: "الفصل الدراسي",
+      placeOther: "مكان آخر",
+
+      bodyParts: "موضع الإصابة",
+      partForehead: "الجبهة",
+      partEyebrow: "الحاجب",
+      partEye: "العين",
+      partEar: "الأذن",
+      partCheek: "الخد",
+      partNose: "الأنف",
+      partMouth: "الفم",
+      partLip: "الشفة",
+      partTooth: "السن",
+      partTongue: "اللسان",
+      partChin: "الذقن",
+      partNeck: "الرقبة",
+      partChest: "الصدر",
+      partArm: "الذراع",
+      partHand: "اليد",
+      partStomach: "البطن",
+      partKnee: "الركبة",
+      partLeg: "الساق",
+      partFoot: "القدم",
+      partToe: "إصبع القدم",
+
+      nature: "نوع الإصابة",
+      natureBite: "عضّة",
+      natureScratch: "خدش",
+      natureAnkleSprain: "التواء في الكاحل",
+      natureRedMark: "احمرار",
+      natureBruises: "كدمات",
+      natureCut: "جرح",
+      natureHitting: "ضربة",
+      natureScratchArtificialGrass: "خدش من العشب الصناعي",
+      natureOther: "شيء آخر",
+
+      treatment: "ما جرى عمله",
+      treatmentIce: "ثلج",
+      treatmentBetadine: "بيتادين",
+      treatmentRunningWater: "ماء جارٍ",
+      treatmentBandage: "ضمادة",
+      treatmentHemoclar: "هيموكلار",
+      treatmentOther: "شيء آخر",
+
+      whatHappened: "ماذا حدث",
+      notified: "من تم إبلاغه",
+      parentsNotified: "تم الاتصال بك في {time}",
+      doctorNotified: "تم الاتصال بالطبيب في {time}",
+      nobodyCalled: "لم تستدعِ الحالة أي اتصال.",
+
+      teacherSignature: "سجّلته ووقّعته {name}",
+      correctedNotice:
+        "صحّحت المعلّمة هذا السجل في {date}، فضلاً اقرأه مرة أخرى ثم وقّع.",
+
+      signature: "توقيعك",
+      signatureHint: "وقّع لتأكيد أنه تم إبلاغك بهذا.",
+      signatureEmpty: "وقّع هنا",
+      signatureClear: "مسح",
+      sign: "تم إبلاغي",
+      signing: "جارٍ الحفظ…",
+      signed: "وقّعت في {date}",
+      yourSignature: "توقيعك",
     },
 
     photos: {

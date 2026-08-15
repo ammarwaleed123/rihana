@@ -12,8 +12,10 @@
  * trap — the rows holding the storage keys are deleted inside the same
  * transaction, so a caller handed only ids has nothing left to resolve.
  *
- * Two kinds of object belong to a child and both must go: the photos that showed
- * only them, and the avatars of the people authorized to collect them.
+ * Three kinds of object belong to a child and all must go: the photos that
+ * showed only them, the avatars of the people authorized to collect them, and
+ * the handwritten signatures on their accident records — the teacher's and the
+ * family's alike.
  *
  * The deletion is driven through the REAL admin screen rather than by calling
  * the data layer, because the bug was in the action's wiring and not in the
@@ -27,6 +29,8 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 import { config as loadEnv } from "dotenv";
 
@@ -37,26 +41,101 @@ for (const path of [".env.local", ".env"]) {
 const { chromium } = await import("@playwright/test");
 const { PrismaPg } = await import("@prisma/adapter-pg");
 const { PrismaClient } = await import("../src/generated/prisma/client.js");
-const { DeleteObjectsCommand, HeadObjectCommand, PutObjectCommand, S3Client } =
-  await import("@aws-sdk/client-s3");
 
 const BASE = process.env.VERIFY_BASE_URL ?? "http://localhost:3120";
 const PASSWORD = process.env.VERIFY_PASSWORD ?? "ChangeMe!Local123";
-const BUCKET = process.env.S3_BUCKET!;
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
 });
 
-const s3 = new S3Client({
-  region: process.env.S3_REGION,
-  endpoint: process.env.S3_ENDPOINT,
-  forcePathStyle: true,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+/*
+ * Read and write objects the way the app under test does.
+ *
+ * This used to talk to S3 unconditionally. Development runs on the local
+ * driver, so every object the script placed sat in a bucket the app never
+ * touched and the run reported four failures that said nothing about the code —
+ * the worst kind of security check, because the honest reading of a red result
+ * is "something is broken" and here it never was.
+ */
+const DRIVER = process.env.STORAGE_DRIVER === "s3" ? "s3" : "local";
+const LOCAL_ROOT = resolve(process.cwd(), ".storage");
+
+type Objects = {
+  put(key: string): Promise<void>;
+  exists(key: string): Promise<boolean>;
+  removeAll(keys: string[]): Promise<void>;
+};
+
+async function s3Objects(): Promise<Objects> {
+  const {
+    DeleteObjectsCommand,
+    HeadObjectCommand,
+    PutObjectCommand,
+    S3Client,
+  } = await import("@aws-sdk/client-s3");
+
+  const Bucket = process.env.S3_BUCKET!;
+  const client = new S3Client({
+    region: process.env.S3_REGION,
+    endpoint: process.env.S3_ENDPOINT,
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+    },
+  });
+
+  return {
+    async put(Key) {
+      await client.send(
+        new PutObjectCommand({ Bucket, Key, Body: randomBytes(512) }),
+      );
+    },
+    async exists(Key) {
+      try {
+        await client.send(new HeadObjectCommand({ Bucket, Key }));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    async removeAll(keys) {
+      if (keys.length === 0) return;
+      await client
+        .send(
+          new DeleteObjectsCommand({
+            Bucket,
+            Delete: { Objects: keys.map((Key) => ({ Key })) },
+          }),
+        )
+        .catch(() => {});
+    },
+  };
+}
+
+const localObjects: Objects = {
+  async put(key) {
+    const path = resolve(LOCAL_ROOT, key);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, randomBytes(512));
   },
-});
+  async exists(key) {
+    try {
+      await stat(resolve(LOCAL_ROOT, key));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  async removeAll(keys) {
+    for (const key of keys) {
+      await rm(resolve(LOCAL_ROOT, key), { force: true }).catch(() => {});
+    }
+  },
+};
+
+const objects: Objects = DRIVER === "s3" ? await s3Objects() : localObjects;
 
 let passed = 0;
 let failed = 0;
@@ -68,12 +147,7 @@ function check(label: string, ok: boolean, detail = "") {
 }
 
 async function exists(key: string): Promise<boolean> {
-  try {
-    await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
-    return true;
-  } catch {
-    return false;
-  }
+  return objects.exists(key);
 }
 
 /** The purge is queued, so give the worker a moment rather than racing it. */
@@ -89,6 +163,7 @@ async function waitGone(keys: string[], ms = 20_000): Promise<string[]> {
 
 async function main() {
   const owner = await prisma.user.findFirstOrThrow({ where: { role: "OWNER" } });
+  const parent = await prisma.user.findFirstOrThrow({ where: { role: "PARENT" } });
   const klass = await prisma.class.findFirstOrThrow();
 
   const stamp = Date.now().toString().slice(-9);
@@ -120,12 +195,21 @@ async function main() {
     `verify-erasure/${stamp}/avatar.jpg`,
     `verify-erasure/${stamp}/avatar-thumb.jpg`,
   ];
-  const all = [...photoKeys, ...avatarKeys];
+  /*
+   * The handwritten signatures on an accident record — the teacher's and the
+   * family's. Exactly the same trap as the photographs: the rows cascade away
+   * with the child, so unless the keys are read before the delete, two drawn
+   * signatures of named people stay in the bucket after the family has been
+   * told the record was permanently destroyed.
+   */
+  const signatureKeys = [
+    `verify-erasure/${stamp}/sig-teacher.jpg`,
+    `verify-erasure/${stamp}/sig-parent.jpg`,
+  ];
+  const all = [...photoKeys, ...avatarKeys, ...signatureKeys];
 
-  for (const Key of all) {
-    await s3.send(
-      new PutObjectCommand({ Bucket: BUCKET, Key, Body: randomBytes(512) }),
-    );
+  for (const key of all) {
+    await objects.put(key);
   }
 
   const photo = await prisma.photo.create({
@@ -168,7 +252,36 @@ async function main() {
     },
   });
 
-  console.log(`\nErasure (against ${BASE})`);
+  const accident = await prisma.accidentReport.create({
+    data: { childId: child.id, date: new Date("2026-01-05"), classId: klass.id },
+    select: { id: true },
+  });
+
+  const incident = await prisma.accidentIncident.create({
+    data: {
+      reportId: accident.id,
+      timeOfIncident: "10:15",
+      place: "GARDEN",
+      figure: "GIRL",
+      bodyParts: ["KNEE"],
+      nature: ["SCRATCH"],
+      treatment: ["RUNNING_WATER"],
+      description: "Probe record for the erasure check.",
+      signatureStorageKey: signatureKeys[0]!,
+      signedByUserId: owner.id,
+    },
+    select: { id: true },
+  });
+
+  await prisma.accidentAcknowledgement.create({
+    data: {
+      incidentId: incident.id,
+      userId: parent.id,
+      signatureStorageKey: signatureKeys[1]!,
+    },
+  });
+
+  console.log(`\nErasure (against ${BASE}, storage driver: ${DRIVER})`);
   console.log(`  set up ${all.length} objects for a throwaway child\n`);
 
   const browser = await chromium.launch();
@@ -209,18 +322,23 @@ async function main() {
 
     const photoLeft = photoKeys.filter((k) => survivors.includes(k));
     const avatarLeft = avatarKeys.filter((k) => survivors.includes(k));
+    const signaturesLeft = signatureKeys.filter((k) => survivors.includes(k));
     check("…their photographs", photoLeft.length === 0);
-    check("…and their pickup people's avatars", avatarLeft.length === 0);
+    check("…their pickup people's avatars", avatarLeft.length === 0);
+    check(
+      "…and the signatures on their accident records",
+      signaturesLeft.length === 0,
+    );
+
+    check(
+      "the accident record itself is gone",
+      (await prisma.accidentReport.findUnique({ where: { id: accident.id } })) ===
+        null,
+    );
   } finally {
     await browser.close();
-    await s3
-      .send(
-        new DeleteObjectsCommand({
-          Bucket: BUCKET,
-          Delete: { Objects: all.map((Key) => ({ Key })) },
-        }),
-      )
-      .catch(() => {});
+    await objects.removeAll(all);
+    await prisma.accidentReport.deleteMany({ where: { childId: child.id } });
     await prisma.photoTag.deleteMany({ where: { childId: child.id } });
     await prisma.pickupPerson.deleteMany({ where: { childId: child.id } });
     await prisma.photo.deleteMany({ where: { uploadSessionId: upload.id } });

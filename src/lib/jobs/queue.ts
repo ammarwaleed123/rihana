@@ -34,6 +34,12 @@ export const QUEUES = {
   notifyPickupReviewed: "notify.pickup-reviewed",
   /** Tell the owners a family enquired through the public website. */
   notifyNewInquiry: "notify.new-inquiry",
+  /** Tell a family their child's day is ready, changed, or was an absence. */
+  notifyDailyReport: "notify.daily-report",
+  /** Tell a family their child was hurt, or that the record was corrected. */
+  notifyAccident: "notify.accident",
+  /** Tell staff a family has signed an accident record. */
+  notifyAccidentAcknowledged: "notify.accident-acknowledged",
   /** Send one queued email. */
   emailSend: "email.send",
   /** Remove objects from storage after a deletion. */
@@ -49,6 +55,15 @@ export type NotifyAlbumPublishedJob = { albumId: string };
 export type NotifyPickupPendingJob = { pickupPersonId: string };
 export type NotifyPickupReviewedJob = { pickupPersonId: string };
 export type NotifyNewInquiryJob = { inquiryId: string };
+export type NotifyDailyReportJob = {
+  reportId: string;
+  event: "ready" | "updated" | "absent";
+};
+export type NotifyAccidentJob = { incidentId: string };
+export type NotifyAccidentAcknowledgedJob = {
+  incidentId: string;
+  parentUserId: string;
+};
 export type EmailSendJob = { outboundEmailId: string };
 export type StoragePurgeJob = { keys: string[] };
 

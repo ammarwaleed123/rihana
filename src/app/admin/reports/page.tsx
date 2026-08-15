@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AdminNav } from "@/components/admin/admin-nav";
+import { DayPicker } from "@/components/admin/day-picker";
 import {
   Badge,
   Card,
@@ -14,8 +15,6 @@ import { dateOnly, listClassDay } from "@/lib/data/daily-reports";
 import { getDictionary } from "@/lib/i18n";
 import { getAppLocale } from "@/lib/i18n/app-locale";
 import { LOCALE_INTL } from "@/lib/i18n/config";
-
-import { DayPicker } from "./day-picker";
 
 export const metadata: Metadata = {
   title: "Daily reports",
@@ -77,6 +76,7 @@ export default async function ReportsPage({
       ) : (
         <>
           <DayPicker
+            basePath="/admin/reports"
             classes={classes.map((c) => ({ id: c.id, name: c.name }))}
             selectedClassId={selectedClassId ?? ""}
             date={dayValue}

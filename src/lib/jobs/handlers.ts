@@ -4,8 +4,11 @@ import { createThumbnail } from "@/lib/images/process";
 import {
   enqueue,
   QUEUES,
+  type NotifyAccidentAcknowledgedJob,
+  type NotifyAccidentJob,
   type NotifyAlbumPublishedJob,
   type NotifyAnnouncementJob,
+  type NotifyDailyReportJob,
   type NotifyPhotosPublishedJob,
   type NotifyNewInquiryJob,
   type NotifyPickupPendingJob,
@@ -17,8 +20,11 @@ import { logger, reportError } from "@/lib/logger";
 import { photoKey, storage } from "@/lib/storage";
 import { prisma } from "@/lib/db";
 import {
+  fanOutAccidentAcknowledged,
+  fanOutAccidentReported,
   fanOutAlbumPublished,
   fanOutAnnouncement,
+  fanOutDailyReport,
   fanOutNewInquiry,
   fanOutPhotosPublished,
   fanOutPickupPendingReview,
@@ -245,6 +251,42 @@ export async function handleNotifyNewInquiry(
   );
 }
 
+/** Tell a family about their child's day. Idempotent, as above. */
+export async function handleNotifyDailyReport(
+  job: NotifyDailyReportJob,
+): Promise<void> {
+  const { created } = await fanOutDailyReport(job.reportId, job.event);
+  logger.info(
+    { reportId: job.reportId, event: job.event, created },
+    "daily report notifications fanned out",
+  );
+}
+
+/** Tell a family their child was hurt. Idempotent, as above. */
+export async function handleNotifyAccident(
+  job: NotifyAccidentJob,
+): Promise<void> {
+  const { created } = await fanOutAccidentReported(job.incidentId);
+  logger.info(
+    { incidentId: job.incidentId, created },
+    "accident notifications fanned out",
+  );
+}
+
+/** Tell staff a family signed an accident record. Idempotent, as above. */
+export async function handleNotifyAccidentAcknowledged(
+  job: NotifyAccidentAcknowledgedJob,
+): Promise<void> {
+  const { created } = await fanOutAccidentAcknowledged(
+    job.incidentId,
+    job.parentUserId,
+  );
+  logger.info(
+    { incidentId: job.incidentId, created },
+    "accident acknowledgement fanned out",
+  );
+}
+
 /** Queue name to handler. Used by the worker entry point. */
 export const HANDLERS = {
   [QUEUES.photoProcess]: handlePhotoProcess,
@@ -254,6 +296,9 @@ export const HANDLERS = {
   [QUEUES.notifyPickupPending]: handleNotifyPickupPending,
   [QUEUES.notifyPickupReviewed]: handleNotifyPickupReviewed,
   [QUEUES.notifyNewInquiry]: handleNotifyNewInquiry,
+  [QUEUES.notifyDailyReport]: handleNotifyDailyReport,
+  [QUEUES.notifyAccident]: handleNotifyAccident,
+  [QUEUES.notifyAccidentAcknowledged]: handleNotifyAccidentAcknowledged,
   [QUEUES.storagePurge]: handleStoragePurge,
   [QUEUES.maintenance]: handleMaintenance,
 } as const;

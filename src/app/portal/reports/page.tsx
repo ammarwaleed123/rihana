@@ -3,11 +3,14 @@ import Link from "next/link";
 
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/shell";
 import { requireParent } from "@/lib/auth/scope";
+import { listAccidentsForParent } from "@/lib/data/accident-reports";
+import { acknowledgementIsStale } from "@/lib/data/accident-rules";
 import { listRecentReportsForParent } from "@/lib/data/daily-reports";
 import { getMyChildren } from "@/lib/data/photos";
 import { getDictionary } from "@/lib/i18n";
 import { getAppLocale } from "@/lib/i18n/app-locale";
 import { LOCALE_INTL } from "@/lib/i18n/config";
+import { plural } from "@/lib/i18n/plural";
 
 export const metadata: Metadata = {
   title: "Your child's day",
@@ -25,10 +28,32 @@ export default async function PortalReportsPage({
   const dict = await getDictionary(locale);
   const t = dict.portal.reports;
 
-  const [reports, children] = await Promise.all([
+  const [reports, children, accidents] = await Promise.all([
     listRecentReportsForParent(session, params.childId),
     getMyChildren(session),
+    listAccidentsForParent(session, params.childId),
   ]);
+
+  /*
+   * Accidents are reached from here rather than from a tab of their own.
+   *
+   * The bottom bar is six tabs on a phone already, and a seventh would squeeze
+   * every label — for a page that is empty in almost every family's account.
+   * But it has to be findable when it is not empty, and findable before there
+   * is anything in it, so the link is always rendered and says plainly when
+   * there is nothing.
+   */
+  const accidentCount = accidents.reduce(
+    (total, report) => total + report.incidents.length,
+    0,
+  );
+  const accidentsNeedSignature = accidents.some((report) =>
+    report.incidents.some((incident) => {
+      const mine = incident.acknowledgements[0];
+      if (!mine) return true;
+      return acknowledgementIsStale(mine.acknowledgedAt, incident.updatedAt);
+    }),
+  );
 
   const dayFormat = new Intl.DateTimeFormat(LOCALE_INTL[locale], {
     weekday: "long",
@@ -57,6 +82,31 @@ export default async function PortalReportsPage({
           ))}
         </nav>
       ) : null}
+
+      <Link
+        href={
+          params.childId
+            ? `/portal/accidents?childId=${params.childId}`
+            : "/portal/accidents"
+        }
+        className="mb-4 block"
+      >
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-bold text-ink">{dict.portal.accidents.title}</p>
+              <p className="mt-0.5 text-sm text-ink-faint">
+                {accidentCount === 0
+                  ? dict.portal.accidents.emptyTitle
+                  : plural(dict.portal.accidents.count, accidentCount, locale)}
+              </p>
+            </div>
+            {accidentsNeedSignature ? (
+              <Badge tone="yellow">{dict.portal.accidents.needsSignature}</Badge>
+            ) : null}
+          </div>
+        </Card>
+      </Link>
 
       {reports.length === 0 ? (
         <EmptyState title={t.emptyTitle} description={t.emptyBody} />
