@@ -8,7 +8,7 @@ import { requireSessionOrThrow } from "@/lib/auth/scope";
 import { hashIp } from "@/lib/auth/tokens";
 import { recordAudit } from "@/lib/data/audit";
 import {
-  baselineFrom,
+  baselineFromInput,
   changedFieldsBetween,
   parseBaseline,
 } from "@/lib/data/report-baseline";
@@ -48,6 +48,15 @@ export type ReportState = {
   errors?: Record<string, string>;
   /** What is still stopping this report going home, for the interface to name. */
   missing?: MissingField[];
+  /*
+   * The snapshot the form should compare against from now on.
+   *
+   * Sent back so the screen can move its baseline forward without a round trip
+   * to re-render the page. Fetching a fresh render instead re-ran React's
+   * reconciliation over every control, and that put a tick back into a box the
+   * teacher had just cleared — a save that appeared to work and did not.
+   */
+  baseline?: string;
 };
 
 async function context(session: Session) {
@@ -176,31 +185,7 @@ function changedSet(
   const before = parseBaseline(str(formData, "baseline"));
   if (!before || !submitted.success) return () => true;
 
-  const input = submitted.data;
-  const after = baselineFrom({
-    arrivalTime: input.arrivalTime,
-    playAreas: input.playAreas,
-    alsoEnjoyed: input.alsoEnjoyed,
-    quranMemorised: input.quranMemorised,
-    quranRevision: input.quranRevision,
-    littleMuslim: input.littleMuslim,
-    meals: input.meals.map((m) => ({
-      meal: m.meal,
-      amount: m.amount ?? "",
-      description: m.description,
-    })),
-    napNone: input.napNone,
-    napFrom: input.napFrom,
-    napUntil: input.napUntil,
-    toiletNothingToRecord: input.toiletNothingToRecord,
-    toiletEntries: input.toiletEntries,
-    bringCleanClothes: input.bringCleanClothes,
-    bringDiapers: input.bringDiapers,
-    bringOther: input.bringOther,
-    teacherComments: input.teacherComments,
-  });
-
-  const fields = changedFieldsBetween(before, after);
+  const fields = changedFieldsBetween(before, baselineFromInput(submitted.data));
   return (field: string) => fields.has(field);
 }
 
@@ -289,7 +274,11 @@ async function runSave(
      */
     const saved = await getReportForStaff(session, reportId);
 
-    return { success: wasPublished ? "resent" : "saved", missing: outstanding(saved) };
+    return {
+      success: wasPublished ? "resent" : "saved",
+      missing: outstanding(saved),
+      baseline: JSON.stringify(baselineFromInput(parsed.data)),
+    };
   } catch (error) {
     return toState(error, "report-save");
   }
@@ -338,7 +327,10 @@ async function runPublish(
       event: result.wasAlreadyPublished ? "updated" : "ready",
     });
 
-    return { success: result.wasAlreadyPublished ? "resent" : "sentHome" };
+    return {
+      success: result.wasAlreadyPublished ? "resent" : "sentHome",
+      baseline: JSON.stringify(baselineFromInput(parsed.data)),
+    };
   } catch (error) {
     return toState(error, "report-publish");
   }

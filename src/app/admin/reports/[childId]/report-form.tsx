@@ -108,6 +108,38 @@ function missingLabel(t: T, field: MissingField): string {
   return map[field];
 }
 
+/**
+ * Write a submission back into the form it came from.
+ *
+ * Undoes React's post-action reset. Reading from the FormData that was actually
+ * sent — rather than from a snapshot taken earlier — means what reappears is
+ * exactly what the server was given, including anything typed in the moments
+ * before the button was pressed.
+ *
+ * An unticked box is simply absent from FormData, which is why every checkbox
+ * is decided by looking for its own value rather than by reading a field that
+ * may not be there.
+ */
+function restoreInto(form: HTMLFormElement, data: FormData) {
+  for (const element of Array.from(form.elements)) {
+    if (element instanceof HTMLInputElement) {
+      if (!element.name || element.type === "hidden") continue;
+
+      if (element.type === "checkbox") {
+        // `playAreas` sends many values under one name; a plain tick box sends
+        // "on". Both are answered by asking whether this box's value was sent.
+        element.checked = data.getAll(element.name).includes(element.value);
+      } else if (element.type === "radio") {
+        element.checked = data.get(element.name) === element.value;
+      } else {
+        element.value = String(data.get(element.name) ?? "");
+      }
+    } else if (element instanceof HTMLTextAreaElement && element.name) {
+      element.value = String(data.get(element.name) ?? "");
+    }
+  }
+}
+
 function CheckRow({
   name,
   defaultChecked,
@@ -163,6 +195,25 @@ export function ReportForm({
    * the field that vanished being whichever one she touched first.
    */
   const formRef = useRef<HTMLFormElement>(null);
+
+  /*
+   * What was actually submitted, so it can be put back if it is ever lost.
+   *
+   * React resets an uncontrolled form once its action completes — every field
+   * snaps back to the value it was rendered with, which on a report being
+   * filled in for the first time is empty. The save had worked; the screen
+   * wiped itself, and a teacher who had just typed the arrival time watched it
+   * vanish and reasonably concluded nothing had been stored.
+   *
+   * Cancelling the reset (see `onReset` on the form) is enough on its own —
+   * measured. This stays as a second layer because the failure is invisible
+   * when it happens and the owner has now hit it twice: if a future React ever
+   * resets without a cancelable event, this puts the values straight back. It
+   * runs on every save, writing exactly what the server received, so it cannot
+   * quietly rot into code that no longer works.
+   */
+  const submitted = useRef<FormData | null>(null);
+  const baselineField = useRef<HTMLInputElement>(null);
 
   /**
    * Is there unsaved typing on screen?
@@ -226,6 +277,31 @@ export function ReportForm({
    */
   const missing = state.missing ?? (state.success ? [] : initialMissing);
 
+  /*
+   * Put the teacher's own work back on the screen after the save, and move the
+   * baseline forward to match.
+   *
+   * Deliberately without `router.refresh()`. Refreshing did update the
+   * baseline, but it also re-ran React's reconciliation across every control —
+   * and that put a tick back into a play area the teacher had just cleared, so
+   * her next save re-sent it and the box she had unticked came back. The server
+   * hands the new baseline back instead, which needs no re-render at all.
+   *
+   * Another teacher's changes still arrive: the visibility handler above
+   * refreshes whenever she returns to the app with nothing unsaved.
+   */
+  useEffect(() => {
+    if (!state.success) return;
+
+    const form = formRef.current;
+    const data = submitted.current;
+    if (form && data) restoreInto(form, data);
+
+    if (baselineField.current && state.baseline) {
+      baselineField.current.value = state.baseline;
+    }
+  }, [state]);
+
   const successText =
     state.success === "saved"
       ? t.saved
@@ -245,7 +321,42 @@ export function ReportForm({
   }
 
   return (
-    <form ref={formRef} action={submit} className="space-y-6 pb-24">
+    <form
+      ref={formRef}
+      /*
+       * Wrapped rather than passing `submit` directly, only to keep a copy of
+       * what went. With JavaScript off this never runs — the browser posts the
+       * form itself — so progressive enhancement is untouched.
+       */
+      /*
+       * `action={submit}` directly, never wrapped in a closure.
+       *
+       * Wrapping it does work with JavaScript on, and quietly breaks the form
+       * without: Next can only render the fallback form action when the prop is
+       * the action itself, so an inline arrow leaves a form that posts nowhere.
+       * The copy for the fallback restore is taken in `onSubmit` instead, which
+       * simply never runs when there is no JavaScript to run it.
+       */
+      action={submit}
+      onSubmit={(event) => {
+        submitted.current = new FormData(event.currentTarget);
+      }}
+      /*
+       * Refuse the reset React performs after a form action completes.
+       *
+       * That reset is right for a form you submit and walk away from. This one
+       * is an editing surface a teacher keeps open all day, and resetting it
+       * put every field back to the value the page was opened with — so the
+       * arrival time she had just typed vanished in front of her while the save
+       * had in fact succeeded.
+       *
+       * `reset` is a cancelable event, so this stops it at source rather than
+       * putting the values back afterwards, which was a race: it worked on the
+       * first save and lost to the reset on the second.
+       */
+      onReset={(event) => event.preventDefault()}
+      className="space-y-6 pb-24"
+    >
       <input type="hidden" name="reportId" value={report.id} />
       {/*
        * The values this form was rendered with. The server diffs the submission
@@ -256,6 +367,7 @@ export function ReportForm({
       <input
         type="hidden"
         name="baseline"
+        ref={baselineField}
         defaultValue={JSON.stringify(baselineFrom(report))}
       />
 

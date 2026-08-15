@@ -115,6 +115,45 @@ export function baselineFrom(report: ReportLike): ReportBaseline {
 }
 
 /**
+ * The snapshot a submission represents.
+ *
+ * Used on both sides of the save: the action diffs against it, and it becomes
+ * the form's new baseline afterwards. Built from what was SUBMITTED rather than
+ * from what is now in the database — deliberately. The stored row may also hold
+ * another teacher's edits, and pinning this form's baseline to those would make
+ * the next save look like a change back to what is on this screen, quietly
+ * undoing her work. The baseline has to describe what this teacher is looking
+ * at, which is what she just sent.
+ */
+export function baselineFromInput(input: {
+  arrivalTime: string;
+  playAreas: readonly string[];
+  alsoEnjoyed: string;
+  quranMemorised: string;
+  quranRevision: string;
+  littleMuslim: string;
+  meals: ReadonlyArray<{ meal: MealName; amount: string | null; description: string }>;
+  napNone: boolean;
+  napFrom: string;
+  napUntil: string;
+  toiletNothingToRecord: boolean;
+  toiletEntries: ReadonlyArray<ToiletLine>;
+  bringCleanClothes: boolean;
+  bringDiapers: boolean;
+  bringOther: string;
+  teacherComments: string;
+}): ReportBaseline {
+  return baselineFrom({
+    ...input,
+    meals: input.meals.map((m) => ({
+      meal: m.meal,
+      amount: m.amount ?? "",
+      description: m.description,
+    })),
+  });
+}
+
+/**
  * Read a baseline back off the wire.
  *
  * The snapshot travels through a hidden field, so it is client-supplied like
